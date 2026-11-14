@@ -4,6 +4,7 @@ import { useT } from "@/i18n/react";
 const BY_CODE: Record<string, string> = {
   NOT_TEAM_MEMBER: "errors.not_member",
   USER_INACTIVE: "errors.inactive",
+  NO_ORDER_ACCESS: "errors.no_order_access",
   ALREADY_TEAM_MEMBER: "errors.already_member",
   ORDER_NOT_WAITING: "errors.not_waiting",
   USER_NOT_FOUND: "errors.gone",

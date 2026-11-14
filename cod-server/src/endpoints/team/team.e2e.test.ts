@@ -38,7 +38,7 @@ const insertOrders = async (rows: ReturnType<typeof order>[]) => {
 };
 
 beforeEach(async () => {
-  for (const table of ["business_events", "activity_logs", "shipments", "orders", "drivers", "customers", "team_pay", "team_agents", "store_team_config", "user_scopes", "users", "stores"]) await d1.db.run(sql.raw(`DELETE FROM ${table}`));
+  for (const table of ["business_events", "activity_logs", "shipments", "orders", "drivers", "customers", "team_pay", "team_agents", "team_memberships", "store_team_config", "user_scopes", "users", "stores"]) await d1.db.run(sql.raw(`DELETE FROM ${table}`));
   await d1.db.insert(schema.stores).values({ id: "store-team", name: "Boutique", lang: "ar", createdAt: T, updatedAt: T });
   await d1.db.insert(schema.users).values([
     { id: "u-samira", name: "Samira", email: "samira@shop.dz", role: "staff", status: "active" },
@@ -97,10 +97,25 @@ describe("the team's members", () => {
     expect(await assigneeOf("o-waiting")).toBe("u-karim");
   });
 
-  it("are given orders only while on the team", async () => {
+  it("count only the orders still waiting with them, an archived one left out", async () => {
+    await manager().post("/api/team/members", { userId: "u-samira", receiving: false });
+    await insertOrders([
+      order({ id: "w-1", assigneeId: "u-samira", assignedAt: T, callbackAt: T }),
+      order({ id: "w-archived", assigneeId: "u-samira", assignedAt: T, callbackAt: T, archivedAt: T }),
+      order({ id: "w-done", assigneeId: "u-samira", assignedAt: T, status: "ready" }),
+    ]);
+    expect((await manager().get("/api/team/members")).body.data.members[0]).toMatchObject({ userId: "u-samira", waiting: 1, callbacks: 1 });
+  });
+
+  it("are given orders only while on the team, and only once they can see orders", async () => {
     await insertOrders([order({ id: "o-1" })]);
     expect((await manager().post("/api/orders/assign", { orderIds: ["o-1"], to: "u-amina" })).body).toMatchObject({ code: "NOT_TEAM_MEMBER" });
     await manager().post("/api/team/members", { userId: "u-amina", receiving: false });
+    const refused = await manager().post("/api/orders/assign", { orderIds: ["o-1"], to: "u-amina" });
+    expect(refused.status).toBe(422);
+    expect(refused.body).toMatchObject({ code: "NO_ORDER_ACCESS" });
+    expect((await d1.db.select({ assigneeId: schema.orders.assigneeId }).from(schema.orders).get())!.assigneeId).toBeNull();
+    await d1.db.insert(schema.userScopes).values({ id: "s-own", userId: "u-amina", scope: SCOPES.ORDERS_READ_ASSIGNED, grantedAt: T });
     expect((await manager().post("/api/orders/assign", { orderIds: ["o-1"], to: "u-amina" })).body.data).toEqual([{ orderId: "o-1", ok: true, changed: true }]);
   });
 
@@ -249,8 +264,17 @@ describe("pay and the month's payroll", () => {
   const pay = (userId: string, kind: string, amount: number, validFrom: string) => manager().post(`/api/team/members/${userId}/pay`, { kind, amount, validFrom });
   const confirmed = (id: string, by: string, at: string) => order({ id, status: "ready", confirmedAt: at, confirmedBy: by, decidedAt: at, decidedBy: by, assigneeId: by, assignedAt: at });
 
+  const joined = (userId: string, at: string) => d1.db.update(schema.teamMemberships).set({ joinedAt: at }).where(eq(schema.teamMemberships.userId, userId));
+  const left = (userId: string, at: string) => d1.db.update(schema.teamMemberships).set({ leftAt: at }).where(eq(schema.teamMemberships.userId, userId));
+  const lineOf = (lines: Array<{ userId: string }>, userId: string) => lines.find((line) => line.userId === userId);
+  const payrollOf = async (month: string) => (await manager().get(`/api/team/payroll?month=${month}`)).body.data;
+
   beforeEach(async () => {
-    for (const userId of ["u-samira", "u-karim", "u-amina"]) await manager().post("/api/team/members", { userId, receiving: false });
+    await d1.db.run(sql.raw("DELETE FROM team_memberships"));
+    for (const userId of ["u-samira", "u-karim", "u-amina"]) {
+      await manager().post("/api/team/members", { userId, receiving: false });
+      await joined(userId, "2026-10-01T08:00:00.000Z");
+    }
   });
 
   it("pays each member their salary in force at the month's end and each commission at the rate of its day", async () => {
@@ -273,11 +297,53 @@ describe("pay and the month's payroll", () => {
     await d1.db.insert(schema.shipments).values({ id: "s-oct", orderId: "p-oct", kind: "driver", driverId: "d1", handoffState: "accepted", deliveryType: "home", codAmount: 3600, revision: "r", deliveredAt: "2026-11-02T10:00:00.000Z", createdAt: T, updatedAt: T });
 
     const { body } = await manager().get("/api/team/payroll?month=2026-11");
+    const member = { onTeam: true, joinedOn: null, leftOn: null };
     expect(body.data).toEqual([
-      { userId: "u-amina", name: "Amina", paySet: false, salary: null, confirmed: { orders: 1, amount: 0, unpriced: 0 }, delivered: { orders: 0, amount: 0, unpriced: 0 }, total: 0, incomplete: true },
-      { userId: "u-karim", name: "Karim", paySet: true, salary: null, confirmed: { orders: 2, amount: 120, unpriced: 1 }, delivered: { orders: 0, amount: 0, unpriced: 0 }, total: 120, incomplete: true },
-      { userId: "u-samira", name: "Samira", paySet: true, salary: 45000, confirmed: { orders: 2, amount: 250, unpriced: 0 }, delivered: { orders: 1, amount: 200, unpriced: 0 }, total: 45450, incomplete: false },
+      { userId: "u-amina", name: "Amina", ...member, paySet: false, salary: null, confirmed: { orders: 1, amount: 0, unpriced: 0 }, delivered: { orders: 0, amount: 0, unpriced: 0 }, total: 0, incomplete: true },
+      { userId: "u-karim", name: "Karim", ...member, paySet: true, salary: null, confirmed: { orders: 2, amount: 120, unpriced: 1 }, delivered: { orders: 0, amount: 0, unpriced: 0 }, total: 120, incomplete: true },
+      { userId: "u-samira", name: "Samira", ...member, paySet: true, salary: 45000, confirmed: { orders: 2, amount: 250, unpriced: 0 }, delivered: { orders: 1, amount: 200, unpriced: 0 }, total: 45450, incomplete: false },
     ]);
+  });
+
+  it("never changes a past month when someone leaves the team", async () => {
+    await pay("u-amina", "salary", 30000, "2026-10-01");
+    await pay("u-amina", "per_confirmed", 100, "2026-10-01");
+    await insertOrders([confirmed("o-oct", "u-amina", "2026-10-20T10:00:00.000Z")]);
+    const before = await payrollOf("2026-10");
+    expect(lineOf(before, "u-amina")).toMatchObject({ onTeam: true, salary: 30000, total: 30100 });
+    expect((await manager().delete("/api/team/members/u-amina")).status).toBe(200);
+    expect(await payrollOf("2026-10")).toEqual(before);
+  });
+
+  it("pays a member who joined or left in the month their whole salary, and says the day", async () => {
+    await pay("u-karim", "salary", 20000, "2026-11-01");
+    await pay("u-amina", "salary", 30000, "2026-10-01");
+    await joined("u-karim", "2026-11-11T23:30:00.000Z");
+    await left("u-amina", "2026-11-20T10:00:00.000Z");
+    const lines = await payrollOf("2026-11");
+    expect(lineOf(lines, "u-karim")).toMatchObject({ onTeam: true, joinedOn: "2026-11-12", leftOn: null, salary: 20000, total: 20000 });
+    expect(lineOf(lines, "u-amina")).toMatchObject({ onTeam: true, joinedOn: null, leftOn: "2026-11-20", salary: 30000 });
+    expect(lineOf(await payrollOf("2026-10"), "u-karim")).toBeUndefined();
+    expect(lineOf(await payrollOf("2026-12"), "u-amina")).toBeUndefined();
+    expect(lineOf(await payrollOf("2026-12"), "u-karim")).toMatchObject({ joinedOn: null, salary: 20000 });
+  });
+
+  it("counts someone who left and came back in the month as on the team, from their first day", async () => {
+    await pay("u-amina", "salary", 30000, "2026-10-01");
+    await left("u-amina", "2026-11-05T10:00:00.000Z");
+    await d1.db.insert(schema.teamMemberships).values({ id: "m-back", userId: "u-amina", joinedAt: "2026-11-18T10:00:00.000Z" });
+    expect(lineOf(await payrollOf("2026-11"), "u-amina")).toMatchObject({ onTeam: true, joinedOn: null, leftOn: null, salary: 30000 });
+  });
+
+  it("pays a former member's commission on work credited in the month, but no salary; leaves out who was never on the team or paid", async () => {
+    await pay("u-amina", "salary", 30000, "2026-10-01");
+    await pay("u-amina", "per_delivered", 200, "2026-10-01");
+    await left("u-amina", "2026-10-25T10:00:00.000Z");
+    await insertOrders([confirmed("o-before", "u-amina", "2026-10-20T10:00:00.000Z"), confirmed("o-owner", "u-owner", "2026-11-03T10:00:00.000Z")]);
+    await d1.db.insert(schema.shipments).values({ id: "s-before", orderId: "o-before", kind: "driver", driverId: "d1", handoffState: "accepted", deliveryType: "home", codAmount: 3600, revision: "r", deliveredAt: "2026-11-04T10:00:00.000Z", createdAt: T, updatedAt: T });
+    const lines = await payrollOf("2026-11");
+    expect(lineOf(lines, "u-amina")).toMatchObject({ onTeam: false, salary: null, delivered: { orders: 1, amount: 200, unpriced: 0 }, total: 200, incomplete: false });
+    expect(lineOf(lines, "u-owner")).toBeUndefined();
   });
 
   it("starts a salary on the first of its month, and replaces a rate of the same kind from the same day", async () => {
@@ -293,7 +359,16 @@ describe("pay and the month's payroll", () => {
     expect((await manager().delete(`/api/team/pay/${rates[0].id}`)).status).toBe(404);
   });
 
-  it("is seen and set only with the finance permission, for members of the team", async () => {
+  it("is corrected for someone who left the team, and the removal of a rate says what it was", async () => {
+    await manager().delete("/api/team/members/u-amina");
+    const rate = (await pay("u-amina", "salary", 30000, "2026-10-01")).body.data;
+    expect(rate).toMatchObject({ kind: "salary", amount: 30000, validFrom: "2026-10-01" });
+    expect((await manager().delete(`/api/team/pay/${rate.id}`)).status).toBe(200);
+    const [log] = await d1.db.select().from(schema.activityLogs).where(eq(schema.activityLogs.action, "team.pay_removed")).all();
+    expect(JSON.parse(log!.metadata!)).toMatchObject({ payRateId: rate.id, kind: "salary", amount: 30000, validFrom: "2026-10-01" });
+  });
+
+  it("is seen and set only with the finance permission, for people who are or were on the team", async () => {
     const teamOnly = as("u-karim", [SCOPES.TEAM_READ, SCOPES.TEAM_MANAGE]);
     expect((await teamOnly.get("/api/team/payroll?month=2026-11")).status).toBe(403);
     expect((await teamOnly.get("/api/team/members/u-samira/pay")).status).toBe(403);

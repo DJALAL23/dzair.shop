@@ -164,11 +164,11 @@ const routes = [
     auth: { scope: SCOPES.FINANCE_MANAGE },
     tags: TAGS,
     summary: "Set a pay rate from a date",
-    description: "A monthly salary, or an amount per order confirmed or per confirmed order delivered. It applies from its day on; earlier months keep the rates they had.",
+    description: "A monthly salary, or an amount per order confirmed or per confirmed order delivered. It applies from its day on; earlier months keep the rates they had. Set for anyone who is or was on the team, so a past month can still be corrected after they leave.",
     operationId: "setTeamMemberPay",
     params: v.userIdParams,
     body: v.payRateSchema,
-    responses: { 200: { description: "The rate", content: json(SuccessResponseSchema(PayRateSchema)) }, 422: { description: "Not on the team (NOT_TEAM_MEMBER)" } },
+    responses: { 200: { description: "The rate", content: json(SuccessResponseSchema(PayRateSchema)) }, 422: { description: "Never on the team (NOT_TEAM_MEMBER)" } },
     handler: h.setPay,
   }),
   defineRoute({

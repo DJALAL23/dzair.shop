@@ -26,7 +26,7 @@ export function GiveOrdersDialog({ orderIds, currentAssigneeId, onClose, onDone 
 
   useEffect(() => {
     getTeam()
-      .then((team) => setMembers([...team.members.filter((m) => m.active)].sort((a, b) => Number(b.receiving) - Number(a.receiving))))
+      .then((team) => setMembers([...team.members.filter((m) => m.active && m.reach !== "none")].sort((a, b) => Number(b.receiving) - Number(a.receiving))))
       .catch(() => setMembers([]));
     getTeamSettings().then(setConfig).catch(() => setConfig(null));
   }, []);

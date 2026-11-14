@@ -139,7 +139,7 @@ const STAT_TONE = {
 
 /** The few numbers a page is about, in one strip; each can open what it counts. */
 export function StatStrip({ items, className = "" }: { items: StatItem[]; className?: string }) {
-  const columns = items.length >= 4 ? "lg:grid-cols-4" : items.length === 3 ? "sm:grid-cols-3" : "sm:grid-cols-2";
+  const columns = items.length >= 4 ? "lg:grid-cols-4" : items.length === 3 ? "sm:grid-cols-3 [&>:first-child]:col-span-2 sm:[&>:first-child]:col-span-1" : "sm:grid-cols-2";
   return (
     <div className={`grid grid-cols-2 gap-px overflow-hidden rounded-xl bg-border shadow-card ${columns} ${className}`}>
       {items.map(({ label, value, hint, icon: Icon, href, tone = "neutral" }) => {

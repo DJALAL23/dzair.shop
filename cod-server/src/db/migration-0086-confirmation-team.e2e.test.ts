@@ -111,7 +111,7 @@ describe("migration 0086", () => {
   });
 
   it("starts with no team, no pay, and orders shared out by hand", async () => {
-    for (const table of ["team_agents", "team_pay", "store_team_config"]) {
+    for (const table of ["team_agents", "team_memberships", "team_pay", "store_team_config"]) {
       expect(await all(`SELECT * FROM ${table}`)).toEqual([]);
     }
   });
@@ -124,6 +124,24 @@ describe("migration 0086", () => {
     expect((await all("SELECT assignee_id FROM orders WHERE id = 'o-new'"))[0]).toEqual({ assignee_id: null });
     expect(await handling("o-gone")).toMatchObject({ confirmed_by: "u-gone" });
     expect(await all("SELECT * FROM team_agents WHERE user_id = 'u-gone'")).toEqual([]);
+  });
+
+  it("keeps each time someone is on the team: from the day they joined to the day they left, again when they come back", async () => {
+    await run("INSERT INTO team_agents (user_id, receiving, created_at, updated_at) VALUES ('u-owner', 0, '2026-10-01T08:00:00.000Z', '2026-10-01T08:00:00.000Z')");
+    expect(await all("SELECT user_id, joined_at, left_at FROM team_memberships WHERE user_id = 'u-owner'")).toEqual([{ user_id: "u-owner", joined_at: "2026-10-01T08:00:00.000Z", left_at: null }]);
+    await run("UPDATE team_agents SET receiving = 1 WHERE user_id = 'u-owner'");
+    await run("DELETE FROM team_agents WHERE user_id = 'u-owner'");
+    const [stint] = await all<{ left_at: string }>("SELECT left_at FROM team_memberships WHERE user_id = 'u-owner'");
+    expect(stint!.left_at).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+    expect(Math.abs(Date.parse(stint!.left_at) - Date.now())).toBeLessThan(60_000);
+    await run("INSERT INTO team_agents (user_id, receiving, created_at, updated_at) VALUES ('u-owner', 0, ?1, ?1)", T);
+    expect(await all("SELECT joined_at, left_at IS NULL AS open FROM team_memberships WHERE user_id = 'u-owner' ORDER BY joined_at")).toEqual([
+      { joined_at: "2026-10-01T08:00:00.000Z", open: 0 },
+      { joined_at: T, open: 1 },
+    ]);
+    await expect(run("INSERT INTO team_memberships (id, user_id, joined_at) VALUES ('m-twice', 'u-owner', ?1)", T)).rejects.toThrow(/UNIQUE/);
+    await run("DELETE FROM team_agents WHERE user_id = 'u-owner'");
+    expect(await all("SELECT * FROM team_memberships WHERE user_id = 'u-owner' AND left_at IS NULL")).toEqual([]);
   });
 
   it("keeps each member's turn: it grows each time any member gets an order, however it was given", async () => {
@@ -178,5 +196,6 @@ describe("migration 0086", () => {
     expect(await plan("SELECT id FROM orders WHERE callback_at IS NOT NULL ORDER BY callback_at")).toContain("orders_callbacks");
     expect(await plan("SELECT confirmed_by, COUNT(*) FROM orders WHERE confirmed_at >= '2026-11-01' AND confirmed_at < '2026-12-01' GROUP BY confirmed_by")).toContain("orders_confirmed");
     expect(await plan("SELECT o.confirmed_by FROM shipments s JOIN orders o ON o.id = s.order_id WHERE s.delivered_at >= '2026-11-01' AND s.delivered_at < '2026-12-01'")).toContain("shipments_delivered");
+    expect(await plan("SELECT user_id FROM team_memberships WHERE joined_at < '2026-12-01' AND (left_at IS NULL OR left_at >= '2026-11-01')")).toContain("team_memberships_period");
   });
 });

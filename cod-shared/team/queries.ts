@@ -9,7 +9,7 @@
 
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import type { AppDb } from "../db/client";
-import { orders, storeTeamConfig, teamAgents, teamPay, users, userScopes } from "../db/schema";
+import { orders, storeTeamConfig, teamAgents, teamMemberships, teamPay, users, userScopes } from "../db/schema";
 import { STORE_UTC_OFFSET_HOURS } from "../queries/analytics";
 import { SCOPES } from "../rbac/scopes";
 import { DEFAULT_TEAM_CONFIG, PAY_KINDS, WAITING_STATUSES, type Distribution, type PayKind } from "./model";
@@ -43,8 +43,8 @@ export async function listTeamMembers(db: AppDb): Promise<TeamMemberRow[]> {
       status: users.status,
       receiving: teamAgents.receiving,
       joinedAt: teamAgents.createdAt,
-      waiting: sql<number>`(select count(*) from orders w where w.assignee_id = ${teamAgents.userId} and w.status in ('new', 'unreachable'))`,
-      callbacks: sql<number>`(select count(*) from orders w where w.assignee_id = ${teamAgents.userId} and w.status in ('new', 'unreachable') and w.callback_at is not null)`,
+      waiting: sql<number>`(select count(*) from orders w where w.assignee_id = ${teamAgents.userId} and w.status in ('new', 'unreachable') and w.archived_at is null)`,
+      callbacks: sql<number>`(select count(*) from orders w where w.assignee_id = ${teamAgents.userId} and w.status in ('new', 'unreachable') and w.archived_at is null and w.callback_at is not null)`,
     })
     .from(teamAgents)
     .innerJoin(users, eq(users.id, teamAgents.userId))
@@ -175,8 +175,13 @@ export async function setPay(db: AppDb, input: { userId: string; kind: PayKind; 
   return row;
 }
 
-export async function removePay(db: AppDb, id: string): Promise<{ userId: string } | null> {
-  return (await db.delete(teamPay).where(eq(teamPay.id, id)).returning({ userId: teamPay.userId }).get()) ?? null;
+export async function removePay(db: AppDb, id: string): Promise<{ userId: string; kind: PayKind; amount: number; validFrom: string } | null> {
+  return (await db.delete(teamPay).where(eq(teamPay.id, id)).returning({ userId: teamPay.userId, kind: teamPay.kind, amount: teamPay.amount, validFrom: teamPay.validFrom }).get()) ?? null;
+}
+
+/** Whether `userId` is or ever was on the team: whose pay can be set, so a past month can be corrected after they leave. */
+export async function wasEverOnTeam(db: AppDb, userId: string): Promise<boolean> {
+  return Boolean(await db.select({ id: teamMemberships.id }).from(teamMemberships).where(eq(teamMemberships.userId, userId)).limit(1).get());
 }
 
 /** The instant a store day (YYYY-MM-DD, Algeria) starts. */
@@ -257,9 +262,15 @@ export async function teamResults(db: AppDb, from: string, to: string): Promise<
 export interface PayrollLine {
   userId: string;
   name: string;
+  /** True when they were on the team at some point in the month. */
+  onTeam: boolean;
+  /** The store day they joined, when it fell in the month. */
+  joinedOn: string | null;
+  /** The store day they left, when it fell in the month. */
+  leftOn: string | null;
   /** False when no pay of any kind was ever set for them. */
   paySet: boolean;
-  /** The salary in force at the month's end; null when they have none then. */
+  /** The salary in force that month, paid whole; null when they have none, or were not on the team. */
   salary: number | null;
   /** Orders they confirmed this month, the commission on them, and how many fell before their first rate of that kind. */
   confirmed: { orders: number; amount: number; unpriced: number };
@@ -267,16 +278,25 @@ export interface PayrollLine {
   delivered: { orders: number; amount: number; unpriced: number };
   /** Salary plus commissions; what is unpriced is not in it. */
   total: number;
-  /** True when something is missing: no pay set, or orders with no rate in force for a kind they are paid. */
+  /** True when something is missing: a member with no pay set, or orders with no rate in force for a kind they are paid. */
   incomplete: boolean;
 }
 
+/** The store day (YYYY-MM-DD, Algeria) an instant falls on. */
+export function storeDayOf(instant: string): string {
+  return new Date(Date.parse(instant) + STORE_UTC_OFFSET_HOURS * 3_600_000).toISOString().slice(0, 10);
+}
+
 /**
- * A month's payroll (YYYY-MM): each member's salary in force at the month's
- * end, and their commission on the orders they confirmed in it and on those
- * delivered in it, each at the rate in force on the day it happened. A kind
- * of pay a member does not have counts nothing and misses nothing. Lists team
- * members and anyone credited with work that month.
+ * A month's payroll (YYYY-MM). It lists everyone who was on the team at
+ * some point in the month, and anyone with pay set who was credited with
+ * work in it. A salary starts on the first of a month, so a member is paid
+ * the one in force that month, whole, even if they joined or left during
+ * it; the day they joined or left is given so the merchant sees it.
+ * Commissions are on the orders they confirmed in the month and on those
+ * delivered in it, each at the rate in force on its day. A kind of pay a
+ * member does not have counts nothing and misses nothing. Who is on the
+ * team now never changes a past month.
  */
 export async function payroll(db: AppDb, month: string): Promise<PayrollLine[]> {
   const first = `${month}-01`;
@@ -286,7 +306,7 @@ export async function payroll(db: AppDb, month: string): Promise<PayrollLine[]> 
   const rate = (kind: PayKind, member: string, day: SQLChunk) =>
     sql`(select p.amount from team_pay p where p.user_id = ${sql.raw(member)} and p.kind = ${kind} and p.valid_from <= ${day} order by p.valid_from desc limit 1)`;
 
-  const [confirmations, deliveries, salaries, kinds, members] = await db.batch([
+  const [confirmations, deliveries, salaries, kinds, stints] = await db.batch([
     db
       .select({
         userId: sql<string>`o.confirmed_by`,
@@ -313,40 +333,56 @@ export async function payroll(db: AppDb, month: string): Promise<PayrollLine[]> 
       .where(and(eq(teamPay.kind, "salary"), sql`${teamPay.validFrom} < ${nextMonth}`))
       .orderBy(asc(teamPay.userId), desc(teamPay.validFrom)),
     db.selectDistinct({ userId: teamPay.userId, kind: teamPay.kind }).from(teamPay),
-    db.select({ userId: teamAgents.userId }).from(teamAgents),
+    db
+      .select({
+        userId: teamMemberships.userId,
+        joinedAt: sql<string>`min(${teamMemberships.joinedAt})`,
+        leftAt: sql<string | null>`case when sum(${teamMemberships.leftAt} is null) > 0 then null else max(${teamMemberships.leftAt}) end`,
+      })
+      .from(teamMemberships)
+      .where(and(sql`${teamMemberships.joinedAt} < ${end}`, sql`(${teamMemberships.leftAt} is null or ${teamMemberships.leftAt} >= ${start})`))
+      .groupBy(teamMemberships.userId),
   ]);
 
-  const salaryOf = new Map<string, number>();
-  for (const row of salaries) if (!salaryOf.has(row.userId)) salaryOf.set(row.userId, row.amount);
   const paidBy = new Set(kinds.map((row) => `${row.userId}:${row.kind}`));
+  const paid = new Set(kinds.map((row) => row.userId));
+  const stintOf = new Map(stints.map((row) => [row.userId, row]));
   const confirmedOf = new Map(confirmations.map((r) => [r.userId, r]));
   const deliveredOf = new Map(deliveries.map((r) => [r.userId, r]));
-  const ids = [...new Set([...members.map((m) => m.userId), ...confirmedOf.keys(), ...deliveredOf.keys()])];
+  const credited = [...confirmedOf.keys(), ...deliveredOf.keys()].filter((userId) => paid.has(userId));
+  const ids = [...new Set([...stintOf.keys(), ...credited])];
   const names = ids.length ? new Map((await db.select({ id: users.id, name: users.name }).from(users).where(inArray(users.id, ids)).all()).map((u) => [u.id, u.name])) : new Map<string, string>();
 
+  const salaryOf = (userId: string) => salaries.find((row) => row.userId === userId)?.amount ?? null;
   const part = (userId: string, kind: PayKind, row: { orders: number; amount: number; unpriced: number } | undefined) => ({
     orders: Number(row?.orders ?? 0),
     amount: Number(row?.amount ?? 0),
     unpriced: paidBy.has(`${userId}:${kind}`) ? Number(row?.unpriced ?? 0) : 0,
   });
   return ids
-    .map((userId) => {
+    .map((userId): PayrollLine => {
+      const stint = stintOf.get(userId);
+      const joinedOn = stint && stint.joinedAt >= start ? storeDayOf(stint.joinedAt) : null;
+      const leftOn = stint?.leftAt && stint.leftAt < end ? storeDayOf(stint.leftAt) : null;
       const paySet = PAY_KINDS.some((kind) => paidBy.has(`${userId}:${kind}`));
-      const salary = salaryOf.get(userId) ?? null;
+      const salary = stint ? salaryOf(userId) : null;
       const confirmed = part(userId, "per_confirmed", confirmedOf.get(userId));
       const delivered = part(userId, "per_delivered", deliveredOf.get(userId));
       return {
         userId,
         name: names.get(userId) ?? userId,
+        onTeam: Boolean(stint),
+        joinedOn,
+        leftOn,
         paySet,
         salary,
         confirmed,
         delivered,
         total: (salary ?? 0) + confirmed.amount + delivered.amount,
-        incomplete: !paySet || confirmed.unpriced > 0 || delivered.unpriced > 0,
+        incomplete: (Boolean(stint) && !paySet) || confirmed.unpriced > 0 || delivered.unpriced > 0,
       };
     })
-    .sort((a, b) => a.name.localeCompare(b.name));
+    .sort((a, b) => a.name.localeCompare(b.name) || a.userId.localeCompare(b.userId));
 }
 
 type SQLChunk = ReturnType<typeof sql.raw>;

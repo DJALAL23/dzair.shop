@@ -41,6 +41,26 @@ CREATE TABLE team_agents (
   updated_at TEXT NOT NULL
 );
 
+-- Each time a member is on the team, from the day they joined to the day
+-- they left, so a past month's payroll never changes when someone leaves.
+-- Kept by team_agents itself: whoever adds or removes a member.
+CREATE TABLE team_memberships (
+  id TEXT PRIMARY KEY NOT NULL,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  joined_at TEXT NOT NULL,
+  left_at TEXT
+);
+
+CREATE INDEX team_memberships_period ON team_memberships (joined_at, left_at);
+CREATE UNIQUE INDEX team_memberships_open ON team_memberships (user_id) WHERE left_at IS NULL;
+
+CREATE TRIGGER team_agents_joined AFTER INSERT ON team_agents BEGIN INSERT INTO team_memberships (id, user_id, joined_at) VALUES (lower(hex(randomblob(16))), NEW.user_id, NEW.created_at); END;
+CREATE TRIGGER team_agents_left AFTER DELETE ON team_agents BEGIN UPDATE team_memberships SET left_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE user_id = OLD.user_id AND left_at IS NULL; END;
+
+-- The rule gives new orders only to members who can see orders, read
+-- from each member's permissions; this keeps that lookup off a full scan.
+CREATE INDEX IF NOT EXISTS user_scopes_user_scope ON user_scopes (user_id, scope);
+
 CREATE TABLE team_pay (
   id TEXT PRIMARY KEY NOT NULL,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,

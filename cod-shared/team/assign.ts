@@ -15,14 +15,21 @@ import { staffOf, type Author } from "../events/actor";
 import { chunkIds } from "../queries/d1-limits";
 import { DEFAULT_TEAM_CONFIG, WAITING_STATUSES, type AssignmentWay } from "./model";
 import { heldByFormerMember } from "./queue";
+import { SCOPES } from "../rbac/scopes";
 
 type BatchStatement = Parameters<AppDb["batch"]>[0][number];
 
 const distribution = sql`coalesce((select distribution from store_team_config limit 1), ${DEFAULT_TEAM_CONFIG.distribution})`;
 
+/** Whether a user can see orders, and so work one given to them: an admin, or staff with any orders permission. */
+export function seesOrders(userId: SQL): SQL {
+  return sql`(exists (select 1 from users r where r.id = ${userId} and r.role = 'admin') or exists (select 1 from user_scopes s where s.user_id = ${userId} and s.scope in (${SCOPES.ALL}, ${SCOPES.ORDERS_READ}, ${SCOPES.ORDERS_READ_ASSIGNED})))`;
+}
+
 /**
  * The member the store's rule gives the next order to, or null: nobody when
- * orders are shared out by hand, or when no active member is receiving.
+ * orders are shared out by hand, or when no active member who can see orders
+ * is receiving.
  * `in_turn` gives it to whoever got one longest ago (a newcomer first: SQLite
  * sorts a null first);
  * `evenly` to whoever has the fewest orders waiting, then in turn.
@@ -31,6 +38,7 @@ export function nextAssigneeSql(except?: SQL | string | null): SQL {
   const notThem = except == null ? sql`` : sql`and a.user_id <> ${except}`;
   return sql`(select a.user_id from team_agents a join users u on u.id = a.user_id
     where a.receiving = 1 and u.status = 'active' and ${distribution} <> 'manual' ${notThem}
+      and ${seesOrders(sql`a.user_id`)}
     order by
       case when ${distribution} = 'evenly' then (select count(*) from orders w where w.assignee_id = a.user_id and w.status in ('new', 'unreachable')) else 0 end,
       a.turn, a.user_id
@@ -125,11 +133,11 @@ function moveStatements(
 const changed = (result: unknown) => ((result as { meta?: { changes?: number } }).meta?.changes ?? 0) > 0;
 
 export type AssignmentResult = { orderId: string; ok: true; changed: boolean } | { orderId: string; ok: false; reason: "order_not_found" | "changed" };
-export type AssignRefusal = { ok: false; reason: "member_not_found" | "member_inactive" | "not_member" };
+export type AssignRefusal = { ok: false; reason: "member_not_found" | "member_inactive" | "not_member" | "no_order_access" };
 
 /**
- * A manager gives orders to a member, or to nobody (`to: null`), or shares
- * them out by the store's rule (`to: "rule"`). Each order is moved only while
+ * A manager gives orders to a member who can see them, or to nobody
+ * (`to: null`), or shares them out by the store's rule (`to: "rule"`). Each order is moved only while
  * it is still with whoever it was with when read; one already with that
  * member is left as it is. One result per order id, in the order given.
  */
@@ -140,10 +148,11 @@ export async function assignOrders(
   author: Author,
 ): Promise<AssignRefusal | { ok: true; results: AssignmentResult[] }> {
   if (typeof to === "string" && to !== "rule") {
-    const member = await db.select({ status: users.status }).from(users).where(eq(users.id, to)).get();
+    const member = await db.select({ status: users.status, sees: sql<number>`${seesOrders(sql`${users.id}`)}` }).from(users).where(eq(users.id, to)).get();
     if (!member) return { ok: false, reason: "member_not_found" };
     if (member.status !== "active") return { ok: false, reason: "member_inactive" };
     if (!(await isTeamMember(db, to))) return { ok: false, reason: "not_member" };
+    if (!member.sees) return { ok: false, reason: "no_order_access" };
   }
   const distinct = [...new Set(orderIds)];
   const found = new Map<string, string | null>();

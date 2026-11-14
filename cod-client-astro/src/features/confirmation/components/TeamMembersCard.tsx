@@ -1,35 +1,39 @@
-import { useState } from "react";
-import { AlarmClock, AlertTriangle, Plus, Trash2, Users, Wallet } from "lucide-react";
-import { useTeamError } from "@/features/confirmation/errors";
+import { useState, type ReactNode } from "react";
+import { AlarmClock, AlertTriangle, Plus, Trash2, Users } from "lucide-react";
 import { useT } from "@/i18n/react";
 import { notify } from "@/lib/notify";
-import { Badge, Button, Card, EmptyState, Switch, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, useConfirmDialog } from "@/components/ui";
+import { Badge, Button, Card, EmptyState, IconButton, Initial, Pagination, RowActions, SearchInput, Switch, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, useConfirmDialog } from "@/components/ui";
 import { removeTeamMember, setMemberReceiving } from "@/features/confirmation/api";
 import { memberWarning } from "@/features/confirmation/model";
-import { MemberPayDialog } from "@/features/confirmation/components/MemberPayDialog";
+import { findMembers, pageOf, PAGE_SIZE } from "@/features/confirmation/views";
+import { useTeamError } from "@/features/confirmation/errors";
 import type { TeamConfig, TeamMember } from "@/features/confirmation/types";
 
-interface Access {
-  manage: boolean;
-  seePay: boolean;
-  managePay: boolean;
-}
-
 const ordersOf = (member: TeamMember, view: "to_confirm" | "callbacks") => `/orders?${new URLSearchParams({ view, assignee: member.userId })}`;
+const SEARCH_FROM = 6;
 
 /**
  * The team's members: who is receiving new orders now, how many orders wait
- * with each and how many customers they must call back, which orders their
- * permissions let them work, and — with the finance permission — their pay.
- * A row warns when a member cannot take orders, and says how to fix it.
+ * with each and how many customers they must call back, and which orders
+ * their permissions let them work. A row warns when a member cannot take
+ * orders, and says how to fix it. A larger team gets a search and pages.
  */
-export function TeamMembersCard({ members, config, meId, access, onAdd, onChanged }: { members: TeamMember[]; config: TeamConfig; meId?: string; access: Access; onAdd: () => void; onChanged: () => void }) {
+export function TeamMembersCard({ members, config, meId, canManage, onAdd, onChanged, rule }: {
+  members: TeamMember[];
+  config: TeamConfig;
+  meId?: string;
+  canManage: boolean;
+  onAdd: () => void;
+  onChanged: () => void;
+  rule?: ReactNode;
+}) {
   const t = useT("confirmation");
-  const explain = useTeamError();
   const common = useT("common");
+  const explain = useTeamError();
   const confirm = useConfirmDialog();
   const [busy, setBusy] = useState<string | null>(null);
-  const [paying, setPaying] = useState<TeamMember | null>(null);
+  const [query, setQuery] = useState("");
+  const [page, setPage] = useState(1);
 
   async function changeReceiving(member: TeamMember, receiving: boolean) {
     setBusy(member.userId);
@@ -68,7 +72,7 @@ export function TeamMembersCard({ members, config, meId, access, onAdd, onChange
     }
   }
 
-  const addButton = access.manage ? (
+  const addButton = canManage ? (
     <Button type="button" size="sm" onClick={onAdd}>
       <Plus size={14} aria-hidden="true" />
       {t("members.add")}
@@ -77,14 +81,20 @@ export function TeamMembersCard({ members, config, meId, access, onAdd, onChange
 
   if (members.length === 0) {
     return (
-      <Card title={t("members.title")}>
-        <EmptyState icon={<Users />} title={t("members.empty_title")} description={t("members.empty_body")} action={addButton} />
+      <Card title={t("members.title")} flush className="overflow-hidden">
+        {rule}
+        <div className="border-t border-border p-4">
+          <EmptyState icon={<Users />} title={t("members.empty_title")} description={t("members.empty_body")} action={addButton} />
+        </div>
       </Card>
     );
   }
 
+  const found = findMembers(members, query);
+  const shown = pageOf(found, page);
+
   const receivingSwitch = (member: TeamMember) =>
-    access.manage ? (
+    canManage ? (
       <Switch checked={member.receiving} disabled={busy === member.userId || !member.active} onChange={(on) => void changeReceiving(member, on)} aria-label={t("members.receiving_for", { name: member.name })} />
     ) : member.receiving ? (
       <Badge tone="success" size="sm" dot>
@@ -94,77 +104,102 @@ export function TeamMembersCard({ members, config, meId, access, onAdd, onChange
       <span className="text-xs text-muted-foreground">{t("members.not_receiving")}</span>
     );
 
-  const actions = (member: TeamMember) => (
-    <div className="flex items-center justify-end gap-1">
-      {access.seePay && (
-        <Button type="button" variant="ghost" size="sm" onClick={() => setPaying(member)}>
-          <Wallet size={14} aria-hidden="true" />
-          {t("pay.set")}
-        </Button>
-      )}
-      {access.manage && (
-        <button
-          type="button"
-          disabled={busy === member.userId}
-          onClick={() => void remove(member)}
-          aria-label={t("members.remove_name", { name: member.name })}
-          title={t("members.remove")}
-          className="grid size-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-destructive disabled:opacity-50 pointer-coarse:size-10"
-        >
-          <Trash2 size={15} aria-hidden="true" />
-        </button>
-      )}
-    </div>
-  );
+  const removeButton = (member: TeamMember) =>
+    canManage && (
+      <IconButton
+        type="button"
+        variant="danger"
+        disabled={busy === member.userId}
+        onClick={() => void remove(member)}
+        aria-label={t("members.remove_name", { name: member.name })}
+        title={t("members.remove")}
+      >
+        <Trash2 size={15} aria-hidden="true" />
+      </IconButton>
+    );
 
   return (
-    <Card title={t("members.title")} subtitle={t("members.subtitle")} action={addButton} flush>
-      <div className="divide-y divide-border border-t border-border md:hidden">
-        {members.map((member) => (
-          <article key={member.userId} className="space-y-2 px-4 py-3">
-            <div className="flex items-start justify-between gap-3">
-              <MemberName member={member} me={member.userId === meId} />
-              {receivingSwitch(member)}
-            </div>
-            <MemberCounts member={member} />
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-xs text-muted-foreground">{t(`members.reach_${member.reach}`)}</span>
-              {actions(member)}
-            </div>
-          </article>
-        ))}
-      </div>
-      <div className="relative hidden overflow-x-auto md:block">
-        <Table>
-          <TableHeader>
-            <TableRow className="hover:bg-transparent">
-              <TableHead>{t("members.member")}</TableHead>
-              <TableHead>{t("members.receiving")}</TableHead>
-              <TableHead>{t("members.waiting")}</TableHead>
-              <TableHead>{t("members.sees")}</TableHead>
-              <TableHead className="w-px">
-                <span className="sr-only">{common("table.actions")}</span>
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {members.map((member) => (
-              <TableRow key={member.userId} className="hover:bg-transparent">
-                <TableCell className="max-w-72">
-                  <MemberName member={member} me={member.userId === meId} />
-                </TableCell>
-                <TableCell>{receivingSwitch(member)}</TableCell>
-                <TableCell>
-                  <MemberCounts member={member} />
-                </TableCell>
-                <TableCell className="whitespace-nowrap text-muted-foreground">{t(`members.reach_${member.reach}`)}</TableCell>
-                <TableCell className="w-px">{actions(member)}</TableCell>
-              </TableRow>
+    <Card title={t("members.title")} action={addButton} flush className="overflow-hidden">
+      {rule}
+      {members.length >= SEARCH_FROM && (
+        <div className="border-t border-border px-4 py-2.5">
+          <SearchInput
+            value={query}
+            onChange={(next) => {
+              setQuery(next);
+              setPage(1);
+            }}
+            placeholder={t("members.search")}
+            className="@lg:max-w-72"
+          />
+        </div>
+      )}
+      {found.length === 0 ? (
+        <p className="border-t border-border px-4 py-8 text-center text-sm text-muted-foreground">{t("members.none_found", { query: query.trim() })}</p>
+      ) : (
+        <>
+          <ul className="divide-y divide-border border-t border-border @2xl:hidden">
+            {shown.rows.map((member) => (
+              <li key={member.userId} className="flex items-start gap-3 px-4 py-3">
+                <Initial name={member.name} className="size-9" />
+                <div className="min-w-0 flex-1 space-y-2">
+                  <div className="flex items-start justify-between gap-3">
+                    <MemberName member={member} me={member.userId === meId} />
+                    {receivingSwitch(member)}
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="min-w-0 space-y-0.5">
+                      <MemberCounts member={member} />
+                      <span className="block text-xs text-muted-foreground">{t(`members.reach_${member.reach}`)}</span>
+                    </span>
+                    {removeButton(member)}
+                  </div>
+                </div>
+              </li>
             ))}
-          </TableBody>
-        </Table>
-      </div>
-      {paying && <MemberPayDialog member={paying} canManage={access.managePay} onClose={() => setPaying(null)} onChanged={onChanged} />}
+          </ul>
+          <div className="relative hidden overflow-x-auto @2xl:block">
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead>{t("members.member")}</TableHead>
+                  <TableHead>{t("members.receiving")}</TableHead>
+                  <TableHead>{t("members.waiting")}</TableHead>
+                  <TableHead>{t("members.sees")}</TableHead>
+                  {canManage && (
+                    <TableHead className="w-px">
+                      <span className="sr-only">{common("table.actions")}</span>
+                    </TableHead>
+                  )}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {shown.rows.map((member) => (
+                  <TableRow key={member.userId}>
+                    <TableCell className="max-w-96">
+                      <span className="flex min-w-0 items-center gap-3">
+                        <Initial name={member.name} />
+                        <MemberName member={member} me={member.userId === meId} />
+                      </span>
+                    </TableCell>
+                    <TableCell>{receivingSwitch(member)}</TableCell>
+                    <TableCell>
+                      <MemberCounts member={member} />
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap text-muted-foreground">{t(`members.reach_${member.reach}`)}</TableCell>
+                    {canManage && (
+                      <TableCell className="w-px">
+                        <RowActions>{removeButton(member)}</RowActions>
+                      </TableCell>
+                    )}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          {shown.totalPages > 1 && <Pagination page={shown.page} totalPages={shown.totalPages} total={shown.total} pageSize={PAGE_SIZE} onPageChange={setPage} />}
+        </>
+      )}
     </Card>
   );
 }
@@ -174,7 +209,7 @@ function MemberName({ member, me }: { member: TeamMember; me: boolean }) {
   const warning = memberWarning(member);
   return (
     <div className="min-w-0">
-      <p className="flex items-center gap-1.5 truncate font-semibold text-foreground">
+      <p className="flex items-center gap-1.5 font-medium text-foreground">
         <span className="truncate">{member.name}</span>
         {me && (
           <Badge tone="neutral" size="sm">
@@ -201,7 +236,7 @@ function MemberName({ member, me }: { member: TeamMember; me: boolean }) {
 function MemberCounts({ member }: { member: TeamMember }) {
   const t = useT("confirmation");
   return (
-    <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+    <span className="flex flex-wrap items-center gap-x-3 gap-y-1 whitespace-nowrap text-sm">
       <a href={ordersOf(member, "to_confirm")} className="font-medium tabular-nums text-foreground underline-offset-2 hover:underline">
         {t("members.waiting_count", { count: member.waiting })}
       </a>

@@ -17,6 +17,7 @@ import * as schema from "@/db/schema";
 import { createOrder, updateOrderStatus } from "../../../../cod-shared/queries/orders";
 import { assignOrders, shareOutWaiting, takeBackUntouched } from "../../../../cod-shared/team/assign";
 import storeRouter from "../store/routes";
+import { SCOPES } from "../../../../cod-shared/rbac/scopes";
 
 let d1: TestD1;
 let app: OpenAPIHono<AppContext>;
@@ -40,7 +41,7 @@ afterAll(async () => d1?.dispose());
 const member = (id: string, name: string, status: "active" | "inactive" = "active") => ({ id, name, email: `${id}@shop.dz`, role: "staff" as const, status });
 
 beforeEach(async () => {
-  for (const table of ["business_events", "order_attribution", "order_products", "stock_movements", "orders", "customers", "team_pay", "team_agents", "store_team_config", "users", "product_variants", "products", "shipping_rules", "shipping_profiles", "stores"]) {
+  for (const table of ["business_events", "order_attribution", "order_products", "stock_movements", "orders", "customers", "team_pay", "team_agents", "store_team_config", "user_scopes", "users", "product_variants", "products", "shipping_rules", "shipping_profiles", "stores"]) {
     await d1.db.run(sql.raw(`DELETE FROM ${table}`));
   }
   await d1.db.insert(schema.stores).values({ id: "store-team", name: "Boutique", lang: "ar", createdAt: T, updatedAt: T });
@@ -49,6 +50,7 @@ beforeEach(async () => {
   await d1.db.insert(schema.customers).values({ id: "c1", name: "Karim", phone: "0551234567", wilaya: "Alger", createdAt: T });
   await d1.db.insert(schema.products).values({ id: "sac", name: "Sac", handle: "sac", sku: "SAC-1", price: 3000, status: "ACTIVE", visibility: true, showInStore: true, trackInventory: false, inventory: 0, createdAt: T, updatedAt: T });
   await d1.db.insert(schema.users).values([member("u-samira", "Samira"), member("u-karim", "Karim"), member("u-amina", "Amina"), member("u-left", "Yacine", "inactive"), member("u-owner", "Bilal")]);
+  await d1.db.insert(schema.userScopes).values(["u-samira", "u-karim", "u-amina", "u-left"].map((userId) => ({ id: `s-${userId}`, userId, scope: SCOPES.ORDERS_READ_ASSIGNED, grantedAt: T })));
 });
 
 const team = (...rows: Array<[string, boolean, number | null]>) =>
@@ -123,6 +125,19 @@ describe("a new order and the store's rule", () => {
     expect(await assignee(await dashboardOrder())).toBeNull();
   });
 
+  it("skips a member who cannot see orders, so no order waits with someone who will never see it; an admin sees them all", async () => {
+    await rule("in_turn");
+    await team(["u-amina", true, null], ["u-samira", true, 5]);
+    await d1.db.delete(schema.userScopes).where(eq(schema.userScopes.userId, "u-amina"));
+    expect(await assignee(await dashboardOrder())).toBe("u-samira");
+    await d1.db.delete(schema.userScopes).where(eq(schema.userScopes.userId, "u-samira"));
+    expect(await assignee(await dashboardOrder())).toBeNull();
+    await d1.db.insert(schema.userScopes).values({ id: "s-all", userId: "u-samira", scope: SCOPES.ORDERS_READ, grantedAt: T });
+    expect(await assignee(await dashboardOrder())).toBe("u-samira");
+    await d1.db.update(schema.users).set({ role: "admin" }).where(eq(schema.users.id, "u-amina"));
+    expect(await assignee(await dashboardOrder())).toBe("u-amina");
+  });
+
   it("is given at checkout, with its Business Event, by the store's rule", async () => {
     await rule("in_turn");
     await team(["u-karim", true, null]);
@@ -163,13 +178,18 @@ describe("a manager gives orders out", () => {
     expect(await assignments(id)).toHaveLength(1);
   });
 
-  it("refuses a member who does not exist, is no longer active, or is not on the team", async () => {
-    await team(["u-left", false, null]);
+  it("refuses a member who does not exist, is no longer active, is not on the team, or cannot see orders", async () => {
+    await team(["u-left", false, null], ["u-karim", false, null]);
+    await d1.db.delete(schema.userScopes).where(eq(schema.userScopes.userId, "u-karim"));
     const id = await dashboardOrder();
     expect(await assignOrders(d1.db, [id], "u-nobody", MANAGER)).toEqual({ ok: false, reason: "member_not_found" });
     expect(await assignOrders(d1.db, [id], "u-left", MANAGER)).toEqual({ ok: false, reason: "member_inactive" });
     expect(await assignOrders(d1.db, [id], "u-amina", MANAGER)).toEqual({ ok: false, reason: "not_member" });
+    expect(await assignOrders(d1.db, [id], "u-karim", MANAGER)).toEqual({ ok: false, reason: "no_order_access" });
     expect(await assignee(id)).toBeNull();
+    await d1.db.update(schema.users).set({ role: "admin" }).where(eq(schema.users.id, "u-karim"));
+    expect(await assignOrders(d1.db, [id], "u-karim", MANAGER)).toMatchObject({ ok: true });
+    expect(await assignee(id)).toBe("u-karim");
   });
 
   it("shares chosen orders out by the store's rule, to someone other than who has them", async () => {

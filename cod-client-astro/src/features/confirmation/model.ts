@@ -120,6 +120,11 @@ export function formatStoreDay(day: string, locale: string): string {
   return new Intl.DateTimeFormat(intlLocale(locale), { timeZone: "UTC", day: "numeric", month: "short", year: "numeric" }).format(new Date(`${day}T00:00:00.000Z`));
 }
 
+/** A store day within a month the merchant already sees: 14 Nov. */
+export function formatStoreDayShort(day: string, locale: string): string {
+  return new Intl.DateTimeFormat(intlLocale(locale), { timeZone: "UTC", day: "numeric", month: "short" }).format(new Date(`${day}T00:00:00.000Z`));
+}
+
 /** A month (YYYY-MM) as the merchant reads it: November 2026. */
 export function formatMonth(month: string, locale: string): string {
   return new Intl.DateTimeFormat(intlLocale(locale), { timeZone: "UTC", month: "long", year: "numeric" }).format(new Date(`${month}-01T00:00:00.000Z`));

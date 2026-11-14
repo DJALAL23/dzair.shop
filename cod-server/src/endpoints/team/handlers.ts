@@ -117,6 +117,7 @@ export async function assign(c: Context<AppContext>) {
   if (!outcome.ok) {
     if (outcome.reason === "member_not_found") throw new NotFoundError("User", body.to!);
     if (outcome.reason === "not_member") throw membershipRefusal("not_member", body.to!);
+    if (outcome.reason === "no_order_access") throw new BusinessLogicError("This member cannot see orders yet, so they cannot be given one", ERROR_CODES.NO_ORDER_ACCESS, { userId: body.to });
     throw new BusinessLogicError("This member's account is inactive: they cannot take orders", ERROR_CODES.USER_INACTIVE, { userId: body.to });
   }
   return c.json({ success: true, data: outcome.results }, 200);
@@ -159,7 +160,7 @@ export async function setPay(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
   const { userId } = valid<z.infer<typeof v.userIdParams>>(c, "param");
   const body = valid<z.infer<typeof v.payRateSchema>>(c, "json");
-  if (!(await team.teamMembership(db, userId)).member) throw membershipRefusal("not_member", userId);
+  if (!(await team.wasEverOnTeam(db, userId))) throw membershipRefusal("not_member", userId);
   const rate = await team.setPay(db, { userId, ...body, createdBy: c.get("user").id });
   await logActivity(db, c.get("user"), ACTIONS.TEAM_PAY_SET, { type: "user", id: userId }, { kind: rate.kind, amount: rate.amount, validFrom: rate.validFrom });
   return c.json({ success: true, data: rate }, 200);
@@ -171,7 +172,7 @@ export async function removePay(c: Context<AppContext>) {
   const { id } = valid<z.infer<typeof v.payIdParams>>(c, "param");
   const removed = await team.removePay(db, id);
   if (!removed) throw new NotFoundError("Pay rate", id);
-  await logActivity(db, c.get("user"), ACTIONS.TEAM_PAY_REMOVED, { type: "user", id: removed.userId }, { payRateId: id });
+  await logActivity(db, c.get("user"), ACTIONS.TEAM_PAY_REMOVED, { type: "user", id: removed.userId }, { payRateId: id, kind: removed.kind, amount: removed.amount, validFrom: removed.validFrom });
   return c.json({ success: true, message: "Pay rate removed" }, 200);
 }
 

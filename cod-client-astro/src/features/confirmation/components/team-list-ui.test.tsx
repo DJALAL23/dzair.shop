@@ -121,33 +121,33 @@ const button = (name: RegExp) => Array.from(document.querySelectorAll<HTMLButton
 const lastQuery = () => api.listOrders.mock.calls.at(-1)![0];
 
 describe("the orders list with a confirmation team", () => {
-  it("shows who has each order, and a waiting order with nobody as such", async () => {
+  it("shows who has each order, and a waiting order assigned to no one as such", async () => {
     await render();
     const rows = Array.from(host.querySelectorAll("tbody tr")).map((row) => row.textContent ?? "");
-    expect(rows[0]).toContain("With Samira");
-    expect(rows[1]).toContain("With nobody");
-    expect(rows[2]).toContain("With Karim");
+    expect(rows[0]).toContain("Assigned to Samira");
+    expect(rows[1]).toContain("Not assigned");
+    expect(rows[2]).toContain("Assigned to Karim");
   });
 
-  it("lets a manager pick the waiting orders to confirm and give them out", async () => {
+  it("lets a manager pick the waiting orders to confirm and assign them", async () => {
     await render();
     expect(rowBoxes().map((box) => box.getAttribute("aria-label"))).toEqual(["ORD-a", "ORD-b"]);
     await act(async () => { host.querySelector<HTMLInputElement>('thead input[type="checkbox"]')!.click(); });
-    expect(button(/Give 2 orders to…/)).toBeTruthy();
+    expect(button(/Assign 2 orders to…/)).toBeTruthy();
     expect(button(/Ship/)).toBeUndefined();
   });
 
-  it("offers no giving out to someone who does not manage the team", async () => {
+  it("offers no assigning to someone who does not manage the team", async () => {
     identity.scopes = ["orders:read", "team:read"];
     await render();
     expect(rowBoxes()).toHaveLength(0);
-    expect(host.querySelector("tbody")!.textContent).toContain("With Samira");
+    expect(host.querySelector("tbody")!.textContent).toContain("Assigned to Samira");
   });
 
   it("shows no team column to a member who sees only their own orders", async () => {
     identity.scopes = ["orders:read_assigned"];
     await render();
-    expect(host.querySelector("tbody")!.textContent).not.toContain("With ");
+    expect(host.querySelector("tbody")!.textContent).not.toContain("Assigned to");
     expect(team.getTeam).not.toHaveBeenCalled();
   });
 
@@ -166,8 +166,8 @@ describe("the orders list with a confirmation team", () => {
     window.history.replaceState(null, "", "/orders/?view=to_confirm&team=former");
     await render();
     expect(lastQuery()).toMatchObject({ team: "former" });
-    expect(host.textContent).toContain("Orders with someone who left the team");
-    await act(async () => { button(/Show every order/)!.click(); });
+    expect(host.textContent).toContain("Orders still with a former member");
+    await act(async () => { button(/Show all orders/)!.click(); });
     for (let i = 0; i < 4; i++) await act(async () => { await Promise.resolve(); });
     expect(lastQuery().team).toBeUndefined();
     expect(window.location.search).not.toContain("team=");
@@ -178,6 +178,6 @@ describe("the orders list with a confirmation team", () => {
     await render();
     expect(lastQuery()).toMatchObject({ assignee: "u-karim" });
     const options = Array.from(host.querySelectorAll("option")).map((option) => option.textContent);
-    expect(options).toEqual(expect.arrayContaining(["Anyone", "Nobody", "Me (Samira)", "Karim"]));
+    expect(options).toEqual(expect.arrayContaining(["Anyone", "Not assigned", "Me (Samira)", "Karim"]));
   });
 });

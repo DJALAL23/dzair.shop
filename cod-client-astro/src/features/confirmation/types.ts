@@ -72,6 +72,11 @@ export interface Commission {
 export interface PayrollLine {
   userId: string;
   name: string;
+  /** On the team at some point in the month. */
+  onTeam: boolean;
+  /** The store day they joined or left, when it fell in the month. */
+  joinedOn: string | null;
+  leftOn: string | null;
   paySet: boolean;
   salary: number | null;
   confirmed: Commission;

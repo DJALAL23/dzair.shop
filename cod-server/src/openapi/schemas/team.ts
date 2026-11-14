@@ -73,12 +73,15 @@ export const PayrollLineSchema = z
   .object({
     userId: z.string(),
     name: z.string(),
+    onTeam: z.boolean().openapi({ description: "True when they were on the team at some point in the month" }),
+    joinedOn: z.string().nullable().openapi({ description: "The store day (YYYY-MM-DD, Algeria) they joined, when it fell in the month" }),
+    leftOn: z.string().nullable().openapi({ description: "The store day they left, when it fell in the month" }),
     paySet: z.boolean().openapi({ description: "False when no pay of any kind was ever set for them" }),
-    salary: z.number().int().nullable().openapi({ description: "The salary in force at the month's end; null when none then" }),
+    salary: z.number().int().nullable().openapi({ description: "The salary in force on their last day on the team that month, paid whole; null when they have none or were not on the team" }),
     confirmed: commission.openapi({ description: "Orders they confirmed this month, at the per-confirmed rate in force that day" }),
     delivered: commission.openapi({ description: "Orders they confirmed that were delivered this month, at the per-delivered rate in force that day" }),
     total: z.number().int().openapi({ description: "Salary plus commissions; unpriced orders are not in it" }),
-    incomplete: z.boolean().openapi({ description: "Something is missing: no pay set, or orders with no rate for a kind they are paid" }),
+    incomplete: z.boolean().openapi({ description: "Something is missing: a member with no pay set, or orders with no rate for a kind they are paid" }),
   })
   .openapi("PayrollLine");
 

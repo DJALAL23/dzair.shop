@@ -350,7 +350,7 @@ const assignOrdersRoute = defineRoute({
   responses: {
     200: { description: "One result per order", content: jsonContent(SuccessResponseSchema(z.array(AssignmentResultSchema))) },
     404: { description: "No such member (USER_NOT_FOUND)" },
-    422: { description: "The member's account is inactive (USER_INACTIVE), or they are not on the confirmation team (NOT_TEAM_MEMBER)" },
+    422: { description: "The member's account is inactive (USER_INACTIVE), they are not on the confirmation team (NOT_TEAM_MEMBER), or they cannot see orders (NO_ORDER_ACCESS)" },
   },
   handler: team.assign,
 });

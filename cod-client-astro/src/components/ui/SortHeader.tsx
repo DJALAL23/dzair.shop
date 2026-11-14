@@ -1,5 +1,7 @@
+import type { ReactNode } from "react";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { TableHead } from "./table";
+import { InfoTip } from "./tooltip";
 
 /**
  * Clickable, sort-aware table header. `sortKey` is generic so any list
@@ -13,6 +15,7 @@ export function SortHeader({
   direction,
   onSort,
   align = "start",
+  help,
 }: {
   label: string;
   sortKey: string;
@@ -20,6 +23,8 @@ export function SortHeader({
   direction: "asc" | "desc";
   onSort: (key: string) => void;
   align?: "start" | "end";
+  /** What the column means, behind an ⓘ beside its label. */
+  help?: ReactNode;
 }) {
   const isSorted = activeKey === sortKey;
   const Icon = !isSorted
@@ -57,6 +62,11 @@ export function SortHeader({
           aria-hidden="true"
         />
       </button>
+      {help && (
+        <span className="ms-1 inline-flex align-middle">
+          <InfoTip>{help}</InfoTip>
+        </span>
+      )}
     </TableHead>
   );
 }

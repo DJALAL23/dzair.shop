@@ -2344,6 +2344,15 @@ export const teamAgents = sqliteTable("team_agents", {
   updatedAt: text("updated_at").notNull(),
 });
 
+/** Each time someone is on the confirmation team, joined to left; kept by triggers on team_agents (migration 0086). */
+export const teamMemberships = sqliteTable("team_memberships", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  joinedAt: text("joined_at").notNull(),
+  /** Null while they are on the team. */
+  leftAt: text("left_at"),
+});
+
 /** A member's pay, each rate from a date: a past month keeps the rates it had (migration 0086). */
 export const teamPay = sqliteTable("team_pay", {
   id: text("id").primaryKey(),

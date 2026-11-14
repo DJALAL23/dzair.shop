@@ -217,6 +217,8 @@ export const ERROR_CODES = {
   ALREADY_TEAM_MEMBER: "ALREADY_TEAM_MEMBER",
   /** The person is not on the confirmation team. */
   NOT_TEAM_MEMBER: "NOT_TEAM_MEMBER",
+  /** The member cannot see orders, so they cannot be given one. */
+  NO_ORDER_ACCESS: "NO_ORDER_ACCESS",
   /** A callback is set only on an order still waiting: new, or the customer not reached. */
   ORDER_NOT_WAITING: "ORDER_NOT_WAITING",
   /** That pay rate does not exist. */

@@ -1,125 +1,45 @@
 import { useEffect, useState } from "react";
-import { ArrowRight, Settings2, Shuffle } from "lucide-react";
+import { BarChart3, Users, Wallet } from "lucide-react";
 import { canScope, RequireAuth, useIdentity } from "@/features/auth/components/RequireAuth";
 import { DashboardPage } from "@/components/layout/page";
-import { Alert, Button, Card, PageHeader } from "@/components/ui";
+import { Alert, PageHeader, Tabs } from "@/components/ui";
 import { useT } from "@/i18n/react";
-import { getTeam, getTeamSettings, shareOutNow } from "@/features/confirmation/api";
-import { notify } from "@/lib/notify";
-import { TEAM_QUEUES, type PayrollLine, type TeamConfig, type TeamOverview, type TeamQueue } from "@/features/confirmation/types";
+import { getTeam, getTeamSettings } from "@/features/confirmation/api";
+import type { TeamConfig, TeamOverview } from "@/features/confirmation/types";
+import { tabFrom, type TeamTab as Tab } from "@/features/confirmation/views";
 import { ReceivingToggle } from "@/features/confirmation/components/ReceivingToggle";
-import { TeamMembersCard } from "@/features/confirmation/components/TeamMembersCard";
-import { TeamResultsCard } from "@/features/confirmation/components/TeamResultsCard";
-import { PayrollCard } from "@/features/confirmation/components/PayrollCard";
 import { TeamSettingsDialog } from "@/features/confirmation/components/TeamSettingsDialog";
 import { AddMemberDialog } from "@/features/confirmation/components/AddMemberDialog";
-import { MemberPayDialog } from "@/features/confirmation/components/MemberPayDialog";
+import { TeamTab } from "@/features/confirmation/components/tabs/TeamTab";
+import { ResultsTab } from "@/features/confirmation/components/tabs/ResultsTab";
+import { PayrollTab } from "@/features/confirmation/components/tabs/PayrollTab";
 
-/** How the store shares new orders out, in a sentence, and who is receiving them now. */
-function RuleCard({ team, config, canManage, onChange }: { team: TeamOverview; config: TeamConfig; canManage: boolean; onChange: () => void }) {
-  const t = useT("confirmation");
-  const active = team.members.filter((member) => member.active);
-  const receiving = active.filter((member) => member.receiving).length;
-  return (
-    <Card
-      title={t("rule.title")}
-      action={
-        canManage ? (
-          <Button type="button" variant="secondary" size="sm" onClick={onChange}>
-            <Settings2 size={14} aria-hidden="true" />
-            {t("rule.change")}
-          </Button>
-        ) : undefined
-      }
-    >
-      <div className="space-y-1.5 text-sm">
-        <p className="font-medium text-foreground">{t(`rule.${config.distribution}`)}</p>
-        {config.distribution !== "manual" && (
-          <p className="text-muted-foreground">
-            {config.takeBackMinutes === null ? t("rule.take_back_off") : t("rule.take_back_on", { minutes: config.takeBackMinutes, limit: config.takeBackLimit })}
-          </p>
-        )}
-        {active.length > 0 && (
-          <p className={receiving === 0 ? "font-medium text-[var(--tone-warning-text)]" : "text-muted-foreground"}>
-            {receiving === 0 ? t("rule.nobody_receiving") : t("rule.receiving_now", { count: receiving, total: active.length })}
-          </p>
-        )}
-      </div>
-    </Card>
-  );
+function rememberTab(tab: Tab) {
+  const url = new URL(window.location.href);
+  if (tab === "team") url.searchParams.delete("tab");
+  else url.searchParams.set("tab", tab);
+  window.history.replaceState(null, "", url);
 }
 
-/** What waits for someone to act, each with what to do, a link to the orders themselves, and — when the rule can take them now — sharing them out at once. */
-function QueueAlerts({ team, config, canManage, onShared }: { team: TeamOverview; config: TeamConfig; canManage: boolean; onShared: () => void }) {
-  const t = useT("confirmation");
-  const [sharing, setSharing] = useState(false);
-  const byHand = config.distribution === "manual";
-  const receiving = team.members.some((member) => member.active && member.receiving);
-  const canShare = canManage && !byHand && receiving;
-
-  async function share() {
-    setSharing(true);
-    try {
-      const { shared } = await shareOutNow();
-      if (shared > 0) notify.success(t("queue.shared", { count: shared }));
-      else notify.error(t("queue.shared_none"));
-      onShared();
-    } catch {
-      notify.error(t("order.error"));
-    } finally {
-      setSharing(false);
-    }
-  }
-
-  const counts: Record<TeamQueue, number> = { unassigned: team.unassigned, needs_manager: team.needsManager, former: team.withFormerMembers };
-  const hint: Record<TeamQueue, string | null> = {
-    unassigned: byHand ? t("queue.unassigned_manual") : receiving ? t("queue.unassigned_auto") : t("queue.unassigned_nobody"),
-    needs_manager: t("queue.needs_manager_hint"),
-    former: byHand ? t("queue.former_manual") : t("queue.former_rule"),
-  };
-  const title = (queue: TeamQueue, count: number) =>
-    queue === "unassigned" ? t("queue.unassigned", { count }) : queue === "needs_manager" ? t("queue.needs_manager", { count }) : t("queue.former", { count });
-  const open = TEAM_QUEUES.filter((queue) => counts[queue] > 0);
-  if (open.length === 0) return null;
-  return (
-    <div className="space-y-2">
-      {open.map((queue) => (
-        <Alert key={queue} tone="warning">
-          <div className="flex flex-1 flex-wrap items-center justify-between gap-x-4 gap-y-1">
-            <div className="min-w-0">
-              <p className="font-semibold">{title(queue, counts[queue])}</p>
-              {hint[queue] && <p className="mt-0.5 text-xs opacity-90">{hint[queue]}</p>}
-            </div>
-            <div className="flex shrink-0 items-center gap-3">
-              {canShare && queue !== "needs_manager" && (
-                <Button type="button" variant="secondary" size="sm" disabled={sharing} onClick={() => void share()}>
-                  <Shuffle size={14} aria-hidden="true" />
-                  {t("queue.share_now")}
-                </Button>
-              )}
-              <a href={`/orders?${new URLSearchParams({ view: "to_confirm", team: queue })}`} className="inline-flex items-center gap-1 text-xs font-semibold underline underline-offset-4">
-                {t("queue.see")}
-                <ArrowRight size={13} className="rtl:rotate-180" aria-hidden="true" />
-              </a>
-            </div>
-          </div>
-        </Alert>
-      ))}
-    </div>
-  );
-}
-
+/**
+ * The confirmation team in three views: the team as it works now, its
+ * results over a period, and — with the finance permission — the month's
+ * payroll. The open view is in the address, so a link opens it; a view is
+ * loaded the first time it is opened and kept as it was when left.
+ */
 function Gated() {
   const t = useT("confirmation");
   const common = useT("common");
   const identity = useIdentity();
   const may = (scope: string) => canScope(identity, scope);
+  const canSeePay = may("finance:read");
+  const [tab, setTab] = useState<Tab>(() => tabFrom(window.location.search, canSeePay));
+  const [opened, setOpened] = useState<Set<Tab>>(() => new Set([tab]));
   const [team, setTeam] = useState<TeamOverview | null>(null);
   const [config, setConfig] = useState<TeamConfig | null>(null);
   const [failed, setFailed] = useState(false);
   const [adding, setAdding] = useState(false);
   const [editingRule, setEditingRule] = useState(false);
-  const [paying, setPaying] = useState<PayrollLine | null>(null);
   const [version, setVersion] = useState(0);
 
   async function load() {
@@ -138,6 +58,12 @@ function Gated() {
     setVersion((v) => v + 1);
   }
 
+  function open(next: Tab) {
+    setTab(next);
+    setOpened((current) => new Set(current).add(next));
+    rememberTab(next);
+  }
+
   useEffect(() => {
     if (may("team:read")) void load();
   }, [identity?.role, identity?.scopes.join(",")]);
@@ -150,11 +76,17 @@ function Gated() {
     );
   }
 
-  const access = { manage: may("team:manage"), seePay: may("finance:read"), managePay: may("finance:manage") };
+  const tabs = [
+    { key: "team" as const, label: t("tabs.team"), icon: Users, count: team?.members.length },
+    { key: "results" as const, label: t("tabs.results"), icon: BarChart3 },
+    ...(canSeePay ? [{ key: "payroll" as const, label: t("tabs.payroll"), icon: Wallet }] : []),
+  ];
 
   return (
     <DashboardPage>
-      <PageHeader title={t("page_title")} subtitle={t("page_subtitle")} actions={<ReceivingToggle onChanged={changed} />} />
+      <PageHeader title={t("page_title")} subtitle={t("page_subtitle")} actions={<ReceivingToggle onChanged={changed} />} className="mb-4" />
+      <Tabs label={t("tabs.label")} value={tab} onChange={open} items={tabs} className="mb-4" />
+
       {failed ? (
         <Alert role="alert" tone="critical">
           <div className="flex-1">
@@ -164,20 +96,39 @@ function Gated() {
             {common("retry")}
           </button>
         </Alert>
-      ) : !team || !config ? (
-        <div className="space-y-4">
-          <div className="h-28 shimmer rounded-xl" />
-          <div className="h-64 shimmer rounded-xl" />
-        </div>
       ) : (
-        <div className="space-y-4">
-          <QueueAlerts team={team} config={config} canManage={access.manage} onShared={changed} />
-          <RuleCard team={team} config={config} canManage={access.manage} onChange={() => setEditingRule(true)} />
-          <TeamMembersCard members={team.members} config={config} meId={identity?.user?.id} access={access} onAdd={() => setAdding(true)} onChanged={changed} />
-          {team.members.length > 0 && <TeamResultsCard version={version} />}
-          {access.seePay && team.members.length > 0 && <PayrollCard version={version} onEditPay={setPaying} />}
-        </div>
+        <>
+          <section role="tabpanel" aria-label={t("tabs.team")} hidden={tab !== "team"}>
+            {!team || !config ? (
+              <div className="space-y-4">
+                <div className="h-24 shimmer rounded-xl" />
+                <div className="h-64 shimmer rounded-xl" />
+              </div>
+            ) : (
+              <TeamTab
+                team={team}
+                config={config}
+                meId={identity?.user?.id}
+                access={{ manage: may("team:manage") }}
+                onAdd={() => setAdding(true)}
+                onEditRule={() => setEditingRule(true)}
+                onChanged={changed}
+              />
+            )}
+          </section>
+          {opened.has("results") && (
+            <section role="tabpanel" aria-label={t("tabs.results")} hidden={tab !== "results"}>
+              <ResultsTab version={version} />
+            </section>
+          )}
+          {canSeePay && opened.has("payroll") && (
+            <section role="tabpanel" aria-label={t("tabs.payroll")} hidden={tab !== "payroll"}>
+              <PayrollTab version={version} canManage={may("finance:manage")} onChanged={changed} />
+            </section>
+          )}
+        </>
       )}
+
       {editingRule && config && (
         <TeamSettingsDialog
           config={config}
@@ -189,7 +140,6 @@ function Gated() {
         />
       )}
       {adding && <AddMemberDialog onClose={() => setAdding(false)} onAdded={changed} />}
-      {paying && <MemberPayDialog member={paying} canManage={access.managePay} onClose={() => setPaying(null)} onChanged={changed} />}
     </DashboardPage>
   );
 }
