@@ -207,6 +207,7 @@ export function ProductForm({ productId }: { productId?: string }) {
                 key: Object.values(variant.variations).join(" / "),
                 variations: variant.variations,
                 price: String(variant.price),
+                cost: variant.costPrice == null ? "" : String(variant.costPrice),
                 sku: variant.sku ?? "",
                 inventory: String(variant.inventory),
                 lowStockThreshold: String(variant.lowStockThreshold ?? 5),
@@ -236,6 +237,7 @@ export function ProductForm({ productId }: { productId?: string }) {
       return combos.map((combo) => ({
         ...combo,
         price: byKey[combo.key]?.price ?? priceRef.current,
+        cost: byKey[combo.key]?.cost ?? "",
         sku: byKey[combo.key]?.sku ?? "",
         inventory: byKey[combo.key]?.inventory ?? "0",
         lowStockThreshold: byKey[combo.key]?.lowStockThreshold ?? "5",
@@ -384,6 +386,7 @@ export function ProductForm({ productId }: { productId?: string }) {
             const variantData = {
               variations: row.variations,
               price: Math.round(Number(row.price) || 0),
+              costPrice: row.cost.trim() === "" ? null : Math.max(0, Math.round(Number(row.cost) || 0)),
               sku: row.sku.trim(),
               inventory: Number(row.inventory) || 0,
               lowStockThreshold: Number(row.lowStockThreshold) || 5,
@@ -549,6 +552,7 @@ export function ProductForm({ productId }: { productId?: string }) {
           setErrors={setErrors}
           busy={busy}
           showImageCol={showImageCol}
+          productCost={costPrice}
         />
 
         <ProductSeoCard

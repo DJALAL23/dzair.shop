@@ -94,6 +94,7 @@ describe("Variants Endpoint - Error Scenarios", () => {
         position: 1,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
+        costPrice: null,
       });
 
       const res = await app.request("/products/prod_123/variants/var_123", {
@@ -160,6 +161,7 @@ describe("Variants Endpoint - Error Scenarios", () => {
         position: 1,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
+        costPrice: null,
       });
 
       const res = await app.request("/products/prod_123/variants/var_123", {

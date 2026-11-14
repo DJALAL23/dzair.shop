@@ -38,6 +38,8 @@ const PRODUCT_FIELDS = [
 beforeAll(async () => {
   harness = await createTestD1();
   await harness.db.insert(schema.products).values({ id: "p-cost", name: "Romper", handle: "romper", price: 2400, costPrice: 900, tags: '["bébé"]', createdAt: NOW, updatedAt: NOW });
+  await harness.db.insert(schema.products).values({ id: "p-dress", name: "Dress", handle: "dress", price: 3100, costPrice: 1300, hasVariants: true, createdAt: NOW, updatedAt: NOW });
+  await harness.db.insert(schema.productVariants).values({ id: "v-dress-s", productId: "p-dress", variations: '{"Size":"S"}', price: 3100, costPrice: 1170, sku: "DRESS-S", createdAt: NOW, updatedAt: NOW });
 }, 120_000);
 
 afterAll(async () => {
@@ -51,7 +53,7 @@ describe("a storefront product", () => {
   });
 
   it("is listed with exactly its public fields, its tags parsed", async () => {
-    const [product] = await getStoreProducts(harness.db, { limit: 10 }, null, TEST_DELIVERY);
+    const product = (await getStoreProducts(harness.db, { limit: 10 }, null, TEST_DELIVERY)).find((p) => p.handle === "romper");
     expect(Object.keys(product!).sort()).toEqual([...PRODUCT_FIELDS, "coverImage", "reviewStats"].sort());
     expect(product?.tags).toEqual(["bébé"]);
   });
@@ -60,5 +62,11 @@ describe("a storefront product", () => {
     const product = await getStoreProductByHandle(harness.db, "romper", { delivery: TEST_DELIVERY });
     expect(Object.keys(product!).sort()).toEqual([...PRODUCT_FIELDS, "category", "images", "offers", "quantityPricing", "reviewStats", "variants"].sort());
     expect(JSON.stringify(product)).not.toContain("900");
+  });
+
+  it("shows a variant without what the merchant paid for it", async () => {
+    const product = await getStoreProductByHandle(harness.db, "dress", { delivery: TEST_DELIVERY });
+    expect(Object.keys(product!.variants[0]!).sort()).toEqual(["compareAtPrice", "id", "imageId", "inventory", "isDefault", "lowStockThreshold", "price", "sku", "variations"]);
+    expect(JSON.stringify(product)).not.toMatch(/1170|1300|cost/i);
   });
 });

@@ -350,6 +350,34 @@ describe("editing a product's variants", () => {
   });
 });
 
+describe("a variant's cost", () => {
+  it("shows the product's cost where a variant has none, and saves each variant's own cost or none", async () => {
+    server.product = {
+      ...server.product,
+      costPrice: 1200,
+      hasVariants: true,
+      variantOptions: [{ name: "Size", values: [{ value: "M" }, { value: "L" }] }],
+    };
+    server.variants = [{ ...variant("variant-m", "M", "KAF-M"), costPrice: 1500 }, variant("variant-l", "L", "KAF-L")];
+    await mountEditor();
+
+    const costs = () => Array.from(host.querySelectorAll<HTMLInputElement>('input[aria-label="Cost"]'));
+    expect(costs().map((input) => [input.value, input.placeholder])).toEqual([
+      ["1500", "1200"],
+      ["", "1200"],
+    ]);
+
+    type(costs()[0]!, "");
+    type(costs()[1]!, "1350");
+    await save();
+
+    expect(server.variants.map((item) => [item.variations.Size, item.costPrice])).toEqual([
+      ["M", null],
+      ["L", 1350],
+    ]);
+  });
+});
+
 describe("turning a product's options off", () => {
   async function turnOptionsOff() {
     server.product = { ...server.product, hasVariants: true, sku: null, variantOptions: [{ name: "Size", values: [{ value: "M" }] }] };

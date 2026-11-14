@@ -625,6 +625,8 @@ export const productVariants = sqliteTable("product_variants", {
   position: integer("position").notNull().default(1),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
+  /** What one unit costs the merchant (DZD); null falls back to the product's cost (migration 0085). */
+  costPrice: integer("cost_price"),
 });
 
 export const productImages = sqliteTable("product_images", {
@@ -682,6 +684,14 @@ export const orderProducts = sqliteTable("order_products", {
   discount: integer("discount").notNull().default(0),
   /** The name `offerId` had when the order was placed — kept when the offer is renamed or deleted (migration 0053). */
   offerName: text("offer_name"),
+  /**
+   * What one unit cost the merchant (DZD), frozen when the line was written:
+   * the variant's cost, else the product's (a trigger, migration 0085). Null
+   * when it is not known; a later catalog change never rewrites it.
+   */
+  unitCost: integer("unit_cost"),
+  /** Where `unitCost` came from: the catalog when the line was written, or the merchant's correction. */
+  unitCostSource: text("unit_cost_source", { enum: ["catalog", "manual"] }),
 });
 
 // ─── Order attribution (migration 0083) ──────────────────────────────────────

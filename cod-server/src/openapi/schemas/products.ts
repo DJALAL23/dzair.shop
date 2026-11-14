@@ -54,6 +54,10 @@ export const ProductVariantSchema = z
       example: 45000,
     }),
     compareAtPrice: z.number().int().min(0).nullable().openapi({ example: null }),
+    costPrice: z.number().int().min(0).nullable().openapi({
+      description: "What one unit costs the merchant in DZD. Null uses the product's cost. Never shown to shoppers.",
+      example: null,
+    }),
     sku: z.string().openapi({
       description:
         "Unique stock-keeping unit identifier. Used for order tracking and inventory management.",

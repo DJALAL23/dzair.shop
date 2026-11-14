@@ -289,7 +289,8 @@ export async function getOrderById(db: AppDb, orderId: string) {
 
   return {
     ...order,
-    products: orderProductsList,
+    /** What each line cost stays on the server until the finance permission exists. */
+    products: orderProductsList.map(({ unitCost: _unitCost, unitCostSource: _unitCostSource, ...line }) => line),
     /** Where the order came from (ADR 0026); null when nothing is known. */
     attribution: attribution[0] ? orderAttributionView(attribution[0]) : null,
     /** The order's processing as its Business Events recorded it, newest first. */

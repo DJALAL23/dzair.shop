@@ -168,7 +168,9 @@
     "meta_description_help": "Affichée sous le titre. Vide : le début de la description du produit.",
     "meta_description_placeholder": "Une phrase courte qui donne envie de cliquer",
     "seo_preview": "Aperçu du résultat de recherche",
-    "seo_preview_empty": "Ajoutez une description pour que les moteurs de recherche aient quelque chose à afficher."
+    "seo_preview_empty": "Ajoutez une description pour que les moteurs de recherche aient quelque chose à afficher.",
+    "variant_cost": "Coût",
+    "variant_cost_hint": "Ce que vous coûte une unité. Laissez vide pour utiliser le prix de revient du produit."
   },
   "status_options": {
     "active": "Actif",

@@ -4,6 +4,7 @@ export const createVariantSchema = z.object({
   variations: z.record(z.string(), z.string()), // {"Color": "Red", "Size": "M"}
   price: z.number().int().min(0),
   compareAtPrice: z.number().int().min(0).optional().nullable(),
+  costPrice: z.number().int().min(0).optional().nullable(),
   sku: z.string().min(1),
   barcode: z.string().optional().nullable(),
   inventory: z.number().int().min(0).default(0),
@@ -19,6 +20,7 @@ export const updateVariantSchema = z.object({
   variations: z.record(z.string(), z.string()).optional(),
   price: z.number().int().min(0).optional(),
   compareAtPrice: z.number().int().min(0).optional().nullable(),
+  costPrice: z.number().int().min(0).optional().nullable(),
   sku: z.string().min(1).optional(),
   barcode: z.string().optional().nullable(),
   inventory: z.number().int().min(0).optional(),

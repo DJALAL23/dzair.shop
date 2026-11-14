@@ -60,6 +60,7 @@ export const VARIANT_TOOL_OUTPUT_SCHEMAS: Record<string, z.ZodType> = {
         variations: z.record(z.string(), z.string()).describe('The combination, e.g. {"Color": "Red", "Size": "M"}'),
         price: z.number().describe("Price in DZD"),
         compareAtPrice: z.number().nullable().describe("Strike-through anchor price, or null"),
+        costPrice: z.number().nullable().describe("What one unit costs the merchant in DZD; null uses the product's cost"),
         sku: z.string(),
         barcode: z.string().nullable(),
         inventory: z.number().int(),
@@ -147,6 +148,7 @@ export const getVariantTools = (db: ReturnType<typeof getDb>) => ({
             variations: v.variations,
             price: v.price,
             compareAtPrice: v.compareAtPrice,
+            costPrice: v.costPrice,
             sku: v.sku,
             barcode: v.barcode,
             inventory: v.inventory,
@@ -212,7 +214,7 @@ export const getVariantTools = (db: ReturnType<typeof getDb>) => ({
       "Required: productId (ID of the parent product), " +
       "variations (object mapping option axes to values, e.g. {\"Color\": \"Red\", \"Size\": \"M\"}), " +
       "price (integer DZD >= 0), sku (non-empty string, unique per product). " +
-      "Optional: compareAtPrice (integer DZD, for showing a crossed-out original price), " +
+      "Optional: compareAtPrice (integer DZD, for showing a crossed-out original price), costPrice (integer DZD the merchant pays per unit; null uses the product's cost), " +
       "barcode, inventory (default 0), lowStockThreshold (default 5), " +
       "weightKg (number >= 0), imageId (ID of a product image to associate), " +
       "isDefault (boolean, default false — marks the variant shown first in storefront), " +
@@ -235,7 +237,7 @@ export const getVariantTools = (db: ReturnType<typeof getDb>) => ({
             `Invalid variant data: ${errorDetails}. ` +
             `Required: productId (ID), variant.variations (object e.g. {"Color":"Red","Size":"M"}), ` +
             `variant.price (integer DZD >= 0), variant.sku (non-empty string). ` +
-            `Optional: variant.compareAtPrice (int), variant.barcode (string), ` +
+            `Optional: variant.compareAtPrice (int), variant.costPrice (int or null), variant.barcode (string), ` +
             `variant.inventory (int >= 0, default 0), variant.lowStockThreshold (int >= 0, default 5), ` +
             `variant.weightKg (number >= 0), variant.imageId (ID), ` +
             `variant.isDefault (boolean, default false), variant.active (boolean, default true), ` +
@@ -287,7 +289,7 @@ export const getVariantTools = (db: ReturnType<typeof getDb>) => ({
             `Invalid update arguments: ${errorDetails}. ` +
             `Expected: variantId (ID), updates object with optional fields: ` +
             `variations (full Record<string,string> replacement), price (int DZD >= 0), ` +
-            `compareAtPrice (int or null), sku (non-empty string), barcode (string or null), ` +
+            `compareAtPrice (int or null), costPrice (int or null), sku (non-empty string), barcode (string or null), ` +
             `inventory (int >= 0), lowStockThreshold (int >= 0), weightKg (number or null), ` +
             `imageId (ID or null), isDefault (boolean), active (boolean), position (int >= 1).`,
         };

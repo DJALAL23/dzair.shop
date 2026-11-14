@@ -167,7 +167,9 @@
     "meta_description_help": "Shown under the title. Empty: the start of the product's description.",
     "meta_description_placeholder": "A short sentence that makes shoppers click",
     "seo_preview": "Search result preview",
-    "seo_preview_empty": "Add a description so search engines have something to show."
+    "seo_preview_empty": "Add a description so search engines have something to show.",
+    "variant_cost": "Cost",
+    "variant_cost_hint": "What one unit costs you. Leave it empty to use the product's cost price."
   },
   "status_options": {
     "active": "Active",
