@@ -1,24 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { callbackChoices, callbackState, dayFromNow, formatMonth, formatStoreDay, fromStoreInput, memberWarning, payStart, periodRange, shiftMonth, splitMinutes, storeClock, storeDay, storeMonth, toStoreInput } from "./model";
+import { callbackChoices, callbackState, dayFromNow, fromStoreInput, memberWarning, payStart, periodRange, splitMinutes, storeClock, toStoreInput } from "./model";
 
-describe("store days, in Algeria's time", () => {
-  it("turns at 23:00 UTC", () => {
-    expect(storeDay(new Date("2026-11-14T22:59:00.000Z"))).toBe("2026-11-14");
-    expect(storeDay(new Date("2026-11-14T23:00:00.000Z"))).toBe("2026-11-15");
-  });
-
+describe("the results periods", () => {
   it("gives each results period its first and last day", () => {
     const now = new Date("2026-11-14T10:00:00.000Z");
     expect(periodRange("today", now)).toEqual({ from: "2026-11-14", to: "2026-11-14" });
     expect(periodRange("7d", now)).toEqual({ from: "2026-11-08", to: "2026-11-14" });
     expect(periodRange("30d", now)).toEqual({ from: "2026-10-16", to: "2026-11-14" });
     expect(periodRange("month", now)).toEqual({ from: "2026-11-01", to: "2026-11-14" });
-  });
-
-  it("counts months across a year's end", () => {
-    expect(storeMonth(new Date("2026-12-31T23:30:00.000Z"))).toBe("2027-01");
-    expect(shiftMonth("2026-01", -1)).toBe("2025-12");
-    expect(shiftMonth("2026-12", 1)).toBe("2027-01");
   });
 });
 
@@ -74,11 +63,5 @@ describe("pay", () => {
     expect(payStart("salary", "2026-11-20")).toBe("2026-11-01");
     expect(payStart("per_confirmed", "2026-11-20")).toBe("2026-11-20");
     expect(payStart("per_delivered", "2026-11-20")).toBe("2026-11-20");
-  });
-
-  it("names its days and months as the merchant reads them, whatever the browser's time zone", () => {
-    expect(formatStoreDay("2026-11-01", "en")).toBe("Nov 1, 2026");
-    expect(formatMonth("2026-11", "fr")).toBe("novembre 2026");
-    expect(formatMonth("2027-01", "en")).toBe("January 2027");
   });
 });

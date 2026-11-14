@@ -19,6 +19,7 @@ import {
   Sparkles,
   Star,
   Printer,
+  Receipt,
   Tag,
   Ticket,
   Truck,
@@ -205,6 +206,13 @@ export function useNavSections(): NavSection[] {
               scope: "delivery:read",
             },
           ],
+        },
+        {
+          kind: "leaf",
+          href: "/finance/costs",
+          label: tN("sidebar.costs"),
+          icon: Receipt,
+          scope: "finance:read",
         },
         {
           kind: "leaf",

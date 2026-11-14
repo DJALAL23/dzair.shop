@@ -4,19 +4,10 @@
  * quick callback times an agent picks from, and what a member's row warns.
  */
 
+import { shiftDay, storeDay } from "@/lib/store-time";
 import type { TeamMember } from "./types";
 
 const ALGERIA_OFFSET_MS = 3_600_000;
-const DAY_MS = 86_400_000;
-
-/** The store's calendar day (YYYY-MM-DD) at `now`. */
-export function storeDay(now: Date = new Date()): string {
-  return new Date(now.getTime() + ALGERIA_OFFSET_MS).toISOString().slice(0, 10);
-}
-
-export function shiftDay(day: string, days: number): string {
-  return new Date(Date.parse(`${day}T00:00:00.000Z`) + days * DAY_MS).toISOString().slice(0, 10);
-}
 
 export const RESULTS_PERIODS = ["today", "7d", "30d", "month"] as const;
 export type ResultsPeriod = (typeof RESULTS_PERIODS)[number];
@@ -28,16 +19,6 @@ export function periodRange(period: ResultsPeriod, now: Date = new Date()): { fr
   if (period === "7d") return { from: shiftDay(today, -6), to: today };
   if (period === "30d") return { from: shiftDay(today, -29), to: today };
   return { from: `${today.slice(0, 7)}-01`, to: today };
-}
-
-/** The store's month (YYYY-MM) at `now`. */
-export function storeMonth(now: Date = new Date()): string {
-  return storeDay(now).slice(0, 7);
-}
-
-export function shiftMonth(month: string, months: number): string {
-  const [year, index] = [Number(month.slice(0, 4)), Number(month.slice(5, 7)) - 1 + months];
-  return new Date(Date.UTC(year, index, 1)).toISOString().slice(0, 7);
 }
 
 /** The instant of a time of day on a store day, Algeria's time. */
@@ -111,23 +92,6 @@ export function memberWarning(member: Pick<TeamMember, "active" | "reach">): "in
 /** Minutes as hours and minutes, for "1 h 05". */
 export function splitMinutes(total: number): { hours: number; minutes: number } {
   return { hours: Math.floor(total / 60), minutes: total % 60 };
-}
-
-const intlLocale = (locale: string) => (locale === "ar" ? "ar-DZ" : `${locale}-DZ`);
-
-/** A store day (YYYY-MM-DD) as the merchant reads it: 1 Nov 2026. */
-export function formatStoreDay(day: string, locale: string): string {
-  return new Intl.DateTimeFormat(intlLocale(locale), { timeZone: "UTC", day: "numeric", month: "short", year: "numeric" }).format(new Date(`${day}T00:00:00.000Z`));
-}
-
-/** A store day within a month the merchant already sees: 14 Nov. */
-export function formatStoreDayShort(day: string, locale: string): string {
-  return new Intl.DateTimeFormat(intlLocale(locale), { timeZone: "UTC", day: "numeric", month: "short" }).format(new Date(`${day}T00:00:00.000Z`));
-}
-
-/** A month (YYYY-MM) as the merchant reads it: November 2026. */
-export function formatMonth(month: string, locale: string): string {
-  return new Intl.DateTimeFormat(intlLocale(locale), { timeZone: "UTC", month: "long", year: "numeric" }).format(new Date(`${month}-01T00:00:00.000Z`));
 }
 
 /** The day a pay rate starts: a salary on the first of its month, a commission on its day. */

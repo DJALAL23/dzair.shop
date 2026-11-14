@@ -32,7 +32,7 @@ vi.mock("@/features/auth/components/RequireAuth", () => ({
 
 import ConfirmationPageApp from "./ConfirmationPageApp";
 import { formatMoney } from "@/features/orders/model";
-import { storeMonth } from "@/features/confirmation/model";
+import { storeMonth } from "@/lib/store-time";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 

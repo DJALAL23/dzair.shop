@@ -141,7 +141,12 @@
       "team.pay_set": "A fixé la paie d'un membre",
       "team.pay_removed": "A supprimé un taux de paie",
       "user.deactivated": "A désactivé un membre",
-      "user.reactivated": "A réactivé un membre"
+      "user.reactivated": "A réactivé un membre",
+      "finance.cost_added": "A ajouté une dépense",
+      "finance.cost_changed": "A modifié une dépense",
+      "finance.cost_removed": "A supprimé une dépense",
+      "finance.rate_set": "A indiqué un taux de change",
+      "finance.rate_removed": "A retiré un taux de change"
     },
     "table": {
       "action": "Action",

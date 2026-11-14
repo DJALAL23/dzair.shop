@@ -10,7 +10,7 @@
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import type { AppDb } from "../db/client";
 import { orders, storeTeamConfig, teamAgents, teamMemberships, teamPay, users, userScopes } from "../db/schema";
-import { STORE_UTC_OFFSET_HOURS } from "../queries/analytics";
+import { nextStoreDay, storeDateOf, storeDayOf, storeDayStart } from "../time/store-day";
 import { SCOPES } from "../rbac/scopes";
 import { DEFAULT_TEAM_CONFIG, PAY_KINDS, WAITING_STATUSES, type Distribution, type PayKind } from "./model";
 import { TEAM_QUEUE_SQL } from "./queue";
@@ -184,19 +184,6 @@ export async function wasEverOnTeam(db: AppDb, userId: string): Promise<boolean>
   return Boolean(await db.select({ id: teamMemberships.id }).from(teamMemberships).where(eq(teamMemberships.userId, userId)).limit(1).get());
 }
 
-/** The instant a store day (YYYY-MM-DD, Algeria) starts. */
-export function storeDayStart(day: string): string {
-  return new Date(Date.parse(`${day}T00:00:00.000Z`) - STORE_UTC_OFFSET_HOURS * 3_600_000).toISOString();
-}
-
-/** The store day after `day`. */
-export function nextStoreDay(day: string): string {
-  return new Date(Date.parse(`${day}T00:00:00.000Z`) + 86_400_000).toISOString().slice(0, 10);
-}
-
-/** The store date an instant column falls on, in SQL. */
-const storeDateOf = (column: string) => sql.raw(`date(${column}, '+${STORE_UTC_OFFSET_HOURS} hours')`);
-
 export interface MemberResults {
   userId: string;
   name: string;
@@ -280,11 +267,6 @@ export interface PayrollLine {
   total: number;
   /** True when something is missing: a member with no pay set, or orders with no rate in force for a kind they are paid. */
   incomplete: boolean;
-}
-
-/** The store day (YYYY-MM-DD, Algeria) an instant falls on. */
-export function storeDayOf(instant: string): string {
-  return new Date(Date.parse(instant) + STORE_UTC_OFFSET_HOURS * 3_600_000).toISOString().slice(0, 10);
 }
 
 /**

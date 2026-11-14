@@ -141,7 +141,12 @@
       "team.pay_set": "حدّد أجر عضو",
       "team.pay_removed": "حذف معدّل أجر",
       "user.deactivated": "ألغى تفعيل عضو",
-      "user.reactivated": "أعاد تفعيل عضو"
+      "user.reactivated": "أعاد تفعيل عضو",
+      "finance.cost_added": "أضاف مصروفًا",
+      "finance.cost_changed": "عدّل مصروفًا",
+      "finance.cost_removed": "حذف مصروفًا",
+      "finance.rate_set": "حدّد سعر صرف",
+      "finance.rate_removed": "أزال سعر صرف"
     },
     "table": {
       "action": "الإجراء",

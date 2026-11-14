@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
-import { AlertTriangle, Banknote, ChevronLeft, ChevronRight, Coins, Pencil, Wallet } from "lucide-react";
+import { AlertTriangle, Banknote, Coins, Pencil, Wallet } from "lucide-react";
 import { useLocale, useT } from "@/i18n/react";
 import {
-  Button,
   Card,
   CellEmpty,
   EmptyState,
@@ -23,7 +22,8 @@ import {
 } from "@/components/ui";
 import { formatMoney } from "@/features/orders/model";
 import { getPayroll } from "@/features/confirmation/api";
-import { formatMonth, formatStoreDayShort, shiftMonth, storeMonth } from "@/features/confirmation/model";
+import { formatStoreDayShort, storeMonth } from "@/lib/store-time";
+import { MonthSwitcher } from "@/components/period/MonthSwitcher";
 import { orderPayroll, pageOf, PAGE_SIZE, payrollTotals } from "@/features/confirmation/views";
 import { MemberPayDialog } from "@/features/confirmation/components/MemberPayDialog";
 import type { Commission, PayrollLine } from "@/features/confirmation/types";
@@ -66,24 +66,7 @@ export function PayrollTab({ version, canManage, onChanged }: { version: number;
 
   return (
     <div className="@container space-y-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="flex items-center gap-1 rounded-xl bg-card p-1 shadow-card">
-          <IconButton type="button" onClick={() => go(shiftMonth(month, -1))} aria-label={t("pay.previous_month")}>
-            <ChevronLeft size={16} className="rtl:rotate-180" aria-hidden="true" />
-          </IconButton>
-          <span className="min-w-36 text-center text-sm font-semibold capitalize text-foreground" aria-live="polite">
-            {formatMonth(month, locale)}
-          </span>
-          <IconButton type="button" disabled={month >= thisMonth} onClick={() => go(shiftMonth(month, 1))} aria-label={t("pay.next_month")}>
-            <ChevronRight size={16} className="rtl:rotate-180" aria-hidden="true" />
-          </IconButton>
-        </div>
-        {month !== thisMonth && (
-          <Button type="button" variant="ghost" size="sm" onClick={() => go(thisMonth)}>
-            {t("pay.this_month")}
-          </Button>
-        )}
-      </div>
+      <MonthSwitcher month={month} onChange={go} />
 
       {failed ? (
         <Card>

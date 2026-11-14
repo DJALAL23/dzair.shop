@@ -34,6 +34,11 @@ export const ACTIONS = {
   TEAM_SETTINGS_UPDATED:   "team.settings_updated",
   TEAM_PAY_SET:            "team.pay_set",
   TEAM_PAY_REMOVED:        "team.pay_removed",
+  FINANCE_COST_ADDED:      "finance.cost_added",
+  FINANCE_COST_CHANGED:    "finance.cost_changed",
+  FINANCE_COST_REMOVED:    "finance.cost_removed",
+  FINANCE_RATE_SET:        "finance.rate_set",
+  FINANCE_RATE_REMOVED:    "finance.rate_removed",
 
   // Shipments
   SHIPMENT_VOIDED:         "shipment.voided",

@@ -227,6 +227,18 @@ export const ERROR_CODES = {
   ORDER_NOT_WAITING: "ORDER_NOT_WAITING",
   /** That pay rate does not exist. */
   PAY_RATE_NOT_FOUND: "PAY_RATE_NOT_FOUND",
+
+  // ============================================================================
+  // BUSINESS LOGIC ERRORS - THE STORE'S COSTS
+  // ============================================================================
+  /** That cost does not exist. */
+  COST_NOT_FOUND: "COST_NOT_FOUND",
+  /** That exchange rate does not exist. */
+  EXCHANGE_RATE_NOT_FOUND: "EXCHANGE_RATE_NOT_FOUND",
+  /** A cost with earlier amounts cannot become a one-time cost, nor stop being one. */
+  COST_HAS_HISTORY: "COST_HAS_HISTORY",
+  /** A cost's days must follow on: it stops on or after it starts, and a change comes after its amount in force started. */
+  COST_DATES_INVALID: "COST_DATES_INVALID",
   
   // ============================================================================
   // BUSINESS LOGIC ERRORS - OFFERS

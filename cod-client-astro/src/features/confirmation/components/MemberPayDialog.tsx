@@ -6,7 +6,8 @@ import { notify } from "@/lib/notify";
 import { Button, Dialog, Field, Input, Select, useConfirmDialog } from "@/components/ui";
 import { formatMoney } from "@/features/orders/model";
 import { listMemberPay, removePayRate, setMemberPay } from "@/features/confirmation/api";
-import { formatStoreDay, payStart, storeDay } from "@/features/confirmation/model";
+import { payStart } from "@/features/confirmation/model";
+import { formatStoreDay, storeDay } from "@/lib/store-time";
 import type { PayKind, PayRate, TeamMember } from "@/features/confirmation/types";
 
 const KINDS: PayKind[] = ["salary", "per_confirmed", "per_delivered"];

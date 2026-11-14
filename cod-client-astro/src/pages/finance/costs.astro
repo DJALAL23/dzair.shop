@@ -1,0 +1,13 @@
+---
+import DashboardLayout from "@/layouts/DashboardLayout.astro";
+import { PageSkeleton } from "@/components/layout/PageSkeleton";
+import CostsPageApp from "@/features/finance/components/CostsPageApp";
+---
+
+<DashboardLayout>
+  <PageSkeleton gate="required" />
+
+  <div data-auth-gate="required" hidden>
+    <CostsPageApp client:only="react" />
+  </div>
+</DashboardLayout>

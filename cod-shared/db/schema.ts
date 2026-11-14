@@ -8,6 +8,7 @@ import { REVIEW_AUTO_PUBLISH, REVIEW_MEDIA_KINDS, REVIEW_SOURCES, REVIEW_STATUSE
 import { MEDIA_HOSTS, MEDIA_KINDS, MEDIA_STATUSES } from "../media/model";
 import { sql } from "drizzle-orm";
 import { STORE_LOCALES } from "../i18n/locales";
+import { COST_CATEGORIES, COST_CHARGES, CURRENCIES, FOREIGN_CURRENCIES } from "../finance/model";
 import { DISTRIBUTIONS, PAY_KINDS } from "../team/model";
 import { THEME_DRAFT_PART_KINDS } from "../themes/drafts";
 import { ORDER_STATUSES } from "../orders/lifecycle";
@@ -2438,4 +2439,43 @@ export const orderAttempts = sqliteTable("order_attempts", {
   order: index("order_attempts_order").on(t.orderId).where(sql`order_id IS NOT NULL`),
   spamNumber: uniqueIndex("order_attempts_spam_number").on(t.orderNumber).where(sql`outcome = 'spam'`),
   spamCheckout: uniqueIndex("order_attempts_spam_checkout").on(t.checkoutKey).where(sql`outcome = 'spam' AND checkout_key IS NOT NULL`),
+}));
+
+/**
+ * The store's own costs (migration 0087): one row per version; the versions
+ * of one cost share `series_id`, each running from `valid_from` to
+ * `valid_to` (store days, both included; null while it runs). See
+ * finance/model.ts for the charges and how each one counts.
+ */
+export const costs = sqliteTable("costs", {
+  id: text("id").primaryKey(),
+  seriesId: text("series_id").notNull(),
+  name: text("name").notNull(),
+  category: text("category", { enum: COST_CATEGORIES }).notNull(),
+  charge: text("charge", { enum: COST_CHARGES }).notNull(),
+  /** In the currency's minor unit (centimes, cents). */
+  amountMinor: integer("amount_minor").notNull(),
+  currency: text("currency", { enum: CURRENCIES }).notNull(),
+  validFrom: text("valid_from").notNull(),
+  validTo: text("valid_to"),
+  productId: text("product_id").references(() => products.id, { onDelete: "set null" }),
+  /** Set only for a product's cost; kept when the product is deleted. */
+  productName: text("product_name"),
+  createdBy: text("created_by"),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+}, (t) => ({
+  series: index("costs_series").on(t.seriesId, t.validFrom),
+}));
+
+/** What one dollar or euro costs the merchant in dinar centimes, from a store day on (migration 0087). */
+export const exchangeRates = sqliteTable("exchange_rates", {
+  id: text("id").primaryKey(),
+  currency: text("currency", { enum: FOREIGN_CURRENCIES }).notNull(),
+  centimesPerUnit: integer("centimes_per_unit").notNull(),
+  validFrom: text("valid_from").notNull(),
+  createdBy: text("created_by"),
+  createdAt: text("created_at").notNull(),
+}, (t) => ({
+  from: uniqueIndex("exchange_rates_from").on(t.currency, t.validFrom),
 }));

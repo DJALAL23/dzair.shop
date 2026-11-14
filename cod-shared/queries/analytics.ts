@@ -10,6 +10,7 @@ import type { AppDb } from "../db/client";
 import { orders, shipments } from "../db/schema";
 import type { OrderStage } from "../orders/stage";
 import { orderNeedsAttentionSql, orderStageSql } from "../orders/stage-sql";
+import { STORE_UTC_OFFSET_HOURS } from "../time/store-day";
 
 export interface OrderStageStats {
   /** Orders per stage — archived ones too, unless left out; only stages with at least one order. */
@@ -87,8 +88,6 @@ export async function getOrderStageStats(db: AppDb, options: { archived?: "inclu
 export const ACTIVITY_WINDOWS = [7, 30, 90] as const;
 export type ActivityWindow = (typeof ACTIVITY_WINDOWS)[number];
 
-/** Algeria keeps UTC+1 all year: a store's day starts at 23:00 UTC the evening before. */
-export const STORE_UTC_OFFSET_HOURS = 1;
 
 export interface OrderActivityDay {
   /** The store's calendar day, YYYY-MM-DD. */

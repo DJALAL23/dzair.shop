@@ -141,7 +141,12 @@
       "team.pay_set": "Set a member's pay",
       "team.pay_removed": "Removed a pay rate",
       "user.deactivated": "Deactivated a member",
-      "user.reactivated": "Reactivated a member"
+      "user.reactivated": "Reactivated a member",
+      "finance.cost_added": "Added a cost",
+      "finance.cost_changed": "Changed a cost",
+      "finance.cost_removed": "Deleted a cost",
+      "finance.rate_set": "Set an exchange rate",
+      "finance.rate_removed": "Removed an exchange rate"
     },
     "table": {
       "action": "Action",

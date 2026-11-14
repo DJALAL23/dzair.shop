@@ -30,7 +30,8 @@
     "integrations": "Intégrations",
     "apps": "Applications",
     "orders_spam": "Spam",
-    "orders_team": "Équipe de confirmation"
+    "orders_team": "Équipe de confirmation",
+    "costs": "Dépenses"
   },
   "navbar": {
     "search_placeholder": "Rechercher commandes, clients, suivi…"

@@ -107,5 +107,10 @@
   "confirm_type": "اكتب {text} للتأكيد",
   "confirm_copy": "نسخ",
   "clear": "مسح",
-  "remove_item": "إزالة {name}"
+  "remove_item": "إزالة {name}",
+  "month": {
+    "previous": "الشهر السابق",
+    "next": "الشهر التالي",
+    "this": "هذا الشهر"
+  }
 }
