@@ -31,6 +31,9 @@ short:
    dashboard on `:4321`. Sign-up is off by design: `seed:admin` creates your
    admin account and prints its password.
 
+The same scripts run from the root: `npm run db:setup:local`,
+`npm run dev:server`, `npm run seed:admin` and `npm run dev:dashboard`.
+
 ## Your first change
 
 1. Pick an issue labeled `good first issue`, or open one before larger work.
