@@ -711,6 +711,20 @@ export const orderProducts = sqliteTable("order_products", {
   unitCostSource: text("unit_cost_source", { enum: ["catalog", "manual"] }),
 });
 
+/**
+ * An order line whose product was deleted, and the product it was of: kept
+ * by a trigger when the product goes (the line's `productId` becomes null),
+ * so what a product's per-order costs counted still counts (migration 0087).
+ */
+export const removedProductLines = sqliteTable("removed_product_lines", {
+  orderProductId: text("order_product_id")
+    .primaryKey()
+    .references(() => orderProducts.id, { onDelete: "cascade" }),
+  productId: text("product_id").notNull(),
+}, (t) => ({
+  product: index("removed_product_lines_product").on(t.productId),
+}));
+
 // ─── Order attribution (migration 0083) ──────────────────────────────────────
 
 /**
@@ -2458,14 +2472,17 @@ export const costs = sqliteTable("costs", {
   currency: text("currency", { enum: CURRENCIES }).notNull(),
   validFrom: text("valid_from").notNull(),
   validTo: text("valid_to"),
-  productId: text("product_id").references(() => products.id, { onDelete: "set null" }),
-  /** Set only for a product's cost; kept when the product is deleted. */
+  /** The product it is for; null for the whole store. Not a foreign key: it stays when the product is deleted, so its orders still count. */
+  productId: text("product_id"),
+  /** Set only for a product's cost: the product's name, set to its last one when the product is deleted. */
   productName: text("product_name"),
   createdBy: text("created_by"),
+  /** A fresh random token per write, the same on every version of the cost: the guard that keeps two changes at once from both applying. */
+  revision: text("revision").notNull(),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 }, (t) => ({
-  series: index("costs_series").on(t.seriesId, t.validFrom),
+  series: uniqueIndex("costs_series").on(t.seriesId, t.validFrom),
 }));
 
 /** What one dollar or euro costs the merchant in dinar centimes, from a store day on (migration 0087). */

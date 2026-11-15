@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { chargeKind, costStatus, financeError, formatAmount, parseAmount, perMonth, rateOn, touches } from "./model";
-import type { ExchangeRate } from "./types";
+import { changedMeanwhile, chargeKind, costStatus, financeError, formatAmount, parseAmount, perMonth, rateOn, targetKey, touches, versionOn } from "./model";
+import type { Cost, ExchangeRate } from "./types";
 
 describe("an amount the merchant types", () => {
   it("reads plain digits, spaces, a decimal comma and Arabic digits", () => {
@@ -75,5 +75,49 @@ describe("a refusal", () => {
     expect(financeError({ code: "COST_DATES_INVALID" }, t)).toBe("errors.dates");
     expect(financeError({ code: "COST_HAS_HISTORY" }, t)).toBe("errors.has_history");
     expect(financeError(new Error("offline"), t)).toBe("errors.generic");
+    expect(financeError({ code: "COST_CHANGED" }, t)).toBe("errors.changed");
+  });
+
+  it("knows when the cost changed meanwhile, and only then", () => {
+    expect(changedMeanwhile({ code: "COST_CHANGED" })).toBe(true);
+    expect(changedMeanwhile({ code: "COST_DATES_INVALID" })).toBe(false);
+    expect(changedMeanwhile(new Error("offline"))).toBe(false);
+  });
+});
+
+describe("a cost on a day", () => {
+  const raised: Cost = {
+    id: "rent",
+    name: "Loyer",
+    category: "rent",
+    charge: "monthly",
+    amount: 36_000,
+    currency: "DZD",
+    startsOn: "2026-09-01",
+    since: "2026-11-14",
+    stopsOn: "2026-12-31",
+    product: null,
+    history: [
+      { charge: "monthly", amount: 31_000, currency: "DZD", product: { id: "p", name: "Robe" }, validFrom: "2026-10-01", validTo: "2026-11-13" },
+      { charge: "monthly", amount: 30_000, currency: "DZD", product: null, validFrom: "2026-09-01", validTo: "2026-09-30" },
+    ],
+    revision: "r",
+    createdAt: "2026-09-01T08:00:00.000Z",
+    updatedAt: "2026-11-14T08:00:00.000Z",
+  };
+
+  it("has the amount in force that day; before it starts its first, after it stops its last", () => {
+    expect(versionOn(raised, "2026-09-30")).toMatchObject({ amount: 30_000, validFrom: "2026-09-01", validTo: "2026-09-30" });
+    expect(versionOn(raised, "2026-10-01")).toMatchObject({ amount: 31_000, product: { name: "Robe" } });
+    expect(versionOn(raised, "2026-11-14")).toMatchObject({ amount: 36_000, validFrom: "2026-11-14", validTo: "2026-12-31" });
+    expect(versionOn(raised, "2026-08-01").amount).toBe(30_000);
+    expect(versionOn(raised, "2027-01-15").amount).toBe(36_000);
+  });
+
+  it("is for the whole store, a product, or a deleted product, each told apart", () => {
+    expect(targetKey(null)).toBe("store");
+    expect(targetKey({ id: "p", name: "Robe" })).toBe("p");
+    expect(targetKey({ id: null, name: "Robe" })).toBe("deleted:Robe");
+    expect(targetKey({ id: null, name: "Robe" })).not.toBe(targetKey({ id: null, name: "Sac" }));
   });
 });

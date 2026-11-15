@@ -1,6 +1,6 @@
 {
   "page_title": "Costs",
-  "page_subtitle": "Everything you spend to run the store, so your profit counts it.",
+  "page_subtitle": "What you spend to run the store, month by month: ads, packaging, calls, rent…",
   "no_access": "You need the finance permission to see the store's costs.",
   "load_error": "Your costs could not be loaded.",
   "add": "Add a cost",
@@ -53,11 +53,12 @@
     "until": "Until {date}",
     "starts": "Starts {date}",
     "stopped": "Stopped {date}",
-    "on": "On {date}"
+    "on": "On {date}",
+    "between": "{from} to {to}"
   },
   "empty": {
     "title": "No costs yet",
-    "body": "Add what you spend on ads, packaging, calls and rent, so your profit counts it. Start from one of these:",
+    "body": "Add what you spend on ads, packaging, calls and rent. Start from one of these:",
     "body_read": "No cost has been added yet.",
     "month_title": "No cost this month",
     "month_body": "None of your costs counts in {month}."
@@ -134,8 +135,8 @@
     "preview_month": "About {amount} a month.",
     "preview_dzd": "About {amount} a month at your rate today.",
     "no_rate": "No rate is set for this currency yet: this cost is left out until you set one.",
-    "change_from": "Apply the new amount from",
-    "change_from_hint": "Days before keep the old amount.",
+    "change_from": "Apply this change from",
+    "change_from_hint": "Days before keep what they cost.",
     "paid_on": "Paid on",
     "starts_on": "Starts on",
     "stops_on": "Stops on",
@@ -145,14 +146,18 @@
     "one_product": "One product",
     "product_placeholder": "Search a product",
     "product_empty": "No product found",
-    "history": "Earlier amounts",
+    "history": "History",
     "history_line": "{amount} · {charge} · {from} to {to}",
     "stop": "Stop it today",
     "stop_title": "Stop {name} today?",
     "stop_body": "It counts until today. The months before keep it.",
     "delete": "Delete",
     "delete_title": "Delete {name}?",
-    "delete_body": "Only for a mistake: it disappears from every month. To end a cost that really ran, stop it instead."
+    "delete_body": "Only for a mistake: it disappears from every month. To end a cost that really ran, stop it instead.",
+    "history_line_for": "{amount} · {charge} · {target} · {from} to {to}",
+    "history_for": "for {name}",
+    "history_store": "for the whole store",
+    "not_here": "Not here: what your products cost you, delivery fees and your confirmation team's pay. They are already recorded from your products, your parcels and Team → Payroll."
   },
   "rate_sheet": {
     "title_USD": "What does 1 $ cost you?",
@@ -184,10 +189,12 @@
     "stops_before": "It stops on or after the day it starts.",
     "product": "Choose the product.",
     "has_history": "This cost had other amounts before, so it can't become a one-time cost, or stop being one. Add a new cost instead.",
-    "dates": "These days don't follow on: a cost stops on or after it starts, and a new amount starts after the one in force and before it stops.",
+    "dates": "These days don't fit: a cost stops on or after the day it starts, and a change applies from today at the latest, while the cost runs.",
     "product_gone": "That product no longer exists.",
     "cost_gone": "This cost no longer exists.",
     "rate_gone": "This rate no longer exists.",
-    "generic": "That didn't work. Please try again."
+    "generic": "That didn't work. Please try again.",
+    "change_from": "Choose a day from {from} to {to}.",
+    "changed": "Someone changed this cost meanwhile, so nothing was saved. The list is up to date: open the cost again."
   }
 }

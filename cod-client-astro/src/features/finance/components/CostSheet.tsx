@@ -7,8 +7,8 @@ import { formatStoreDay, storeDay } from "@/lib/store-time";
 import { listProducts } from "@/features/products/api";
 import { COST_CATEGORIES, CURRENCIES, PER_ORDER_CHARGES, REPEATING_CHARGES, isPerOrder, type PerOrderCharge, type RepeatingCharge } from "../../../../../cod-shared/finance/model";
 import { createCost, deleteCost, updateCost } from "@/features/finance/api";
-import { chargeKind, costStatus, financeError, formatAmount, formatDinars, parseAmount, perMonth, PRESETS, rateOn, type ChargeKind, type CostPreset } from "@/features/finance/model";
-import type { Cost, CostCategory, CostInput, Currency, ExchangeRate } from "@/features/finance/types";
+import { changedMeanwhile, chargeKind, costStatus, financeError, formatAmount, formatDinars, parseAmount, perMonth, PRESETS, rateOn, targetKey, type ChargeKind, type CostPreset } from "@/features/finance/model";
+import type { Cost, CostCategory, CostInput, CostProduct, Currency, ExchangeRate } from "@/features/finance/types";
 
 const KINDS: ChargeKind[] = ["once", "repeats", "per_order"];
 
@@ -35,10 +35,12 @@ function Segmented<T extends string>({ value, options, onChange, label, disabled
 /**
  * One cost, added or changed: what it is, what it costs, when it is charged
  * and what it is for. A new cost can start from what stores usually pay
- * for. A change of the amount of a cost that already ran asks from which
- * day, so the days before keep what they cost. Stopping keeps it in the
- * months it ran; deleting is for a mistake. Without the right to change
- * costs, it only shows.
+ * for, and says what does not belong here. A change of what a cost that
+ * already ran costs, or is for, asks from which day, today at the latest,
+ * so the days before keep theirs. Stopping keeps it in the months it ran;
+ * deleting is for a mistake. A cost someone changed meanwhile is not
+ * overwritten: the list reloads. Without the right to change costs, it only
+ * shows.
  */
 export function CostSheet({ cost, preset, rates, canManage, onClose, onChanged }: { cost: Cost | null; preset: CostPreset | null; rates: ExchangeRate[]; canManage: boolean; onClose: () => void; onChanged: () => void }) {
   const t = useT("finance");
@@ -59,8 +61,7 @@ export function CostSheet({ cost, preset, rates, canManage, onClose, onChanged }
   const [stopsOn, setStopsOn] = useState(cost?.stopsOn ?? today);
   const [forProduct, setForProduct] = useState(cost?.product != null);
   const [product, setProduct] = useState<PickerOption | null>(cost?.product ? { id: cost.product.id ?? "", label: cost.product.id === null ? t("list.product_gone", { name: cost.product.name }) : cost.product.name } : null);
-  const [productTouched, setProductTouched] = useState(false);
-  const [changeFrom, setChangeFrom] = useState(today);
+  const [changeFrom, setChangeFrom] = useState(cost && cost.stopsOn !== null && cost.stopsOn < today ? cost.since : today);
   const [showErrors, setShowErrors] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -77,8 +78,16 @@ export function CostSheet({ cost, preset, rates, canManage, onClose, onChanged }
   const charge = kind === "once" ? "once" : kind === "repeats" ? every : perOrder;
   const amount = parseAmount(amountText);
   const moneyChanged = cost !== null && (amount !== cost.amount || currency !== cost.currency || charge !== cost.charge);
-  const askFrom = cost !== null && moneyChanged && kind !== "once" && cost.charge !== "once" && cost.since < today && (cost.stopsOn === null || cost.stopsOn >= today);
-  const problems = { name: !name.trim(), amount: amount === null, dates: kind !== "once" && !running && stopsOn < startsOn, product: forProduct && !product };
+  const productChanged = cost !== null && (forProduct ? product !== null && (product.id || null) !== (cost.product?.id ?? null) : cost.product !== null);
+  const askFrom = cost !== null && (moneyChanged || productChanged) && kind !== "once" && cost.charge !== "once" && cost.since < today;
+  const lastFrom = kind !== "once" && !running && stopsOn < today ? stopsOn : today;
+  const problems = {
+    name: !name.trim(),
+    amount: amount === null,
+    dates: kind !== "once" && !running && stopsOn < startsOn,
+    product: forProduct && !product,
+    from: askFrom && (changeFrom < startsOn || changeFrom > lastFrom),
+  };
   const shows = (key: keyof typeof problems) => showErrors && problems[key];
   const status = cost ? costStatus(cost, today) : null;
 
@@ -93,22 +102,29 @@ export function CostSheet({ cost, preset, rates, canManage, onClose, onChanged }
       currency,
       startsOn,
       stopsOn: kind === "once" || running ? null : stopsOn,
-      ...(cost === null || productTouched ? { productId: forProduct ? product!.id : null } : {}),
+      ...(cost === null || productChanged ? { productId: forProduct ? product!.id : null } : {}),
       ...(askFrom ? { changeFrom } : {}),
     };
     setBusy(true);
     setError(null);
     try {
-      if (cost) await updateCost(cost.id, input);
+      if (cost) await updateCost(cost.id, input, cost.revision);
       else await createCost(input);
       notify.success(t(cost ? "feedback.saved" : "feedback.added"));
       onChanged();
       onClose();
     } catch (cause) {
-      setError(financeError(cause, t));
+      refused(cause);
     } finally {
       setBusy(false);
     }
+  }
+
+  function refused(cause: unknown) {
+    if (!changedMeanwhile(cause)) return setError(financeError(cause, t));
+    notify.error(t("errors.changed"));
+    onChanged();
+    onClose();
   }
 
   async function stop() {
@@ -117,12 +133,12 @@ export function CostSheet({ cost, preset, rates, canManage, onClose, onChanged }
     if (!ok) return;
     setBusy(true);
     try {
-      await updateCost(cost.id, { name: cost.name, category: cost.category, charge: cost.charge, amount: cost.amount, currency: cost.currency, startsOn: cost.startsOn, stopsOn: today });
+      await updateCost(cost.id, { name: cost.name, category: cost.category, charge: cost.charge, amount: cost.amount, currency: cost.currency, startsOn: cost.startsOn, stopsOn: today }, cost.revision);
       notify.success(t("feedback.stopped"));
       onChanged();
       onClose();
     } catch (cause) {
-      setError(financeError(cause, t));
+      refused(cause);
     } finally {
       setBusy(false);
     }
@@ -139,7 +155,7 @@ export function CostSheet({ cost, preset, rates, canManage, onClose, onChanged }
       onChanged();
       onClose();
     } catch (cause) {
-      setError(financeError(cause, t));
+      refused(cause);
     } finally {
       setBusy(false);
     }
@@ -158,6 +174,7 @@ export function CostSheet({ cost, preset, rates, canManage, onClose, onChanged }
   } else if (currency !== "DZD" && !rateOn(rates, currency, today)) preview = <span className="text-tone-warning-text">{t("sheet.no_rate")}</span>;
 
   const title = cost ? (canManage ? t("sheet.edit_title") : t("sheet.view_title")) : t("sheet.add_title");
+  const productLabel = (value: CostProduct) => (value === null ? t("sheet.history_store") : t("sheet.history_for", { name: value.id === null ? t("list.product_gone", { name: value.name }) : value.name }));
 
   return (
     <Dialog
@@ -219,6 +236,7 @@ export function CostSheet({ cost, preset, rates, canManage, onClose, onChanged }
                 </button>
               ))}
             </div>
+            <p className="mt-3 text-xs text-muted-foreground">{t("sheet.not_here")}</p>
           </div>
         )}
 
@@ -290,8 +308,12 @@ export function CostSheet({ cost, preset, rates, canManage, onClose, onChanged }
         {preview && <p className="-mt-3 text-xs text-muted-foreground">{preview}</p>}
 
         {askFrom && (
-          <Field label={t("sheet.change_from")} hint={t("sheet.change_from_hint")}>
-            <Input type="date" value={changeFrom} min={cost!.since} onChange={(event) => setChangeFrom(event.currentTarget.value)} />
+          <Field
+            label={t("sheet.change_from")}
+            hint={t("sheet.change_from_hint")}
+            error={shows("from") ? t("errors.change_from", { from: formatStoreDay(startsOn, locale), to: formatStoreDay(lastFrom, locale) }) : undefined}
+          >
+            <Input type="date" value={changeFrom} min={startsOn} max={lastFrom} onChange={(event) => setChangeFrom(event.currentTarget.value)} />
           </Field>
         )}
 
@@ -316,7 +338,6 @@ export function CostSheet({ cost, preset, rates, canManage, onClose, onChanged }
             value={forProduct ? "product" : "store"}
             onChange={(value) => {
               setForProduct(value === "product");
-              setProductTouched(true);
               if (product?.id === "") setProduct(null);
             }}
             options={[
@@ -328,10 +349,7 @@ export function CostSheet({ cost, preset, rates, canManage, onClose, onChanged }
             <div className="mt-2">
               <SearchPicker
                 value={product}
-                onChange={(option) => {
-                  setProduct(option);
-                  setProductTouched(true);
-                }}
+                onChange={setProduct}
                 search={searchProducts}
                 placeholder={t("sheet.product_placeholder")}
                 emptyLabel={t("sheet.product_empty")}
@@ -347,16 +365,14 @@ export function CostSheet({ cost, preset, rates, canManage, onClose, onChanged }
               {t("sheet.history")}
             </h3>
             <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
-              {cost.history.map((entry) => (
-                <li key={entry.validFrom}>
-                  {t("sheet.history_line", {
-                    amount: formatAmount(entry.amount, entry.currency, locale),
-                    charge: t(`charge.${entry.charge}`),
-                    from: formatStoreDay(entry.validFrom, locale),
-                    to: formatStoreDay(entry.validTo, locale),
-                  })}
-                </li>
-              ))}
+              {cost.history.map((entry) => {
+                const values = { amount: formatAmount(entry.amount, entry.currency, locale), charge: t(`charge.${entry.charge}`), from: formatStoreDay(entry.validFrom, locale), to: formatStoreDay(entry.validTo, locale) };
+                return (
+                  <li key={entry.validFrom}>
+                    {targetKey(entry.product) === targetKey(cost.product) ? t("sheet.history_line", values) : t("sheet.history_line_for", { ...values, target: productLabel(entry.product) })}
+                  </li>
+                );
+              })}
             </ul>
           </section>
         )}

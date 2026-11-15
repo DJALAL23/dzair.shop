@@ -14,7 +14,6 @@ const cost = (over: Partial<CostVersion> = {}): CostVersion => ({
   validFrom: "2026-01-01",
   validTo: null,
   productId: null,
-  forProduct: false,
   ...over,
 });
 
@@ -26,10 +25,10 @@ const monthEnd = (month: string) => new Date(Date.UTC(Number(month.slice(0, 4)),
 describe("a cost that repeats", () => {
   it("counts a whole month of a monthly cost as exactly its amount, whatever the month's length", () => {
     fc.assert(
-      fc.property(fc.integer({ min: 2024, max: 2032 }), fc.integer({ min: 1, max: 12 }), fc.integer({ min: 1, max: 50_000_000 }), (year, month, amount) => {
+      fc.property(fc.integer({ min: 2024, max: 2032 }), fc.integer({ min: 1, max: 12 }), fc.integer({ min: 1, max: 500_000 }), (year, month, wholeDinars) => {
         const m = `${year}-${String(month).padStart(2, "0")}`;
-        const value = valueCosts([cost({ amountMinor: amount, validFrom: "2020-01-01" })], [], NONE, `${m}-01`, monthEnd(m));
-        expect(value.centimes.total).toBe(amount);
+        const value = valueCosts([cost({ amountMinor: wholeDinars * 100, validFrom: "2020-01-01" })], [], NONE, `${m}-01`, monthEnd(m));
+        expect(value.centimes.total).toBe(wholeDinars * 100);
       }),
     );
   });
@@ -49,7 +48,12 @@ describe("a cost that repeats", () => {
     expect(total([cost({ charge: "yearly", amountMinor: 36_500_000 })], "2026-01-01", "2026-12-31")).toBe(365_000);
   });
 
-  it("never gains or loses money when a period is cut in two", () => {
+  it("rounds what a cost counts to the dinar, once: 14 days of a 31-day month of 30,000 DA are 13,548 DA", () => {
+    expect(total([cost()], "2026-12-01", "2026-12-14")).toBe(13_548);
+    expect(total([cost({ amountMinor: 3_000_050 })], "2026-12-01", "2026-12-31")).toBe(30_001);
+  });
+
+  it("never gains or loses more than a dinar when a period is cut in two", () => {
     fc.assert(
       fc.property(
         fc.constantFrom("daily", "weekly", "monthly", "yearly" as const),
@@ -63,7 +67,7 @@ describe("a cost that repeats", () => {
           const versions = [cost({ charge, amountMinor: amount, validFrom: "2025-06-01" })];
           const whole = valueCosts(versions, [], NONE, from, to).centimes.total;
           const parts = valueCosts(versions, [], NONE, from, middle).centimes.total + (middle < to ? valueCosts(versions, [], NONE, addDays(middle, 1), to).centimes.total : 0);
-          expect(Math.abs(whole - parts)).toBeLessThanOrEqual(1);
+          expect(Math.abs(whole - parts)).toBeLessThanOrEqual(100);
         },
       ),
     );
@@ -86,11 +90,11 @@ describe("a cost per order", () => {
     const packaging = cost({ seriesId: "pack", category: "packaging", charge: "per_shipped", amountMinor: 8_000, validFrom: "2026-11-05", validTo: "2026-11-20" });
     const counts = new Map([[countsKey("per_shipped", null), days({ "2026-11-04": 9, "2026-11-05": 3, "2026-11-20": 2, "2026-11-21": 7 })]]);
     const value = valueCosts([packaging], [], counts, "2026-11-01", "2026-11-30");
-    expect(value.costs).toEqual([{ seriesId: "pack", centimes: 40_000, ownMinor: 40_000, orders: 5, missingFrom: null }]);
+    expect(value.costs).toEqual([{ seriesId: "pack", centimes: 40_000, ownMinor: 40_000, currency: "DZD", orders: 5, missingFrom: null }]);
     expect(value.centimes).toEqual({ total: 40_000, ads: 0, running: 0, per_order: 40_000 });
   });
 
-  it("reads the counts of its own event and product, and none once its product is deleted", () => {
+  it("reads the counts of its own event and its own product", () => {
     const counts = new Map([
       [countsKey("per_delivered", null), days({ "2026-11-02": 10 })],
       [countsKey("per_delivered", "robe"), days({ "2026-11-02": 4 })],
@@ -98,9 +102,9 @@ describe("a cost per order", () => {
     ]);
     const callCenter = cost({ seriesId: "calls", category: "calls", charge: "per_delivered", amountMinor: 15_000 });
     expect(total([callCenter], "2026-11-01", "2026-11-30", [], counts)).toBe(1_500);
-    expect(total([{ ...callCenter, productId: "robe", forProduct: true }], "2026-11-01", "2026-11-30", [], counts)).toBe(600);
-    expect(total([{ ...callCenter, productId: null, forProduct: true }], "2026-11-01", "2026-11-30", [], counts)).toBe(0);
-    expect(valueCosts([callCenter], [], NONE, "2026-11-01", "2026-11-30").costs[0]!.orders).toBe(0);
+    expect(total([{ ...callCenter, productId: "robe" }], "2026-11-01", "2026-11-30", [], counts)).toBe(600);
+    expect(total([{ ...callCenter, productId: "sac" }], "2026-11-01", "2026-11-30", [], counts)).toBe(0);
+    expect(valueCosts([callCenter], [], NONE, "2026-11-01", "2026-11-30").costs[0]).toMatchObject({ orders: 0, ownMinor: null, currency: null });
   });
 });
 
@@ -134,9 +138,92 @@ describe("a cost changed from a day", () => {
     const after = cost({ id: "v2", seriesId: "agency", category: "calls", charge: "per_delivered", amountMinor: 20_000, validFrom: "2026-11-16" });
     const counts = new Map([[countsKey("per_delivered", null), new Map([["2026-11-10", 50], ["2026-11-20", 10]])]]);
     const value = valueCosts([before, after, cost({ seriesId: "fb", category: "ads", charge: "once", amountMinor: 1_000_000, validFrom: "2026-11-02" })], [], counts, "2026-11-01", "2026-11-30");
+    expect(value.costs.find((line) => line.seriesId === "agency")).toMatchObject({ ownMinor: 1_700_000, currency: "DZD" });
     expect(value.costs.find((line) => line.seriesId === "agency")).toMatchObject({ centimes: 1_500_000 + 200_000, orders: 10 });
     expect(value.centimes).toEqual({ total: 2_700_000, ads: 1_000_000, running: 1_500_000, per_order: 200_000 });
     expect(value.costs.reduce((sum, line) => sum + line.centimes, 0)).toBe(value.centimes.total);
+  });
+});
+
+describe("any store's costs", () => {
+  const DAY0 = "2026-01-01";
+  const on = (n: number) => addDays(DAY0, n);
+  const versionArb = fc.record({
+    seriesId: fc.constantFrom("a", "b", "c", "d"),
+    category: fc.constantFrom("ads", "packaging", "rent", "other" as const),
+    charge: fc.constantFrom("once", "daily", "weekly", "monthly", "yearly", "per_confirmed", "per_shipped", "per_delivered", "per_returned" as const),
+    amountMinor: fc.integer({ min: 1, max: 5_000_000 }),
+    currency: fc.constantFrom("DZD", "USD", "EUR" as const),
+    start: fc.integer({ min: 0, max: 120 }),
+    length: fc.option(fc.integer({ min: 0, max: 90 }), { nil: null }),
+    productId: fc.constantFrom(null, "robe"),
+  });
+  const storeArb = fc.record({
+    versions: fc.array(versionArb, { maxLength: 8 }).map((drafts) =>
+      drafts.map(({ start, length, ...draft }, index): CostVersion => ({ ...draft, id: `v${index}`, validFrom: on(start), validTo: draft.charge === "once" || length === null ? null : on(start + length) })),
+    ),
+    rates: fc.array(fc.record({ currency: fc.constantFrom("USD", "EUR" as const), centimesPerUnit: fc.integer({ min: 10_000, max: 40_000 }), validFrom: fc.integer({ min: 0, max: 200 }).map(on) }), { maxLength: 4 }),
+    counts: fc.array(fc.record({ charge: fc.constantFrom("per_confirmed", "per_shipped", "per_delivered", "per_returned" as const), productId: fc.constantFrom(null, "robe"), day: fc.integer({ min: 0, max: 200 }).map(on), orders: fc.integer({ min: 1, max: 30 }) }), { maxLength: 20 }),
+    from: fc.integer({ min: 0, max: 150 }),
+    length: fc.integer({ min: 0, max: 60 }),
+  });
+  const countsOf = (entries: Array<{ charge: Parameters<typeof countsKey>[0]; productId: string | null; day: string; orders: number }>) => {
+    const counts = new Map<string, Map<string, number>>();
+    for (const { charge, productId, day, orders } of entries) {
+      const daily = counts.get(countsKey(charge, productId)) ?? new Map<string, number>();
+      daily.set(day, (daily.get(day) ?? 0) + orders);
+      counts.set(countsKey(charge, productId), daily);
+    }
+    return counts;
+  };
+
+  it("always has lines, groups and total that agree, in whole dinars", () => {
+    fc.assert(
+      fc.property(storeArb, (store) => {
+        const value = valueCosts(store.versions, store.rates, countsOf(store.counts), on(store.from), on(store.from + store.length));
+        expect(value.costs.reduce((sum, line) => sum + line.centimes, 0)).toBe(value.centimes.total);
+        expect(value.centimes.ads + value.centimes.running + value.centimes.per_order).toBe(value.centimes.total);
+        for (const line of value.costs) expect(line.centimes % 100).toBe(0);
+      }),
+      { numRuns: 300 },
+    );
+  });
+
+  it("never changes a past period when a rate, or a version, starts after it", () => {
+    fc.assert(
+      fc.property(storeArb, fc.integer({ min: 1, max: 60 }), fc.integer({ min: 10_000, max: 40_000 }), (store, after, centimes) => {
+        const [from, to] = [on(store.from), on(store.from + store.length)];
+        const counts = countsOf(store.counts);
+        const before = valueCosts(store.versions, store.rates, counts, from, to);
+        const later = addDays(to, after);
+        const rate: ExchangeRate = { currency: "USD", centimesPerUnit: centimes, validFrom: later };
+        const version = cost({ id: "late", seriesId: "a", charge: "daily", currency: "USD", validFrom: later });
+        expect(valueCosts([...store.versions, version], [...store.rates, rate], counts, from, to).centimes).toEqual(before.centimes);
+      }),
+      { numRuns: 300 },
+    );
+  });
+
+  it("leaves out exactly the days before a currency's first rate", () => {
+    fc.assert(
+      fc.property(fc.integer({ min: 0, max: 40 }), fc.integer({ min: 0, max: 40 }), fc.integer({ min: 1, max: 100_00 }), (rateDay, length, cents) => {
+        const ads = cost({ seriesId: "fb", category: "ads", charge: "daily", amountMinor: cents, currency: "USD", validFrom: on(0) });
+        const value = valueCosts([ads], [{ currency: "USD", centimesPerUnit: 25_000, validFrom: on(rateDay) }], NONE, on(0), on(length));
+        const counted = Math.max(0, length - rateDay + 1);
+        expect(value.centimes.total).toBe(Math.round((counted * cents * 25_000) / 100 / 100) * 100);
+        expect(value.missing).toEqual(rateDay > 0 ? [{ currency: "USD", from: on(0), seriesIds: ["fb"] }] : []);
+      }),
+    );
+  });
+});
+
+describe("a cost that changed currency", () => {
+  it("gives no amount in its own currency for a period holding both", () => {
+    const dollars = cost({ id: "v1", seriesId: "fb", category: "ads", charge: "daily", amountMinor: 2_000, currency: "USD", validFrom: "2026-11-01", validTo: "2026-11-10" });
+    const dinarsAfter = cost({ id: "v2", seriesId: "fb", category: "ads", charge: "daily", amountMinor: 500_000, currency: "DZD", validFrom: "2026-11-11" });
+    const rates = [{ currency: "USD" as const, centimesPerUnit: 25_000, validFrom: "2026-10-01" }];
+    expect(valueCosts([dollars, dinarsAfter], rates, NONE, "2026-11-01", "2026-11-20").costs).toEqual([{ seriesId: "fb", centimes: 10 * 500_000 + 10 * 500_000, ownMinor: null, currency: null, orders: null, missingFrom: null }]);
+    expect(valueCosts([dollars, dinarsAfter], rates, NONE, "2026-11-11", "2026-11-20").costs[0]).toMatchObject({ ownMinor: 5_000_000, currency: "DZD" });
   });
 });
 

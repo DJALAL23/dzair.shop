@@ -14,10 +14,11 @@
  *   each order confirmed, handed to a carrier or driver, delivered or
  *   returned while it runs.
  *
- * A cost has **versions**: a change of its money from a day ends the version
- * in force the day before and starts a new one, so a past month never
- * changes. An **exchange rate** is what one dollar or euro costs the merchant
- * in dinars, from a day on — what they really pay, not the bank's rate.
+ * A cost has **versions** (versions.ts): a change of what it costs or what
+ * it is for applies from a day, today at the latest, and the days before
+ * keep theirs, so a past month never changes. An **exchange rate** is what
+ * one dollar or euro costs the merchant in dinars, from a day on — what they
+ * really pay, not the bank's rate.
  * There is no default: a foreign cost on a day without a rate is left out
  * and named, never guessed.
  */
@@ -63,9 +64,8 @@ export interface CostVersion {
   /** Store days (YYYY-MM-DD, Algeria), both included; `validTo` null while it runs. */
   validFrom: string;
   validTo: string | null;
-  /** Set for a product's cost: the product, or null once it was deleted. */
+  /** The product it is for, kept after the product is deleted; null for the whole store. */
   productId: string | null;
-  forProduct: boolean;
 }
 
 /** What one dollar or euro costs in dinar centimes, from a store day on. */

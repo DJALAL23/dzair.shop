@@ -91,7 +91,7 @@ export function RateSheet({ currency, from, rates, onClose, onChanged }: { curre
           </div>
         </Field>
         <Field label={t("rate_sheet.from")} hint={t("rate_sheet.from_hint")}>
-          <Input type="date" value={validFrom} onChange={(event) => setValidFrom(event.currentTarget.value)} />
+          <Input type="date" value={validFrom} max={storeDay()} onChange={(event) => setValidFrom(event.currentTarget.value)} />
         </Field>
 
         <section aria-labelledby="rate-history">

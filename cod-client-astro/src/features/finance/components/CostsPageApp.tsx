@@ -27,7 +27,7 @@ import { formatMoney } from "@/features/orders/model";
 import { formatMonth, formatStoreDay, monthDays, storeDay, storeMonth } from "@/lib/store-time";
 import { FOREIGN_CURRENCIES } from "../../../../../cod-shared/finance/model";
 import { getCostsSummary, listCosts, listRates } from "@/features/finance/api";
-import { costStatus, formatAmount, formatDinars, PRESETS, rateOn, touches, type CostPreset } from "@/features/finance/model";
+import { costStatus, formatAmount, formatDinars, PRESETS, rateOn, touches, versionOn, type CostPreset, type CostVersionView } from "@/features/finance/model";
 import type { Cost, CostLine, CostsSummary, ExchangeRate, ForeignCurrency } from "@/features/finance/types";
 import { CostSheet } from "@/features/finance/components/CostSheet";
 import { RateSheet } from "@/features/finance/components/RateSheet";
@@ -219,6 +219,7 @@ function Gated() {
               costs={shown}
               lines={lines}
               month={month}
+              day={countedTo}
               today={today}
               canManage={canManage}
               hidden={showOthers ? 0 : others.length}
@@ -244,22 +245,23 @@ function Gated() {
   );
 }
 
-/** When a cost counts, in a few words: since a day, until a day, from a day, or the day it was paid. */
+/** When the amount shown counts, in a few words: since a day, until a day, from a day to a day, or the day it was paid. */
 function useWhen() {
   const t = useT("finance");
   const locale = useLocale();
-  return (cost: Cost, today: string) => {
+  return (cost: Cost, version: CostVersionView, today: string) => {
     const day = (value: string) => formatStoreDay(value, locale);
     const status = costStatus(cost, today);
     if (status === "scheduled") return t("when.starts", { date: day(cost.startsOn) });
     if (status === "paid") return t("when.on", { date: day(cost.startsOn) });
+    if (version.validFrom !== cost.since) return t("when.between", { from: day(version.validFrom), to: day(version.validTo!) });
     if (status === "stopped") return t("when.stopped", { date: day(cost.stopsOn!) });
     return cost.stopsOn ? t("when.until", { date: day(cost.stopsOn) }) : t("when.since", { date: day(cost.since) });
   };
 }
 
 /** What a cost counted in the month: dinars, and under them its orders, its own currency, or why some of it is left out. */
-function MonthCell({ cost, line }: { cost: Cost; line: CostLine | undefined }) {
+function MonthCell({ line }: { line: CostLine | undefined }) {
   const t = useT("finance");
   const locale = useLocale();
   if (!line || (line.amount === 0 && line.missingFrom === null && !line.orders)) return <CellEmpty />;
@@ -273,8 +275,8 @@ function MonthCell({ cost, line }: { cost: Cost; line: CostLine | undefined }) {
         </span>
       ) : line.orders !== null ? (
         <span className="text-xs text-muted-foreground">{t("list.orders", { count: line.orders })}</span>
-      ) : cost.currency !== "DZD" ? (
-        <span className="text-xs text-muted-foreground">{formatAmount(line.ownAmount, cost.currency, locale)}</span>
+      ) : line.ownAmount !== null && line.ownCurrency !== null && line.ownCurrency !== "DZD" ? (
+        <span className="text-xs text-muted-foreground">{formatAmount(line.ownAmount, line.ownCurrency, locale)}</span>
       ) : null}
     </span>
   );
@@ -284,6 +286,7 @@ function CostsList({
   costs,
   lines,
   month,
+  day,
   today,
   canManage,
   hidden,
@@ -293,6 +296,8 @@ function CostsList({
   costs: Cost[];
   lines: Map<string, CostLine>;
   month: string;
+  /** The day whose amount each cost shows: today in this month, a past month's last day. */
+  day: string;
   today: string;
   canManage: boolean;
   hidden: number;
@@ -303,7 +308,8 @@ function CostsList({
   const locale = useLocale();
   const when = useWhen();
   const monthLabel = month === storeMonth() ? t("list.this_month") : formatMonth(month, locale);
-  const what = (cost: Cost) => [t(`category.${cost.category}`), cost.product && (cost.product.id === null ? t("list.product_gone", { name: cost.product.name }) : cost.product.name)].filter(Boolean).join(" · ");
+  const what = (cost: Cost, version: CostVersionView) =>
+    [t(`category.${cost.category}`), version.product && (version.product.id === null ? t("list.product_gone", { name: version.product.name }) : version.product.name)].filter(Boolean).join(" · ");
   const openLabel = (cost: Cost) => (canManage ? t("list.edit_for", { name: cost.name }) : t("list.see_for", { name: cost.name }));
 
   return (
@@ -313,22 +319,25 @@ function CostsList({
       ) : (
         <>
           <ul className="divide-y divide-border @3xl:hidden">
-            {costs.map((cost) => (
-              <li key={cost.id}>
-                <button type="button" onClick={() => onOpen(cost)} aria-label={openLabel(cost)} className="flex w-full items-start gap-3 px-4 py-3 text-start transition-colors active:bg-subtle">
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium text-foreground">{cost.name}</span>
-                    <span className="block truncate text-xs text-muted-foreground">{what(cost)}</span>
-                    <span className="mt-1 block text-xs text-muted-foreground">
-                      {formatAmount(cost.amount, cost.currency, locale)} · {t(`charge.${cost.charge}`)} · {when(cost, today)}
+            {costs.map((cost) => {
+              const version = versionOn(cost, day);
+              return (
+                <li key={cost.id}>
+                  <button type="button" onClick={() => onOpen(cost)} aria-label={openLabel(cost)} className="flex w-full items-start gap-3 px-4 py-3 text-start transition-colors active:bg-subtle">
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium text-foreground">{cost.name}</span>
+                      <span className="block truncate text-xs text-muted-foreground">{what(cost, version)}</span>
+                      <span className="mt-1 block text-xs text-muted-foreground">
+                        {formatAmount(version.amount, version.currency, locale)} · {t(`charge.${version.charge}`)} · {when(cost, version, today)}
+                      </span>
                     </span>
-                  </span>
-                  <span className="shrink-0 text-sm">
-                    <MonthCell cost={cost} line={lines.get(cost.id)} />
-                  </span>
-                </button>
-              </li>
-            ))}
+                    <span className="shrink-0 text-sm">
+                      <MonthCell line={lines.get(cost.id)} />
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
           </ul>
           <div className="relative hidden overflow-x-auto @3xl:block">
             <Table>
@@ -344,29 +353,32 @@ function CostsList({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {costs.map((cost) => (
-                  <TableRow key={cost.id} onClick={showRowOnClick(() => onOpen(cost))} className="cursor-pointer">
-                    <TableCell className="w-full max-w-80">
-                      <span className="block truncate font-medium text-foreground">{cost.name}</span>
-                      <span className="block truncate text-xs text-muted-foreground">{what(cost)}</span>
-                    </TableCell>
-                    <TableCell>
-                      <span className="block whitespace-nowrap text-foreground">{t(`charge.${cost.charge}`)}</span>
-                      <span className="block whitespace-nowrap text-xs text-muted-foreground">{when(cost, today)}</span>
-                    </TableCell>
-                    <TableCell numeric>{formatAmount(cost.amount, cost.currency, locale)}</TableCell>
-                    <TableCell numeric>
-                      <MonthCell cost={cost} line={lines.get(cost.id)} />
-                    </TableCell>
-                    <TableCell className="w-px">
-                      <RowActions>
-                        <IconButton type="button" onClick={() => onOpen(cost)} aria-label={openLabel(cost)} title={openLabel(cost)}>
-                          <Pencil size={15} aria-hidden="true" />
-                        </IconButton>
-                      </RowActions>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {costs.map((cost) => {
+                  const version = versionOn(cost, day);
+                  return (
+                    <TableRow key={cost.id} onClick={showRowOnClick(() => onOpen(cost))} className="cursor-pointer">
+                      <TableCell className="w-full max-w-80">
+                        <span className="block truncate font-medium text-foreground">{cost.name}</span>
+                        <span className="block truncate text-xs text-muted-foreground">{what(cost, version)}</span>
+                      </TableCell>
+                      <TableCell>
+                        <span className="block whitespace-nowrap text-foreground">{t(`charge.${version.charge}`)}</span>
+                        <span className="block whitespace-nowrap text-xs text-muted-foreground">{when(cost, version, today)}</span>
+                      </TableCell>
+                      <TableCell numeric>{formatAmount(version.amount, version.currency, locale)}</TableCell>
+                      <TableCell numeric>
+                        <MonthCell line={lines.get(cost.id)} />
+                      </TableCell>
+                      <TableCell className="w-px">
+                        <RowActions>
+                          <IconButton type="button" onClick={() => onOpen(cost)} aria-label={openLabel(cost)} title={openLabel(cost)}>
+                            <Pencil size={15} aria-hidden="true" />
+                          </IconButton>
+                        </RowActions>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </div>

@@ -2,11 +2,15 @@ import type { CostCategory, CostCharge, Currency, ForeignCurrency } from "../../
 
 export type { CostCategory, CostCharge, Currency, ForeignCurrency };
 
-/** An amount a cost had before a change from a day. */
+/** A product a cost is for; a deleted product keeps its name, with no id. */
+export type CostProduct = { id: string | null; name: string } | null;
+
+/** What a cost was before a change from a day: its amount, and what it was for. */
 export interface CostHistoryEntry {
   charge: CostCharge;
   amount: number;
   currency: Currency;
+  product: CostProduct;
   validFrom: string;
   validTo: string;
 }
@@ -23,9 +27,12 @@ export interface Cost {
   /** The day the amount in force started. */
   since: string;
   stopsOn: string | null;
-  /** Null for the whole store; a deleted product keeps its name, with no id. */
-  product: { id: string | null; name: string } | null;
+  /** Null for the whole store. */
+  product: CostProduct;
+  /** What it was before, newest first. */
   history: CostHistoryEntry[];
+  /** Sent back with a change: a cost changed since is not changed. */
+  revision: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -39,8 +46,9 @@ export interface CostInput {
   currency: Currency;
   startsOn: string;
   stopsOn: string | null;
-  /** Left out on a change, the product stays as it is. */
+  /** Left out on a change, what it is for stays as it is. */
   productId?: string | null;
+  /** The day a change of what it costs or is for applies from, today at the latest. */
   changeFrom?: string | null;
 }
 
@@ -49,8 +57,9 @@ export interface CostLine {
   id: string;
   /** In dinars. */
   amount: number;
-  /** In its own currency, every day included. */
-  ownAmount: number;
+  /** In its own currency, every day included; null when it counted nothing or changed currency in the period. */
+  ownAmount: number | null;
+  ownCurrency: Currency | null;
   orders: number | null;
   missingFrom: string | null;
 }

@@ -35,7 +35,7 @@ import CostsPageApp from "./CostsPageApp";
 
 const T = "2026-11-01T08:00:00.000Z";
 const MANAGER = ["finance:read", "finance:manage"];
-const cost = (over: Partial<Cost>): Cost => ({ id: "c", name: "Cost", category: "other", charge: "monthly", amount: 1000, currency: "DZD", startsOn: "2026-09-01", since: "2026-09-01", stopsOn: null, product: null, history: [], createdAt: T, updatedAt: T, ...over });
+const cost = (over: Partial<Cost>): Cost => ({ id: "c", name: "Cost", category: "other", charge: "monthly", amount: 1000, currency: "DZD", startsOn: "2026-09-01", since: "2026-09-01", stopsOn: null, product: null, history: [], revision: "rev-1", createdAt: T, updatedAt: T, ...over });
 const RENT = cost({ id: "rent", name: "Loyer", category: "rent", amount: 30_000 });
 const ADS = cost({ id: "fb", name: "Facebook robe", category: "ads", charge: "daily", amount: 20, currency: "USD", startsOn: "2026-11-01", since: "2026-11-01", product: { id: "robe", name: "Robe" } });
 const PACKAGING = cost({ id: "pack", name: "Emballage", category: "packaging", charge: "per_shipped", amount: 80, startsOn: "2026-10-01", since: "2026-10-01" });
@@ -48,9 +48,9 @@ const SUMMARY: CostsSummary = {
   running: 14_000,
   perOrder: 1_600,
   costs: [
-    { id: "rent", amount: 14_000, ownAmount: 14_000, orders: null, missingFrom: null },
-    { id: "fb", amount: 0, ownAmount: 280, orders: null, missingFrom: "2026-11-01" },
-    { id: "pack", amount: 1_600, ownAmount: 1_600, orders: 20, missingFrom: null },
+    { id: "rent", amount: 14_000, ownAmount: 14_000, ownCurrency: "DZD", orders: null, missingFrom: null },
+    { id: "fb", amount: 0, ownAmount: 280, ownCurrency: "USD", orders: null, missingFrom: "2026-11-01" },
+    { id: "pack", amount: 1_600, ownAmount: 1_600, ownCurrency: "DZD", orders: 20, missingFrom: null },
   ],
   missing: [{ currency: "USD", from: "2026-11-01", costIds: ["fb"] }],
 };
@@ -137,6 +137,19 @@ describe("the month's costs", () => {
     expect(host.textContent).toContain("Shooting");
   });
 
+  it("show each cost as it stood in the month: its amount then, and when that amount ran", async () => {
+    const raised = cost({ id: "rent", name: "Loyer", category: "rent", amount: 36_000, since: "2026-11-14", history: [{ charge: "monthly", amount: 30_000, currency: "DZD", product: null, validFrom: "2026-09-01", validTo: "2026-11-13" }] });
+    api.listCosts.mockResolvedValue([raised]);
+    await open();
+    const row = () => host.querySelector("tbody tr")!.textContent;
+    expect(row()).toContain("36,000 DA");
+    expect(row()).toContain("Since Nov 14, 2026");
+    await click(buttons(host, "Previous month")[0]);
+    expect(api.getCostsSummary).toHaveBeenLastCalledWith("2026-10-01", "2026-10-31");
+    expect(row()).toContain("30,000 DA");
+    expect(row()).toContain("Sep 1, 2026 to Nov 13, 2026");
+  });
+
   it("sets the dollar rate from the first day left out, in one step", async () => {
     await open();
     await click(buttons(host, "Set the dollar rate")[0]);
@@ -163,6 +176,13 @@ describe("adding a cost", () => {
     await click(buttons(sheet(), "Save")[0]);
     expect(api.createCost).toHaveBeenCalledWith({ name: "Facebook ads", category: "ads", charge: "daily", amount: 20, currency: "USD", startsOn: "2026-11-14", stopsOn: null, productId: null });
     expect(toast.success).toHaveBeenCalledWith("Cost added");
+    expect(sheet()).toBeNull();
+  });
+
+  it("says what does not belong here", async () => {
+    await open();
+    await click(buttons(host, "Add a cost")[0]);
+    expect(sheet().textContent).toContain("Not here: what your products cost you, delivery fees and your confirmation team's pay.");
   });
 
   it("says what is missing instead of saving", async () => {
@@ -186,15 +206,63 @@ describe("adding a cost", () => {
 });
 
 describe("changing a cost", () => {
-  it("asks from which day a new amount applies, and leaves the product as it is", async () => {
+  it("asks from which day a new amount applies, leaves the product as it is, and names the cost as it was read", async () => {
     await open();
     await click(buttons(host, "Edit Loyer")[0]);
-    expect(field("Apply the new amount from")).toBeUndefined();
+    expect(field("Apply this change from")).toBeUndefined();
     await type(field("Amount"), "36000");
-    expect(field("Apply the new amount from")?.value).toBe("2026-11-14");
+    expect(field("Apply this change from")?.value).toBe("2026-11-14");
+    expect(field("Apply this change from")?.max).toBe("2026-11-14");
+    expect(field("Apply this change from")?.min).toBe("2026-09-01");
     api.updateCost.mockResolvedValue(RENT);
     await click(buttons(sheet(), "Save")[0]);
-    expect(api.updateCost).toHaveBeenCalledWith("rent", { name: "Loyer", category: "rent", charge: "monthly", amount: 36_000, currency: "DZD", startsOn: "2026-09-01", stopsOn: null, changeFrom: "2026-11-14" });
+    expect(api.updateCost).toHaveBeenCalledWith("rent", { name: "Loyer", category: "rent", charge: "monthly", amount: 36_000, currency: "DZD", startsOn: "2026-09-01", stopsOn: null, changeFrom: "2026-11-14" }, "rev-1");
+  });
+
+  it("asks from which day it is for another product too, and refuses a day after today", async () => {
+    await open();
+    await click(buttons(host, "Edit Facebook robe")[0]);
+    expect(field("Apply this change from")).toBeUndefined();
+    await click(buttons(sheet(), "The whole store")[0]);
+    await type(field("Apply this change from"), "2026-11-20");
+    await click(buttons(sheet(), "Save")[0]);
+    expect(sheet().textContent).toContain("Choose a day from Nov 1, 2026 to Nov 14, 2026.");
+    expect(api.updateCost).not.toHaveBeenCalled();
+    await type(field("Apply this change from"), "2026-11-10");
+    api.updateCost.mockResolvedValue(ADS);
+    await click(buttons(sheet(), "Save")[0]);
+    expect(api.updateCost).toHaveBeenCalledWith("fb", expect.objectContaining({ productId: null, changeFrom: "2026-11-10" }), "rev-1");
+  });
+
+  it("keeps a deleted product's cost on it when only the amount changes", async () => {
+    api.listCosts.mockResolvedValue([cost({ id: "pack", name: "Emballage robe", category: "packaging", charge: "per_shipped", amount: 80, startsOn: "2026-11-14", since: "2026-11-14", product: { id: null, name: "Robe" } })]);
+    await open();
+    await click(buttons(host, "Edit Emballage robe")[0]);
+    await type(field("Amount"), "90");
+    api.updateCost.mockResolvedValue(PACKAGING);
+    await click(buttons(sheet(), "Save")[0]);
+    expect(api.updateCost).toHaveBeenCalledWith("pack", { name: "Emballage robe", category: "packaging", charge: "per_shipped", amount: 90, currency: "DZD", startsOn: "2026-11-14", stopsOn: null }, "rev-1");
+  });
+
+  it("shows what each earlier amount was for when it was for something else", async () => {
+    api.listCosts.mockResolvedValue([
+      cost({ id: "fb", name: "Facebook", category: "ads", charge: "daily", amount: 20, currency: "USD", since: "2026-11-10", product: { id: "sac", name: "Sac" }, history: [{ charge: "daily", amount: 20, currency: "USD", product: { id: null, name: "Robe" }, validFrom: "2026-09-01", validTo: "2026-11-09" }] }),
+    ]);
+    await open();
+    await click(buttons(host, "Edit Facebook")[0]);
+    expect(sheet().textContent).toContain("History");
+    expect(sheet().textContent).toContain("$20 · Every day · for Robe (deleted) · Sep 1, 2026 to Nov 9, 2026");
+  });
+
+  it("never overwrites a cost someone changed meanwhile: it says so and reloads", async () => {
+    await open();
+    await click(buttons(host, "Edit Loyer")[0]);
+    await type(field("Amount"), "36000");
+    api.updateCost.mockRejectedValue(Object.assign(new Error("changed"), { code: "COST_CHANGED" }));
+    await click(buttons(sheet(), "Save")[0]);
+    expect(toast.error).toHaveBeenCalledWith("Someone changed this cost meanwhile, so nothing was saved. The list is up to date: open the cost again.");
+    expect(sheet()).toBeNull();
+    expect(api.listCosts).toHaveBeenCalledTimes(2);
   });
 
   it("stops a running cost today, and deletes one only after saying it is for a mistake", async () => {
@@ -205,7 +273,7 @@ describe("changing a cost", () => {
     expect(confirmBox().textContent).toContain("Stop Loyer today?");
     api.updateCost.mockResolvedValue(RENT);
     await click(buttons(confirmBox(), "Stop it today")[0]);
-    expect(api.updateCost).toHaveBeenCalledWith("rent", { name: "Loyer", category: "rent", charge: "monthly", amount: 30_000, currency: "DZD", startsOn: "2026-09-01", stopsOn: "2026-11-14" });
+    expect(api.updateCost).toHaveBeenCalledWith("rent", { name: "Loyer", category: "rent", charge: "monthly", amount: 30_000, currency: "DZD", startsOn: "2026-09-01", stopsOn: "2026-11-14" }, "rev-1");
 
     await click(buttons(host, "Edit Emballage")[0]);
     await click(buttons(sheet(), "Delete")[0]);
@@ -222,7 +290,7 @@ describe("changing a cost", () => {
     api.updateCost.mockRejectedValue(Object.assign(new Error("refused"), { code: "COST_DATES_INVALID" }));
     await type(field("Amount"), "36000");
     await click(buttons(sheet(), "Save")[0]);
-    expect(sheet().textContent).toContain("These days don't follow on");
+    expect(sheet().textContent).toContain("These days don't fit");
   });
 });
 

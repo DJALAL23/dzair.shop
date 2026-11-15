@@ -7,7 +7,7 @@ import type { Locale } from "@/i18n/config";
 import { formatMoney } from "@/features/orders/model";
 import { intlLocale } from "@/lib/store-time";
 import { isPerOrder, MAX_COST_AMOUNT, type RepeatingCharge } from "../../../../cod-shared/finance/model";
-import type { Cost, CostCategory, CostCharge, Currency, ExchangeRate, ForeignCurrency } from "./types";
+import type { Cost, CostCategory, CostCharge, CostProduct, Currency, ExchangeRate, ForeignCurrency } from "./types";
 
 /** The three ways a cost is charged, as the form asks it. */
 export type ChargeKind = "once" | "repeats" | "per_order";
@@ -78,6 +78,33 @@ export function costStatus(cost: Pick<Cost, "charge" | "startsOn" | "stopsOn">, 
   return cost.stopsOn !== null && cost.stopsOn < today ? "stopped" : "running";
 }
 
+/** One version of a cost: what it cost and what it was for, from a day to a day (null: on). */
+export interface CostVersionView {
+  charge: CostCharge;
+  amount: number;
+  currency: Currency;
+  product: CostProduct;
+  validFrom: string;
+  validTo: string | null;
+}
+
+/** A cost's versions, oldest first: its history, then its terms in force. */
+export function versionsOf(cost: Cost): CostVersionView[] {
+  return [
+    ...[...cost.history].reverse(),
+    { charge: cost.charge, amount: cost.amount, currency: cost.currency, product: cost.product, validFrom: cost.since, validTo: cost.stopsOn },
+  ];
+}
+
+/** The version in force on `day`: before the cost starts its first, after it stops its last. */
+export function versionOn(cost: Cost, day: string): CostVersionView {
+  const versions = versionsOf(cost);
+  return versions.find((version) => version.validFrom <= day && (version.validTo === null || day <= version.validTo)) ?? (day < cost.startsOn ? versions[0]! : versions[versions.length - 1]!);
+}
+
+/** What a cost is for, as one key: the whole store, a product, or a deleted one. */
+export const targetKey = (product: CostProduct) => (product === null ? "store" : (product.id ?? `deleted:${product.name}`));
+
 /** Whether a cost counts on any day from `from` to `to`. */
 export function touches(cost: Pick<Cost, "charge" | "startsOn" | "stopsOn">, from: string, to: string): boolean {
   if (cost.charge === "once") return cost.startsOn >= from && cost.startsOn <= to;
@@ -100,13 +127,18 @@ export function rateOn(rates: readonly ExchangeRate[], currency: ForeignCurrency
 const CODES: Record<string, string> = {
   COST_HAS_HISTORY: "errors.has_history",
   COST_DATES_INVALID: "errors.dates",
+  COST_CHANGED: "errors.changed",
   PRODUCT_NOT_FOUND: "errors.product_gone",
   COST_NOT_FOUND: "errors.cost_gone",
   EXCHANGE_RATE_NOT_FOUND: "errors.rate_gone",
 };
 
+const codeOf = (cause: unknown) => (cause && typeof cause === "object" && "code" in cause ? String(cause.code) : "");
+
 /** Why a change was refused, in the merchant's words. */
 export function financeError(cause: unknown, t: (key: string) => string): string {
-  const code = cause && typeof cause === "object" && "code" in cause ? String(cause.code) : "";
-  return t(CODES[code] ?? "errors.generic");
+  return t(CODES[codeOf(cause)] ?? "errors.generic");
 }
+
+/** True when the change was refused because someone changed the cost meanwhile: what is on screen is out of date. */
+export const changedMeanwhile = (cause: unknown) => codeOf(cause) === "COST_CHANGED";

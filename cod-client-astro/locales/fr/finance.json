@@ -1,6 +1,6 @@
 {
   "page_title": "Dépenses",
-  "page_subtitle": "Tout ce que vous dépensez pour faire tourner la boutique, pour que votre bénéfice en tienne compte.",
+  "page_subtitle": "Ce que vous dépensez pour faire tourner la boutique, mois par mois : publicité, emballage, appels, loyer…",
   "no_access": "Il vous faut la permission finances pour voir les dépenses de la boutique.",
   "load_error": "Vos dépenses n'ont pas pu être chargées.",
   "add": "Ajouter une dépense",
@@ -56,11 +56,12 @@
     "until": "Jusqu'au {date}",
     "starts": "À partir du {date}",
     "stopped": "Arrêtée le {date}",
-    "on": "Le {date}"
+    "on": "Le {date}",
+    "between": "Du {from} au {to}"
   },
   "empty": {
     "title": "Aucune dépense pour l'instant",
-    "body": "Ajoutez ce que vous dépensez en publicité, emballage, appels et loyer, pour que votre bénéfice en tienne compte. Commencez par l'une de celles-ci :",
+    "body": "Ajoutez ce que vous dépensez en publicité, emballage, appels et loyer. Commencez par l'une de celles-ci :",
     "body_read": "Aucune dépense n'a encore été ajoutée.",
     "month_title": "Aucune dépense ce mois-ci",
     "month_body": "Aucune de vos dépenses ne compte en {month}."
@@ -137,8 +138,8 @@
     "preview_month": "Environ {amount} par mois.",
     "preview_dzd": "Environ {amount} par mois à votre taux d'aujourd'hui.",
     "no_rate": "Aucun taux n'est indiqué pour cette devise : cette dépense n'est pas comptée tant que vous n'en indiquez pas un.",
-    "change_from": "Appliquer le nouveau montant à partir du",
-    "change_from_hint": "Les jours d'avant gardent l'ancien montant.",
+    "change_from": "Appliquer ce changement à partir du",
+    "change_from_hint": "Les jours d'avant gardent ce qu'ils ont coûté.",
     "paid_on": "Payée le",
     "starts_on": "Commence le",
     "stops_on": "S'arrête le",
@@ -148,14 +149,18 @@
     "one_product": "Un produit",
     "product_placeholder": "Rechercher un produit",
     "product_empty": "Aucun produit trouvé",
-    "history": "Montants précédents",
+    "history": "Historique",
     "history_line": "{amount} · {charge} · du {from} au {to}",
     "stop": "L'arrêter aujourd'hui",
     "stop_title": "Arrêter {name} aujourd'hui ?",
     "stop_body": "Elle compte jusqu'à aujourd'hui. Les mois d'avant la gardent.",
     "delete": "Supprimer",
     "delete_title": "Supprimer {name} ?",
-    "delete_body": "Seulement pour une erreur : elle disparaît de tous les mois. Pour terminer une dépense qui a vraiment eu lieu, arrêtez-la plutôt."
+    "delete_body": "Seulement pour une erreur : elle disparaît de tous les mois. Pour terminer une dépense qui a vraiment eu lieu, arrêtez-la plutôt.",
+    "history_line_for": "{amount} · {charge} · {target} · du {from} au {to}",
+    "history_for": "pour {name}",
+    "history_store": "pour toute la boutique",
+    "not_here": "Pas ici : ce que vos produits vous coûtent, les frais de livraison et la paie de votre équipe de confirmation. Ils sont déjà enregistrés depuis vos produits, vos colis et Équipe → Paie."
   },
   "rate_sheet": {
     "title_USD": "Combien vous coûte 1 $ ?",
@@ -187,10 +192,12 @@
     "stops_before": "Elle s'arrête le jour où elle commence ou après.",
     "product": "Choisissez le produit.",
     "has_history": "Cette dépense a eu d'autres montants avant : elle ne peut pas devenir ponctuelle, ni cesser de l'être. Ajoutez plutôt une nouvelle dépense.",
-    "dates": "Ces jours ne se suivent pas : une dépense s'arrête le jour où elle commence ou après, et un nouveau montant commence après celui en cours et avant qu'elle s'arrête.",
+    "dates": "Ces jours ne vont pas : une dépense s'arrête le jour où elle commence ou après, et un changement s'applique au plus tard aujourd'hui, tant que la dépense court.",
     "product_gone": "Ce produit n'existe plus.",
     "cost_gone": "Cette dépense n'existe plus.",
     "rate_gone": "Ce taux n'existe plus.",
-    "generic": "Cela n'a pas fonctionné. Veuillez réessayer."
+    "generic": "Cela n'a pas fonctionné. Veuillez réessayer.",
+    "change_from": "Choisissez un jour du {from} au {to}.",
+    "changed": "Quelqu'un a modifié cette dépense entre-temps : rien n'a été enregistré. La liste est à jour : rouvrez la dépense."
   }
 }

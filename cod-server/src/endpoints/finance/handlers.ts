@@ -8,10 +8,11 @@ import type { z } from "@hono/zod-openapi";
 import type { AppContext } from "@/types";
 import { getDb } from "@/db";
 import { logActivity, ACTIONS } from "@/lib/activity";
-import { BusinessLogicError, NotFoundError } from "@/lib/errors/classes";
+import { BusinessLogicError, ConflictError, NotFoundError } from "@/lib/errors/classes";
 import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
 import { fromMinor, toMinor } from "../../../../cod-shared/finance/model";
 import * as finance from "../../../../cod-shared/finance/queries";
+import { storeDayOf } from "../../../../cod-shared/time/store-day";
 import type * as v from "./validation";
 
 const valid = <T>(c: Context<AppContext>, target: "json" | "query" | "param") => (c.req as unknown as { valid: (t: string) => T }).valid(target);
@@ -28,7 +29,8 @@ function refusal(reason: finance.CostRefusal["reason"], id: string, productId?: 
   if (reason === "not_found") return new NotFoundError("Cost", id);
   if (reason === "product_not_found") return new NotFoundError("Product", productId ?? undefined);
   if (reason === "has_history") return new BusinessLogicError("A cost that had other amounts before cannot become a one-time cost, nor stop being one", ERROR_CODES.COST_HAS_HISTORY, { id });
-  return new BusinessLogicError("The days do not follow on: a cost stops on or after it starts, and a change applies after its amount in force started and before it stops", ERROR_CODES.COST_DATES_INVALID, { id });
+  if (reason === "changed") return new ConflictError("The cost was changed or deleted meanwhile; nothing was written. Read it again and retry", ERROR_CODES.COST_CHANGED, { id });
+  return new BusinessLogicError("The days do not fit: a cost stops on or after it starts, and a change applies from today at the latest, while the cost runs", ERROR_CODES.COST_DATES_INVALID, { id });
 }
 
 /** GET /finance/costs */
@@ -53,7 +55,7 @@ export async function updateCost(c: Context<AppContext>) {
   const { amount, ...body } = valid<z.infer<typeof v.costUpdateSchema>>(c, "json");
   const before = await finance.getCost(db, id);
   if (!before) throw refusal("not_found", id);
-  const updated = await finance.updateCost(db, id, { ...body, amountMinor: toMinor(amount) }, c.get("user").id);
+  const updated = await finance.updateCost(db, id, { ...body, amountMinor: toMinor(amount) }, c.get("user").id, storeDayOf(new Date().toISOString()));
   if (!updated.ok) throw refusal(updated.reason, id, body.productId);
   await logActivity(db, c.get("user"), ACTIONS.FINANCE_COST_CHANGED, { type: "cost", id, label: updated.cost.name }, { before: costView(before), after: costView(updated.cost), changeFrom: body.changeFrom ?? null });
   return c.json({ success: true, data: costView(updated.cost) }, 200);
@@ -83,7 +85,7 @@ export async function costsSummary(c: Context<AppContext>) {
         ads: fromMinor(value.centimes.ads),
         running: fromMinor(value.centimes.running),
         perOrder: fromMinor(value.centimes.per_order),
-        costs: value.costs.map((line) => ({ id: line.seriesId, amount: fromMinor(line.centimes), ownAmount: fromMinor(line.ownMinor), orders: line.orders, missingFrom: line.missingFrom })),
+        costs: value.costs.map((line) => ({ id: line.seriesId, amount: fromMinor(line.centimes), ownAmount: line.ownMinor === null ? null : fromMinor(line.ownMinor), ownCurrency: line.currency, orders: line.orders, missingFrom: line.missingFrom })),
         missing: value.missing.map(({ seriesIds, ...gap }) => ({ ...gap, costIds: seriesIds })),
       },
     },

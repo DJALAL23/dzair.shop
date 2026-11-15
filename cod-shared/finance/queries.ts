@@ -1,15 +1,17 @@
 /**
  * The store's own costs and exchange rates in D1 (migration 0087): a cost is
- * read and written as a series of versions; a summary reads the versions
- * that touch a period, the rates and the per-order counts in one batch, and
- * values them (value.ts).
+ * read and written as a series of versions (versions.ts plans a change); a
+ * summary reads the versions that touch a period, the rates and the
+ * per-order counts in one batch, and values them (value.ts).
  */
 import { and, asc, desc, eq, gte, isNull, lte, ne, or, sql } from "drizzle-orm";
 import type { AppDb } from "../db/client";
+import { insertSelectRow } from "../db/insert-select";
 import { costs, exchangeRates, products } from "../db/schema";
 import { addDays, storeDateOf, storeDayStart } from "../time/store-day";
 import { countsKey, isPerOrder, type CostCategory, type CostCharge, type CostVersion, type Currency, type DailyCounts, type ExchangeRate, type ForeignCurrency, type PerOrderCharge } from "./model";
 import { valueCosts, type CostsValue } from "./value";
+import { planChange, type CostTarget, type PlannedVersion } from "./versions";
 
 type BatchStatement = Parameters<AppDb["batch"]>[0][number];
 type CostRow = typeof costs.$inferSelect;
@@ -27,11 +29,15 @@ export interface CostInput {
   stopsOn: string | null;
 }
 
-/** An amount a cost had before a change from a day. */
+/** A product a cost is for. A deleted product keeps its name, with no id. */
+export type CostProduct = { id: string | null; name: string } | null;
+
+/** What a cost was before a change from a day: its amount, and what it was for. */
 export interface CostHistoryEntry {
   charge: CostCharge;
   amountMinor: number;
   currency: Currency;
+  product: CostProduct;
   validFrom: string;
   validTo: string;
 }
@@ -48,17 +54,23 @@ export interface CostSeries {
   /** The day the amount in force started: later than `startsOn` once the amount changed. */
   since: string;
   stopsOn: string | null;
-  /** Null for the whole store. A deleted product keeps its name, with no id. */
-  product: { id: string | null; name: string } | null;
-  /** Earlier amounts, newest first. */
+  /** Null for the whole store. */
+  product: CostProduct;
+  /** What it was before, newest first. */
   history: CostHistoryEntry[];
+  /** What a change names to say which state of the cost it was made to (`updateCost`). */
+  revision: string;
   createdAt: string;
   updatedAt: string;
 }
 
-export type CostRefusal = { ok: false; reason: "not_found" | "product_not_found" | "has_history" | "dates" };
+export type CostRefusal = { ok: false; reason: "not_found" | "product_not_found" | "has_history" | "dates" | "changed" };
 
-function seriesOf(rows: Array<CostRow & { productNow: string | null }>): CostSeries {
+type VersionRow = CostRow & { productNow: string | null };
+
+const productOf = (row: VersionRow): CostProduct => (row.productId === null ? null : { id: row.productNow === null ? null : row.productId, name: row.productNow ?? row.productName ?? "" });
+
+function seriesOf(rows: VersionRow[]): CostSeries {
   const first = rows[0]!;
   const latest = rows[rows.length - 1]!;
   return {
@@ -71,11 +83,12 @@ function seriesOf(rows: Array<CostRow & { productNow: string | null }>): CostSer
     startsOn: first.validFrom,
     since: latest.validFrom,
     stopsOn: latest.validTo,
-    product: latest.productName === null ? null : { id: latest.productId, name: latest.productNow ?? latest.productName },
+    product: productOf(latest),
     history: rows
       .slice(0, -1)
       .reverse()
-      .map((row) => ({ charge: row.charge, amountMinor: row.amountMinor, currency: row.currency, validFrom: row.validFrom, validTo: row.validTo ?? row.validFrom })),
+      .map((row) => ({ charge: row.charge, amountMinor: row.amountMinor, currency: row.currency, product: productOf(row), validFrom: row.validFrom, validTo: row.validTo ?? row.validFrom })),
+    revision: latest.revision,
     createdAt: first.createdAt,
     updatedAt: latest.updatedAt,
   };
@@ -91,7 +104,7 @@ async function versionsOf(db: AppDb, seriesId?: string) {
     .where(seriesId === undefined ? undefined : eq(costs.seriesId, seriesId))
     .orderBy(asc(costs.seriesId), asc(costs.validFrom))
     .all();
-  const grouped = new Map<string, Array<CostRow & { productNow: string | null }>>();
+  const grouped = new Map<string, VersionRow[]>();
   for (const { cost, productNow } of rows) grouped.set(cost.seriesId, [...(grouped.get(cost.seriesId) ?? []), { ...cost, productNow }]);
   return grouped;
 }
@@ -128,64 +141,95 @@ export async function createCost(db: AppDb, input: CostInput & { productId: stri
     productId: input.productId,
     productName: name,
     createdBy,
+    revision: crypto.randomUUID(),
     createdAt: now,
     updatedAt: now,
   });
   return { ok: true, cost: (await getCost(db, id))! };
 }
 
+const changed = (result: unknown) => ((result as { meta?: { changes?: number } }).meta?.changes ?? 0) > 0;
+
 /**
- * Changes a cost. What it is (name, category, product) is corrected on every
- * version. Its money (amount, currency, charge) changed from a day after its
- * amount in force started ends that version the day before and starts a new
- * one, so the days before keep what they cost; changed from that day or
- * earlier, or with no day, it is corrected in place. A one-time cost has no
- * history: a cost with earlier amounts cannot become one, nor stop being
- * one. `productId` undefined keeps the product; null makes it the whole
- * store's. Refused, writing nothing, when the days would not follow on.
+ * Changes a cost (versions.ts): its name and category on every version;
+ * what it costs and what it is for from a day, today at the latest, the
+ * days before keeping theirs; with no day, from the day the terms in force
+ * started. `productId` left out keeps what it is for; null makes it the
+ * whole store's. The change names the `revision` it was made to: a cost
+ * changed since, by anyone, is refused (`changed`) and nothing is written,
+ * so a change is never applied to a cost its author did not see, nor twice.
+ * Written in one batch that applies only while that revision stands.
+ * Refused, writing nothing, when the days would not fit.
  */
 export async function updateCost(
   db: AppDb,
   id: string,
-  input: CostInput & { productId?: string | null; changeFrom?: string | null },
+  input: CostInput & { productId?: string | null; changeFrom?: string | null; revision: string },
   by: string | null,
+  today: string,
 ): Promise<{ ok: true; cost: CostSeries } | CostRefusal> {
   const rows = (await versionsOf(db, id)).get(id);
   if (!rows) return { ok: false, reason: "not_found" };
-  const latest = rows[rows.length - 1]!;
-  if (rows.length > 1 && (input.charge === "once") !== (latest.charge === "once")) return { ok: false, reason: "has_history" };
+  if (rows.some((row) => row.revision !== input.revision)) return { ok: false, reason: "changed" };
 
-  let product = { productId: latest.productId, productName: latest.productName };
-  if (input.productId === null) product = { productId: null, productName: null };
+  let target: CostTarget | undefined;
+  if (input.productId === null) target = { productId: null, productName: null };
   else if (input.productId !== undefined) {
-    const name = input.productId === latest.productId ? latest.productNow : await productName(db, input.productId);
+    const known = rows.find((row) => row.productId === input.productId);
+    const name = known ? (known.productNow ?? known.productName) : await productName(db, input.productId);
     if (name === null) return { ok: false, reason: "product_not_found" };
-    product = { productId: input.productId, productName: name };
+    target = { productId: input.productId, productName: name };
   }
 
-  const money = { charge: input.charge, amountMinor: input.amountMinor, currency: input.currency };
-  const moneyChanged = money.charge !== latest.charge || money.amountMinor !== latest.amountMinor || money.currency !== latest.currency;
-  const split = moneyChanged && latest.charge !== "once" && input.charge !== "once" && input.changeFrom != null && input.changeFrom > latest.validFrom;
-
-  const plan = rows.map((row) => ({ id: row.id, validFrom: row.validFrom, validTo: row.validTo, ...(row === latest && !split ? money : {}) }));
-  plan[0]!.validFrom = input.startsOn;
-  const stopsOn = input.charge === "once" ? null : input.stopsOn;
-  if (split) {
-    plan[plan.length - 1]!.validTo = addDays(input.changeFrom!, -1);
-    plan.push({ id: crypto.randomUUID(), validFrom: input.changeFrom!, validTo: stopsOn, ...money });
-  } else plan[plan.length - 1]!.validTo = stopsOn;
-  const followsOn = plan.every((version, index) => (version.validTo === null || version.validTo >= version.validFrom) && (index === 0 || plan[index - 1]!.validTo === addDays(version.validFrom, -1)));
-  if (!followsOn) return { ok: false, reason: "dates" };
+  const current: PlannedVersion[] = rows.map((row) => ({
+    id: row.id,
+    validFrom: row.validFrom,
+    validTo: row.validTo,
+    charge: row.charge,
+    amountMinor: row.amountMinor,
+    currency: row.currency,
+    productId: row.productId,
+    productName: row.productName,
+  }));
+  const plan = planChange(current, { startsOn: input.startsOn, stopsOn: input.stopsOn, money: { charge: input.charge, amountMinor: input.amountMinor, currency: input.currency }, target, from: input.changeFrom }, today);
+  if (!plan.ok) return plan;
 
   const now = new Date().toISOString();
-  const labels = { name: input.name, category: input.category, ...product, updatedAt: now };
-  const dates = ({ id: _id, ...rest }: (typeof plan)[number]) => rest;
-  const statements: BatchStatement[] = plan.map((version) =>
-    rows.some((row) => row.id === version.id)
-      ? db.update(costs).set({ ...labels, ...dates(version) }).where(eq(costs.id, version.id))
-      : db.insert(costs).values({ ...labels, ...money, id: version.id, seriesId: id, validFrom: version.validFrom, validTo: version.validTo, createdBy: by, createdAt: now }),
-  );
-  await db.batch(statements as [BatchStatement, ...BatchStatement[]]);
+  const revision = crypto.randomUUID();
+  const anchor = plan.versions.find((version) => version.id !== null)!;
+  const stands = sql`exists (select 1 from costs held where held.id = ${anchor.id} and held.revision = ${revision})`;
+  const fields = (version: PlannedVersion) => ({
+    name: input.name,
+    category: input.category,
+    charge: version.charge,
+    amountMinor: version.amountMinor,
+    currency: version.currency,
+    validFrom: version.validFrom,
+    validTo: version.validTo,
+    productId: version.productId,
+    productName: version.productName,
+    revision,
+    updatedAt: now,
+  });
+  const kept = new Set(plan.versions.map((version) => version.id));
+  const statements: BatchStatement[] = [
+    db.update(costs).set(fields(anchor)).where(and(eq(costs.id, anchor.id!), eq(costs.revision, input.revision))),
+    ...rows.filter((row) => !kept.has(row.id)).map((row) => db.delete(costs).where(and(eq(costs.id, row.id), stands))),
+    ...plan.versions.filter((version) => version.id !== null && version !== anchor).map((version) => db.update(costs).set(fields(version)).where(and(eq(costs.id, version.id!), stands))),
+    ...plan.versions
+      .filter((version) => version.id === null)
+      .map((version) => {
+        const values = { ...fields(version), id: crypto.randomUUID(), seriesId: id, createdBy: by, createdAt: now };
+        return db.insert(costs).select(
+          db
+            .select(insertSelectRow(costs, Object.fromEntries(Object.entries(values).map(([key, value]) => [key, sql`${value}`]))) as never)
+            .from(sql`(select 1)`)
+            .where(stands),
+        );
+      }),
+  ];
+  const [first] = await db.batch(statements as [BatchStatement, ...BatchStatement[]]);
+  if (!changed(first)) return { ok: false, reason: "changed" };
   return { ok: true, cost: (await getCost(db, id))! };
 }
 
@@ -251,7 +295,9 @@ function countStatement(db: AppDb, charge: PerOrderCharge, productId: string | n
         sql`${at} >= ${storeDayStart(from)}`,
         sql`${at} < ${storeDayStart(addDays(to, 1))}`,
         event.only ? sql.raw(event.only) : undefined,
-        productId === null ? undefined : sql`exists (select 1 from order_products op where op.order_id = ${sql.raw(event.order)} and op.product_id = ${productId})`,
+        productId === null
+          ? undefined
+          : sql`exists (select 1 from order_products op left join removed_product_lines r on r.order_product_id = op.id where op.order_id = ${sql.raw(event.order)} and coalesce(op.product_id, r.product_id) = ${productId})`,
       ),
     )
     .groupBy(day);
@@ -267,7 +313,6 @@ const versionOf = (row: CostRow): CostVersion => ({
   validFrom: row.validFrom,
   validTo: row.validTo,
   productId: row.productId,
-  forProduct: row.productName !== null,
 });
 
 /**
@@ -284,7 +329,7 @@ export async function costsSummary(db: AppDb, from: string, to: string): Promise
   const versions = rows.map(versionOf);
   const pairs = new Map<string, { charge: PerOrderCharge; productId: string | null }>();
   for (const version of versions) {
-    if (!isPerOrder(version.charge) || (version.forProduct && version.productId === null)) continue;
+    if (!isPerOrder(version.charge)) continue;
     pairs.set(countsKey(version.charge, version.productId), { charge: version.charge, productId: version.productId });
   }
   const foreign = versions.some((version) => version.currency !== "DZD");

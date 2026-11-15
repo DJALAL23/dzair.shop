@@ -32,9 +32,11 @@ export const costSchema = daysFollowOn(
 export const costUpdateSchema = daysFollowOn(
   z.object({
     ...costFields,
+    revision: z.string().min(1).openapi({ description: "The cost's `revision` as read: a cost changed since, by anyone, is not changed (409 COST_CHANGED), so a change is never applied to a state its author did not see, nor twice" }),
     productId: z.string().min(1).nullable().optional().openapi({ description: "The product it is for; null for the whole store; left out, it stays as it is" }),
     changeFrom: day.nullable().optional().openapi({
-      description: "The store day a change of its amount, currency or charge applies from: the days before keep what they cost. Left out, or on or before the day its amount in force started, the change corrects it from its start",
+      description:
+        "The store day, today at the latest, a change of what it costs (amount, currency, charge) or what it is for (`productId`) applies from: the days before keep theirs. Left out, the change applies from the day its amount in force started: a correction. On or before its first day, it applies to the whole cost",
     }),
   }),
 );

@@ -237,8 +237,10 @@ export const ERROR_CODES = {
   EXCHANGE_RATE_NOT_FOUND: "EXCHANGE_RATE_NOT_FOUND",
   /** A cost with earlier amounts cannot become a one-time cost, nor stop being one. */
   COST_HAS_HISTORY: "COST_HAS_HISTORY",
-  /** A cost's days must follow on: it stops on or after it starts, and a change comes after its amount in force started. */
+  /** A cost's days must fit: it stops on or after it starts, and a change applies from today at the latest, while it runs. */
   COST_DATES_INVALID: "COST_DATES_INVALID",
+  /** The cost was changed or deleted by someone else since it was read: nothing was written. */
+  COST_CHANGED: "COST_CHANGED",
   
   // ============================================================================
   // BUSINESS LOGIC ERRORS - OFFERS
