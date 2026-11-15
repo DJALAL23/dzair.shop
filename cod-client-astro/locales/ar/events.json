@@ -21,8 +21,8 @@
       "deleted": "حُذف الطلب",
       "assigned": "أُسند إلى عضو في الفريق",
       "unassigned": "استُرجع من عضو الفريق",
-      "callback_scheduled": "تحديد موعد إعادة الاتصال",
-      "callback_cleared": "إلغاء موعد إعادة الاتصال",
+      "callback_scheduled": "حُدّد موعد إعادة الاتصال",
+      "callback_cleared": "أُلغي موعد إعادة الاتصال",
       "callback_due": "حان وقت إعادة الاتصال"
     },
     "shipment": {

@@ -20,7 +20,7 @@
       "line_returned": "Units refused at the door",
       "deleted": "Order deleted",
       "assigned": "Given to a team member",
-      "unassigned": "Taken back from a team member",
+      "unassigned": "Taken back from a member",
       "callback_scheduled": "Call back set",
       "callback_cleared": "Call back removed",
       "callback_due": "Time to call back"
