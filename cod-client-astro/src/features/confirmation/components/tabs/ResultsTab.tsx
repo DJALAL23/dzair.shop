@@ -56,7 +56,7 @@ export function ResultsTab({ version }: { version: number }) {
   const totals = rows ? teamTotals(rows) : null;
   const shown = rows ? pageOf(sortResults(rows, sort.key, sort.direction), page) : null;
   const head = (key: ResultSort, label: string, help?: string) => (
-    <SortHeader label={label} sortKey={key} activeKey={sort.key} direction={sort.direction} onSort={sortBy} align={key === "name" ? "start" : "end"} help={help} />
+    <SortHeader label={label} sortKey={key} activeKey={sort.key} direction={sort.direction} onSort={sortBy} align={key === "name" ? "start" : "end"} help={help} wrap={help !== undefined} />
   );
 
   return (

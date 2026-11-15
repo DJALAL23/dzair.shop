@@ -202,14 +202,15 @@ describe("an order on no answer", () => {
     expect(api.updateOrderStatus).toHaveBeenCalledWith("o1", "confirmed", { status: "unreachable", unansweredCalls: 2 });
   });
 
-  it("reads the order again and says why when someone recorded that call first", async () => {
+  it("reads the order again and says why, once, when someone changed it first", async () => {
     api.getOrder.mockResolvedValue(CALLED_TWICE);
     api.updateOrderStatus.mockRejectedValue(new failure.ApiError("The order changed meanwhile; reload it and try again", 409, "ORDER_CHANGED"));
     await open();
     await act(async () => button("No answer · Call 3")!.click());
     for (let i = 0; i < 3; i++) await act(async () => {});
     expect(api.getOrder).toHaveBeenCalledTimes(2);
-    expect(host.querySelector('[role="alert"]')!.textContent).toBe("This order was updated meanwhile. Check where it stands, then try again.");
+    expect(toast.error.mock.calls).toEqual([["This order was updated meanwhile. Check where it stands, then try again."]]);
+    expect(host.querySelector('[role="alert"]')).toBeNull();
     expect(toast.success).not.toHaveBeenCalled();
   });
 
@@ -220,6 +221,7 @@ describe("an order on no answer", () => {
     await act(async () => button("No answer · Call 3")!.click());
     expect(api.getOrder).toHaveBeenCalledTimes(1);
     expect(host.querySelector('[role="alert"]')!.textContent).toBe("Cannot transition");
+    expect(toast.error.mock.calls).toEqual([["The order could not be updated"]]);
   });
 
   it("numbers each call in its progress, back from the order's count", async () => {

@@ -11,8 +11,9 @@ import type { OrderStatus } from "@/features/orders/types";
  * and the customer's spend is rolled back); the rest happen at once. The
  * order goes along as shown — its status and its calls without an answer —
  * so a move on an order someone else confirmed, cancelled or called
- * meanwhile is refused and the order is read again, never applied to what
- * it became. Resolves true when the move was made.
+ * meanwhile is refused — one message says so while the order is read
+ * again — never applied to what it became. Resolves true when the move was
+ * made.
  */
 export function useStatusMove(onDone: () => void | Promise<void>, onError: (message: string) => void) {
   const t = useT("orders");
@@ -33,11 +34,11 @@ export function useStatusMove(onDone: () => void | Promise<void>, onError: (mess
     try {
       await updateOrderStatus(order.id, status, { status: order.status, unansweredCalls: order.unansweredCalls });
     } catch (cause) {
-      notify.error(t("move.failed"));
       if (cause instanceof ApiError && cause.code === "ORDER_CHANGED") {
+        notify.error(t("move.changed"));
         await onDone();
-        onError(t("move.changed"));
       } else {
+        notify.error(t("move.failed"));
         onError(cause instanceof Error ? cause.message : String(cause));
       }
       return false;

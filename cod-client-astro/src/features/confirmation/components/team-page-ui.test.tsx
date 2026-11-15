@@ -216,6 +216,8 @@ describe("the results view", () => {
     const section = panel("Results")!;
     const column = [...section.querySelectorAll("thead th")].findIndex((th) => th.textContent?.includes("Calls before cancelling"));
     expect(column).toBeGreaterThan(0);
+    const wrapping = [...section.querySelectorAll("thead th")].filter((th) => th.classList.contains("whitespace-normal")).map((th) => th.textContent);
+    expect(wrapping).toEqual(["Calls before cancelling", "Confirmation rate", "Delivery rate", "Response time"]);
     const calls = () => [...section.querySelectorAll("tbody tr")].map((row) => [spoken(row.querySelector("td")!), row.querySelectorAll("td")[column]!.textContent, row.querySelectorAll("td")[column]!.querySelector("[title]")?.getAttribute("title") ?? null]);
     expect(calls()).toEqual([
       ["Samira", "1.5", "4 orders cancelled after no answer"],
