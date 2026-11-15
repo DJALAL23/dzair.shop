@@ -42,7 +42,7 @@ export interface OrderLineSnapshot {
   /** Given by an offer, at no charge. */
   gift: boolean;
   offer: { id: string | null; name: string | null } | null;
-  /** Units the customer refused at the door (Line Return). */
+  /** Units back in stock: refused at the door (Line Return), or put back when the order was cancelled or its parcel came back. */
   returnedQuantity: number;
 }
 

@@ -447,6 +447,8 @@
     "of_other": "of {count}",
     "count_one": "{count} unit refused at the door",
     "count_other": "{count} units refused at the door",
+    "restocked_one": "{count} unit back in stock",
+    "restocked_other": "{count} units back in stock",
     "saved_one": "{count} unit of {product} back in stock",
     "saved_other": "{count} units of {product} back in stock",
     "error_not_delivered": "Refused units are recorded once the order is delivered.",

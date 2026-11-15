@@ -16,6 +16,7 @@ import type {
   Driver,
   OrderBase,
   OrderListItem,
+  OrderProduct,
   OrderRemoval,
   OrderStage,
   OrderStageCounts,
@@ -230,6 +231,17 @@ export function orderDeletionConsequences(removal: OrderRemoval, t: Translate): 
  */
 export function canRecordRefusedUnits(stage: OrderStage): boolean {
   return stage === "delivered";
+}
+
+/**
+ * What became of a line's units that went back to stock: kept back at the
+ * door on a delivered order; put back when the order was cancelled or its
+ * parcel came back.
+ */
+export function lineReturnNote(stage: OrderStage, line: Pick<OrderProduct, "returnedQuantity">, t: Translate): { text: string; refused: boolean } | null {
+  if (line.returnedQuantity <= 0) return null;
+  const refused = canRecordRefusedUnits(stage);
+  return { text: t(refused ? "refused.count" : "refused.restocked", { count: line.returnedQuantity }), refused };
 }
 
 // ─── Handing off ─────────────────────────────────────────────────────────────

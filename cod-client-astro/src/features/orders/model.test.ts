@@ -34,6 +34,7 @@ import {
   formatMoney,
   latestStatusLabel,
   lineReturnError,
+  lineReturnNote,
   handoffKinds,
   offeredActions,
   ORDER_QUEUES,
@@ -146,6 +147,15 @@ describe("an order's next step", () => {
 
   it("records units refused at the door only on a delivered order", () => {
     expect(ORDER_STAGES.filter(canRecordRefusedUnits)).toEqual(["delivered"]);
+  });
+
+  it("calls units that went back to stock refused at the door only on a delivered order", () => {
+    const t = (key: string, values?: Record<string, unknown>) => `${key}:${values?.count}`;
+    expect(lineReturnNote("delivered", { returnedQuantity: 1 }, t)).toEqual({ text: "refused.count:1", refused: true });
+    for (const stage of ORDER_STAGES.filter((stage) => stage !== "delivered")) {
+      expect(lineReturnNote(stage, { returnedQuantity: 2 }, t)).toEqual({ text: "refused.restocked:2", refused: false });
+    }
+    for (const stage of ORDER_STAGES) expect(lineReturnNote(stage, { returnedQuantity: 0 }, t)).toBeNull();
   });
 
   it("says what deleting an order takes away and what stays, from the server's reading", () => {

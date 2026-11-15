@@ -684,12 +684,18 @@ export const orderProducts = sqliteTable("order_products", {
    * Per-line fulfilment outcome — supports Algerian box-opening returns.
    *   fulfilled           — customer kept all units (returnedQuantity = 0)
    *   partially_returned  — customer kept some, returned some (0 < returnedQuantity < quantity)
-   *   returned            — customer refused the whole line (returnedQuantity = quantity)
+   *   returned            — every unit went back to stock: refused at the door, or
+   *                         put back when the order was cancelled or its parcel came back
+   *                         (returnedQuantity = quantity)
    */
   status: text("status", { enum: ["fulfilled", "partially_returned", "returned"] })
     .notNull()
     .default("fulfilled"),
-  /** Units the customer refused at the door. 0 when status = fulfilled. */
+  /**
+   * Units back in stock: refused at the door on a delivered order, or every
+   * unit once the order is cancelled or its parcel comes back (for a product
+   * that tracks stock). 0 when status = fulfilled.
+   */
   returnedQuantity: integer("returned_quantity").notNull().default(0),
   createdAt: text("created_at").notNull(),
   /**

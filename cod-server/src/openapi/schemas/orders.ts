@@ -75,7 +75,7 @@ export const OrderProductSchema = z
     }),
     returnedQuantity: z.number().int().openapi({
       description:
-        "Units the customer refused at the door. Always 0 when status=fulfilled, = quantity when status=returned.",
+        "Units back in stock: those the customer refused at the door on a delivered order, or every unit once the order is cancelled or its parcel comes back (for a product that tracks stock). Always 0 when status=fulfilled, = quantity when status=returned.",
     }),
     createdAt: z.string().datetime(),
     offerId: z.string().nullable().openapi({
