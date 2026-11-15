@@ -137,17 +137,22 @@ describe("the month's costs", () => {
     expect(host.textContent).toContain("Shooting");
   });
 
-  it("show each cost as it stood in the month: its amount then, and when that amount ran", async () => {
+  it("show each cost as it stood in the month, in the table and in the phone list: its amount then, and when that amount ran", async () => {
     const raised = cost({ id: "rent", name: "Loyer", category: "rent", amount: 36_000, since: "2026-11-14", history: [{ charge: "monthly", amount: 30_000, currency: "DZD", product: null, validFrom: "2026-09-01", validTo: "2026-11-13" }] });
     api.listCosts.mockResolvedValue([raised]);
     await open();
     const row = () => host.querySelector("tbody tr")!.textContent;
-    expect(row()).toContain("36,000 DA");
-    expect(row()).toContain("Since Nov 14, 2026");
+    const item = () => host.querySelector('li button[aria-label="Edit Loyer"]')!.textContent;
+    for (const shown of [row(), item()]) {
+      expect(shown).toContain("36,000 DA");
+      expect(shown).toContain("Since Nov 14, 2026");
+    }
     await click(buttons(host, "Previous month")[0]);
     expect(api.getCostsSummary).toHaveBeenLastCalledWith("2026-10-01", "2026-10-31");
-    expect(row()).toContain("30,000 DA");
-    expect(row()).toContain("Sep 1, 2026 to Nov 13, 2026");
+    for (const shown of [row(), item()]) {
+      expect(shown).toContain("30,000 DA");
+      expect(shown).toContain("Sep 1, 2026 to Nov 13, 2026");
+    }
   });
 
   it("sets the dollar rate from the first day left out, in one step", async () => {
@@ -232,6 +237,24 @@ describe("changing a cost", () => {
     api.updateCost.mockResolvedValue(ADS);
     await click(buttons(sheet(), "Save")[0]);
     expect(api.updateCost).toHaveBeenCalledWith("fb", expect.objectContaining({ productId: null, changeFrom: "2026-11-10" }), "rev-1");
+  });
+
+  it("asks, for a cost that stopped before today, for a day up to its last day only", async () => {
+    api.listCosts.mockResolvedValue([cost({ id: "rent", name: "Loyer", category: "rent", amount: 30_000, stopsOn: "2026-10-31" })]);
+    await open();
+    await click(buttons(host, "Show 1 cost from other months")[0]);
+    await click(buttons(host, "Edit Loyer")[0]);
+    await type(field("Amount"), "36000");
+    expect(field("Apply this change from")?.value).toBe("2026-09-01");
+    expect(field("Apply this change from")?.max).toBe("2026-10-31");
+    await type(field("Apply this change from"), "2026-11-05");
+    await click(buttons(sheet(), "Save")[0]);
+    expect(sheet().textContent).toContain("Choose a day from Sep 1, 2026 to Oct 31, 2026.");
+    expect(api.updateCost).not.toHaveBeenCalled();
+    await type(field("Apply this change from"), "2026-10-15");
+    api.updateCost.mockResolvedValue(RENT);
+    await click(buttons(sheet(), "Save")[0]);
+    expect(api.updateCost).toHaveBeenCalledWith("rent", expect.objectContaining({ amount: 36_000, stopsOn: "2026-10-31", changeFrom: "2026-10-15" }), "rev-1");
   });
 
   it("keeps a deleted product's cost on it when only the amount changes", async () => {

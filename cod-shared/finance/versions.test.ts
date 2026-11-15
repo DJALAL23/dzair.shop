@@ -70,9 +70,44 @@ describe("a change of a cost", () => {
     expect(plan([version({})], { money: RENT, from: "2026-12-25" }).ok).toBe(true);
   });
 
-  it("of a one-time cost changes it whole, whatever the day", () => {
+  it("is accepted from today, and from the cost's last day for that day alone", () => {
+    expect(shape(plan([version({})], { money: { ...RENT, amountMinor: 1 }, from: "2026-11-20" }))).toEqual([
+      ["v1", "2026-09-01", "2026-11-19", 3_000_000, null],
+      [null, "2026-11-20", null, 1, null],
+    ]);
+    expect(shape(plan([version({ validTo: "2026-11-10" })], { money: { ...RENT, amountMinor: 1 }, from: "2026-11-10" }))).toEqual([
+      ["v1", "2026-09-01", "2026-11-09", 3_000_000, null],
+      [null, "2026-11-10", "2026-11-10", 1, null],
+    ]);
+  });
+
+  it("of its currency alone is a change of what it costs", () => {
+    const ads = version({ charge: "daily", amountMinor: 2_000 });
+    const result = plan([ads], { money: { charge: "daily", amountMinor: 2_000, currency: "USD" }, from: "2026-11-14" });
+    expect(result.ok && result.versions.map((v) => [v.id, v.validFrom, v.validTo, v.currency])).toEqual([
+      ["v1", "2026-09-01", "2026-11-13", "DZD"],
+      [null, "2026-11-14", null, "USD"],
+    ]);
+  });
+
+  it("that sends back the product in force changes no earlier day's product", () => {
+    const moved = [version({ validTo: "2026-11-13", productId: "robe", productName: "Robe" }), version({ id: "v2", validFrom: "2026-11-14", productId: "sac", productName: "Sac" })];
+    expect(shape(plan(moved, { target: { productId: "sac", productName: "Sac" }, from: "2026-11-01" }))).toEqual([
+      ["v1", "2026-09-01", "2026-11-13", 3_000_000, "robe"],
+      ["v2", "2026-11-14", null, 3_000_000, "sac"],
+    ]);
+  });
+
+  it("of a one-time cost changes it whole, whatever the day, into a one-time cost or a repeating one", () => {
     const shoot = version({ charge: "once", validFrom: "2026-11-03", amountMinor: 2_500_000 });
     expect(shape(plan([shoot], { money: { ...RENT, charge: "once", amountMinor: 2_000_000 }, from: "2026-11-10" }))).toEqual([["v1", "2026-11-03", null, 2_000_000, null]]);
+    const repeating = plan([shoot], { money: RENT, from: "2026-11-10" });
+    expect(repeating.ok && repeating.versions.map((v) => [v.id, v.validFrom, v.validTo, v.charge, v.amountMinor])).toEqual([["v1", "2026-11-03", null, "monthly", 3_000_000]]);
+  });
+
+  it("to a one-time cost leaves it no last day, even when one is sent", () => {
+    const result = plan([version({})], { money: { ...RENT, charge: "once" }, stopsOn: "2026-11-30" });
+    expect(result.ok && result.versions.map((v) => [v.id, v.validFrom, v.validTo, v.charge])).toEqual([["v1", "2026-09-01", null, "once"]]);
   });
 
   it("is refused when a cost with earlier versions would become a one-time cost, or stop being one", () => {
@@ -87,6 +122,20 @@ describe("moving a cost's first or last day", () => {
 
   it("stopping it before a later version drops that version", () => {
     expect(shape(plan(raised, { stopsOn: "2026-11-05", money: { ...RENT, amountMinor: 3_600_000 } }))).toEqual([["v1", "2026-09-01", "2026-11-05", 3_000_000, null]]);
+  });
+
+  it("stopping it on a later version's first day keeps that day at that version's amount", () => {
+    expect(shape(plan(raised, { stopsOn: "2026-11-14", money: { ...RENT, amountMinor: 3_600_000 } }))).toEqual([
+      ["v1", "2026-09-01", "2026-11-13", 3_000_000, null],
+      ["v2", "2026-11-14", "2026-11-14", 3_600_000, null],
+    ]);
+  });
+
+  it("starting it on an earlier version's last day keeps that day at that version's amount", () => {
+    expect(shape(plan(raised, { startsOn: "2026-11-13", money: { ...RENT, amountMinor: 3_600_000 } }))).toEqual([
+      ["v1", "2026-11-13", "2026-11-13", 3_000_000, null],
+      ["v2", "2026-11-14", null, 3_600_000, null],
+    ]);
   });
 
   it("keeps each day's terms: days added before take the first, days added after the last", () => {

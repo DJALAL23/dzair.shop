@@ -159,6 +159,16 @@ describe("a change of a cost's money", () => {
     expect(await read(id)).toMatchObject({ amount: 36_000, since: "2026-11-16", history: [{ amount: 30_000 }] });
     expect((await owner().put(`/api/finance/costs/${id}`, { ...RENT, amount: 36_000 })).status).toBe(400);
   });
+
+  it("is refused as changed meanwhile, never for what the other change made of it, when the cost changed since it was read", async () => {
+    const { id } = await add(RENT);
+    const seen = (await read(id)).revision;
+    await change(id, { ...RENT, amount: 36_000, changeFrom: "2026-11-16" });
+    const late = await owner().put(`/api/finance/costs/${id}`, { ...RENT, charge: "once", revision: seen });
+    expect(late.status, JSON.stringify(late.body)).toBe(409);
+    expect(late.body).toMatchObject({ code: "COST_CHANGED" });
+    expect(await read(id)).toMatchObject({ charge: "monthly", amount: 36_000, since: "2026-11-16", history: [{ amount: 30_000 }] });
+  });
 });
 
 describe("moving a cost's days", () => {
@@ -350,6 +360,18 @@ describe("a cost per order", () => {
     expect(await read(packaging.id)).toMatchObject({ product: { id: null, name: "Robe longue" } });
     expect(await summary("2026-11-01", "2026-11-30")).toEqual(before);
     expect((await change(packaging.id, { name: "Emballage", category: "packaging", charge: "per_shipped", amount: 80, currency: "DZD", startsOn: "2026-11-01" })).body.data).toMatchObject({ name: "Emballage", product: { id: null, name: "Robe longue" } });
+    expect(await summary("2026-11-01", "2026-11-30")).toEqual(before);
+  });
+
+  it("keeps a deleted product's cost on it when a change sends back the product as it was read before the deletion", async () => {
+    const packaging = await add({ name: "Emballage robe", category: "packaging", charge: "per_shipped", amount: 80, currency: "DZD", startsOn: "2026-11-01", productId: "robe" });
+    const seen = await read(packaging.id);
+    expect(seen.product).toEqual({ id: "robe", name: "Robe" });
+    const before = await summary("2026-11-01", "2026-11-30");
+    await run("DELETE FROM products WHERE id = 'robe'");
+    const kept = await owner().put(`/api/finance/costs/${packaging.id}`, { name: "Emballage", category: "packaging", charge: "per_shipped", amount: 80, currency: "DZD", startsOn: "2026-11-01", productId: seen.product.id, revision: seen.revision });
+    expect(kept.status, JSON.stringify(kept.body)).toBe(200);
+    expect(kept.body.data).toMatchObject({ name: "Emballage", product: { id: null, name: "Robe" }, history: [] });
     expect(await summary("2026-11-01", "2026-11-30")).toEqual(before);
   });
 

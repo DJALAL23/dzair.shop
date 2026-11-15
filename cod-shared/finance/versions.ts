@@ -69,8 +69,7 @@ export function planChange(current: readonly PlannedVersion[], change: CostChang
 
   if (moneyChanged || targetChanged) {
     if (change.from != null && change.from > today) return { ok: false, reason: "dates" };
-    const asked = change.money.charge === "once" || latest.charge === "once" ? change.startsOn : (change.from ?? latest.validFrom);
-    const from = asked > change.startsOn ? asked : change.startsOn;
+    const from = change.money.charge === "once" || latest.charge === "once" ? change.startsOn : (change.from ?? latest.validFrom);
     if (stopsOn !== null && from > stopsOn) return { ok: false, reason: "dates" };
     versions = splitAt(versions, from).map((version) =>
       version.validFrom >= from ? { ...version, ...(moneyChanged ? change.money : {}), ...(targetChanged ? change.target : {}) } : version,
