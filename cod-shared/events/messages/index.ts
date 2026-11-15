@@ -12,6 +12,7 @@ import type { Money, OrderSnapshot, ShipmentSnapshot } from "../snapshots";
 import type { BusinessEvent } from "../log";
 import type { EventType } from "../catalogue";
 import type { MessageLanguage } from "./language";
+import { storeTime } from "./time";
 import { ar } from "./ar";
 import { en } from "./en";
 import { fr } from "./fr";
@@ -69,6 +70,24 @@ function delivery(language: MessageLanguage, shipment: ShipmentSnapshot): string
   return out;
 }
 
+/** Who on the confirmation team has the order, when someone does. */
+function assignee(language: MessageLanguage, order: OrderSnapshot): string[] {
+  return order.assignee ? [`🎧 ${language.words.assignee}: ${fact(order.assignee.name)}`] : [];
+}
+
+function review(language: MessageLanguage, event: Extract<BusinessEvent, { type: "review.submitted" }>): string[] {
+  const { review: given } = event.data;
+  const stars = "★".repeat(given.rating) + "☆".repeat(Math.max(0, 5 - given.rating));
+  const media = [...(given.photos > 0 ? [`📷 ${given.photos}`] : []), ...(given.voiceNote ? [`🎙️ ${language.words.voiceNote}`] : [])];
+  return [
+    `🛍️ ${fact(given.product.name)}`,
+    given.title ? `${stars} ${fact(given.title)}` : stars,
+    ...(given.body.trim() ? [`“${fact(given.body)}”`] : []),
+    ...(media.length ? [media.join(" · ")] : []),
+    given.status === "approved" ? language.words.reviewPublished : language.words.reviewPending,
+  ];
+}
+
 function facts(language: MessageLanguage, event: BusinessEvent): string[] {
   const { words } = language;
   const order = event.data.order;
@@ -84,12 +103,22 @@ function facts(language: MessageLanguage, event: BusinessEvent): string[] {
       const line = order.lines.find((candidate) => candidate.id === event.data.lineId);
       return [customer(order), ...(line ? [`• ${words.refused}: ${line.returnedQuantity} × ${fact(line.name)}`] : [])];
     }
-    case "order.confirmed":
     case "order.unreachable":
+      return [customer(order), ...assignee(language, order), total];
+    case "order.callback_scheduled":
+    case "order.callback_due":
+      return [customer(order), ...assignee(language, order)];
+    case "order.callback_cleared":
+      return [customer(order), ...assignee(language, order), `${words.callbackWas} ${storeTime(language.numbers, event.data.previousAt)}`];
+    case "review.submitted":
+      return [customer(order), ...review(language, event)];
+    case "order.confirmed":
     case "order.preparing":
     case "order.ready":
     case "order.cancelled":
     case "order.deleted":
+    case "order.assigned":
+    case "order.unassigned":
       return [customer(order), total];
     case "shipment.handed_off":
     case "shipment.voided":

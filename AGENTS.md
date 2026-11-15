@@ -28,6 +28,7 @@ The root `package.json` has three npm workspaces (`cod-shared`, `cod-server`,
 
 ```sh
 npm ci                              # repo root: every workspace
+npm run typecheck && npm test       # repo root: cod-server, then the dashboard
 cd cod-server && npm run typecheck && npm test
 cd cod-server && npm run dev        # wrangler dev on :8787
 cd cod-client-astro && npm run typecheck && npm test
@@ -41,6 +42,10 @@ First local run: `cd cod-server && npm run db:setup:local`, then
 `cd cod-client-astro && npm run seed:admin` (sign-up is disabled by design).
 Signing in against an unmigrated local D1 is the usual cause of a dashboard
 that "doesn't work" locally.
+
+The root also has `dev:server`, `dev:dashboard`, `db:setup:local` and
+`seed:admin`, which run the package's own script. They pass no extra flags
+through, so `--port` goes on the package's command.
 
 The dashboard and a storefront both default to port 4321; run one with
 `--port 4322` when developing both.

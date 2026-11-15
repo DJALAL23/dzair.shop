@@ -13,8 +13,8 @@ import { isStoreLocale, type StoreLocale } from "../i18n/locales";
 /** As stored on `event_consumers.kind`. */
 export const TELEGRAM_KIND = "telegram";
 
-/** What a new Telegram Consumer tells: a new order, and how its delivery ended. */
-export const TELEGRAM_DEFAULT_EVENTS: readonly EventType[] = ["order.created", "shipment.delivered", "shipment.delivery_failed"];
+/** What a new Telegram Consumer tells: a new order, a customer to call back now, and how a delivery ended. */
+export const TELEGRAM_DEFAULT_EVENTS: readonly EventType[] = ["order.created", "order.callback_due", "shipment.delivered", "shipment.delivery_failed"];
 
 /** Every Event Type a Telegram Consumer can tell. */
 export const TELEGRAM_EVENT_TYPES: readonly EventType[] = EVENT_TYPES;

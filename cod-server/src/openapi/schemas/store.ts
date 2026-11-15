@@ -88,6 +88,10 @@ export const StoreSchema = z
       "Single-tenant store configuration: branding, theme, localization, SEO, and feature flags",
   });
 
+export const StoreSummarySchema = StoreSchema.pick({ name: true, domain: true, logo: true }).openapi("StoreSummary", {
+  description: "The store as the dashboard frame shows it to every signed-in member: its name, storefront domain and logo.",
+});
+
 export const StorePixelConfigSchema = z
   .object({
     id: z.string(),

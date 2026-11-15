@@ -4,6 +4,10 @@ import { allowedTransitions } from "../../../../cod-shared/orders/lifecycle";
 import { ORDER_STAGES } from "../../../../cod-shared/orders/stage";
 import { SCOPE_FOR_KIND, scopeForShipmentAction } from "../../../../cod-shared/shipments/actions";
 import { reportsAllowedFor, type MerchantReport } from "../../../../cod-shared/shipments/merchant-reports";
+import type { OrderAttributionView } from "../../../../cod-shared/attribution/view";
+import { PAID_CHANNELS, type OrderChannel } from "../../../../cod-shared/attribution/model";
+import { androidAppName } from "../../../../cod-shared/attribution/channel";
+import type { CallList } from "../../../../cod-shared/orders/calls";
 import type {
   AbandonedOrder,
   AbandonedOrderStatus,
@@ -12,6 +16,7 @@ import type {
   Driver,
   OrderBase,
   OrderListItem,
+  OrderProduct,
   OrderRemoval,
   OrderStage,
   OrderStageCounts,
@@ -19,6 +24,7 @@ import type {
   Shipment,
   ShipmentAction,
   ShipmentEvent,
+  StatusHistoryItem,
 } from "./types";
 
 /** Whether the person may act under a permission (the dashboard's `canScope` for the signed-in user). */
@@ -43,13 +49,18 @@ export const ORDER_QUEUES = [
 ] as const satisfies ReadonlyArray<{ key: string; stages: readonly OrderStage[] }>;
 
 export type QueueKey = (typeof ORDER_QUEUES)[number]["key"];
-/** "all" shows every working order; "attention" those whose delivery needs the merchant; "archived" the finished ones put away. */
-export type OrderView = QueueKey | "all" | "attention" | "archived";
+/**
+ * "all" shows every working order; "attention" those whose delivery needs
+ * the merchant; "callbacks" the customers to call back, soonest first;
+ * "archived" the finished ones put away.
+ */
+export type OrderView = QueueKey | "all" | "attention" | "callbacks" | "archived";
 
 /** The server query a view stands for. */
-export function viewQuery(view: OrderView): { stages?: readonly OrderStage[]; attention?: boolean; archived?: boolean } {
+export function viewQuery(view: OrderView): { stages?: readonly OrderStage[]; attention?: boolean; callbacks?: boolean; archived?: boolean } {
   if (view === "all") return {};
   if (view === "attention") return { attention: true };
+  if (view === "callbacks") return { callbacks: true };
   if (view === "archived") return { archived: true };
   return { stages: ORDER_QUEUES.find((queue) => queue.key === view)!.stages };
 }
@@ -61,7 +72,61 @@ export function viewCounts(counts: OrderStageCounts): Record<OrderView, number> 
   const queues = Object.fromEntries(
     ORDER_QUEUES.map((queue) => [queue.key, queue.stages.reduce((sum, stage) => sum + (byStage.get(stage) ?? 0), 0)]),
   ) as Record<QueueKey, number>;
-  return { all: total, attention: counts.needsAttention, archived: counts.archived, ...queues };
+  return { all: total, attention: counts.needsAttention, callbacks: counts.callbacks, archived: counts.archived, ...queues };
+}
+
+// ─── Calls without an answer ─────────────────────────────────────────────────
+
+/**
+ * The orders to confirm, step by step as a confirmation team works them: the
+ * new ones, then those on no answer after one call, two, three or more.
+ */
+export const CONFIRM_STEPS = ["new", "call1", "call2", "call3"] as const;
+export type ConfirmStep = (typeof CONFIRM_STEPS)[number];
+
+const STEP_CALLS: Record<Exclude<ConfirmStep, "new">, CallList> = { call1: 1, call2: 2, call3: 3 };
+
+/** The server query a step adds to the "To confirm" queue's. */
+export function confirmStepQuery(step: ConfirmStep): { stages?: readonly OrderStage[]; calls?: CallList } {
+  return step === "new" ? { stages: ["new"] } : { calls: STEP_CALLS[step] };
+}
+
+/** How many orders each step holds. */
+export function confirmStepCounts(counts: OrderStageCounts): Record<ConfirmStep, number> {
+  return {
+    new: counts.stages.find((entry) => entry.stage === "new")?.count ?? 0,
+    call1: counts.noAnswer.call1,
+    call2: counts.noAnswer.call2,
+    call3: counts.noAnswer.call3OrMore,
+  };
+}
+
+/** The step a URL opens, only within the "To confirm" queue. */
+export function confirmStepFrom(search: string, view: OrderView): ConfirmStep | null {
+  const step = new URLSearchParams(search).get("step");
+  return view === "to_confirm" && (CONFIRM_STEPS as readonly string[]).includes(step ?? "") ? (step as ConfirmStep) : null;
+}
+
+/**
+ * Which call each "No answer" in an order's timeline was, counted back from
+ * the order's own count: the newest is its last call. The Event Log is
+ * pruned, so counting forward from the oldest step left would misnumber.
+ */
+export function callNumbers(history: readonly StatusHistoryItem[], unansweredCalls: number): Map<string, number> {
+  const calls = history
+    .filter((step) => step.status === "unreachable")
+    .sort((left, right) => right.timestamp.localeCompare(left.timestamp) || right.id.localeCompare(left.id));
+  return new Map(calls.flatMap((step, index) => (unansweredCalls - index > 0 ? [[step.id, unansweredCalls - index] as const] : [])));
+}
+
+/** A stage in words: on no answer, which call the order is at. */
+export function stageLabel(t: Translate, stage: OrderStage, unansweredCalls: number): string {
+  return stage === "unreachable" && unansweredCalls > 0 ? t("calls.no_answer", { call: unansweredCalls }) : t(`stage.${stage}`);
+}
+
+/** A status move in words: "No answer" says which call it records. */
+export function moveLabel(t: Translate, status: OrderStatus, unansweredCalls: number): string {
+  return status === "unreachable" ? t("calls.no_answer", { call: unansweredCalls + 1 }) : t(`move.${status}`);
 }
 
 // ─── What the stage looks like ───────────────────────────────────────────────
@@ -108,6 +173,26 @@ export function deliveredBy(order: Pick<OrderListItem, "shipmentKind" | "carrier
   return null;
 }
 
+export type StatusContext =
+  | { kind: "callback"; at: string }
+  | { kind: "carrier" | "driver"; name: string | null }
+  | { kind: "no_answer_cancel"; calls: number };
+
+/**
+ * The one fact an order's status card adds under its stage: when to call a
+ * waiting customer back, who carries a shipped order, or how many calls went
+ * unanswered before an order that was never confirmed was cancelled.
+ */
+export function statusContext(
+  order: Pick<OrderListItem, "status" | "stage" | "callbackAt" | "shipmentKind" | "carrierName" | "driverName" | "unansweredCalls" | "confirmedAt">,
+): StatusContext | null {
+  if (order.callbackAt && (order.status === "new" || order.status === "unreachable")) return { kind: "callback", at: order.callbackAt };
+  const by = deliveredBy(order);
+  if (by) return by;
+  if (order.stage === "cancelled" && order.unansweredCalls > 0 && !order.confirmedAt) return { kind: "no_answer_cancel", calls: order.unansweredCalls };
+  return null;
+}
+
 // ─── The order's next step ───────────────────────────────────────────────────
 
 export interface StatusMove {
@@ -137,6 +222,29 @@ export function statusMoves(order: Pick<OrderBase, "status"> & { hasShipment: bo
   moves.sort((left, right) => (left.emphasis === "primary" ? -1 : right.emphasis === "primary" ? 1 : 0));
   if (allowed.includes("cancelled")) moves.push({ status: "cancelled", emphasis: "danger" });
   return moves;
+}
+
+export interface NextStepLayout {
+  /** A waiting order's two results of a call, side by side: confirmed, and no answer. */
+  outcomes: StatusMove[];
+  /** Every other move, the usual next one first. */
+  others: StatusMove[];
+  /** Moves kept out of the way: a call without an answer on an order already confirmed. */
+  more: StatusMove[];
+  cancel: StatusMove | null;
+}
+
+/**
+ * How the next step lays out an order's moves. A call has two results, so a
+ * waiting order shows them side by side; once confirmed, preparing comes
+ * next, and another call without an answer stays behind More. Cancelling
+ * always stands apart.
+ */
+export function nextStepLayout(status: OrderStatus, moves: StatusMove[]): NextStepLayout {
+  const cancel = moves.find((move) => move.status === "cancelled") ?? null;
+  const rest = moves.filter((move) => move.status !== "cancelled");
+  if (status === "new" || status === "unreachable") return { outcomes: rest, others: [], more: [], cancel };
+  return { outcomes: [], others: rest.filter((move) => move.status !== "unreachable"), more: rest.filter((move) => move.status === "unreachable"), cancel };
 }
 
 /** A ready order with no shipment waits to be handed to a carrier or a driver. */
@@ -171,6 +279,17 @@ export function orderDeletionConsequences(removal: OrderRemoval, t: Translate): 
  */
 export function canRecordRefusedUnits(stage: OrderStage): boolean {
   return stage === "delivered";
+}
+
+/**
+ * What became of a line's units that went back to stock: kept back at the
+ * door on a delivered order; put back when the order was cancelled or its
+ * parcel came back.
+ */
+export function lineReturnNote(stage: OrderStage, line: Pick<OrderProduct, "returnedQuantity">, t: Translate): { text: string; refused: boolean } | null {
+  if (line.returnedQuantity <= 0) return null;
+  const refused = canRecordRefusedUnits(stage);
+  return { text: t(refused ? "refused.count" : "refused.restocked", { count: line.returnedQuantity }), refused };
 }
 
 // ─── Handing off ─────────────────────────────────────────────────────────────
@@ -468,3 +587,153 @@ export function lineBeforeCoupon(line: { lineTotal: number; quantity: number; di
   const total = line.lineTotal + (line.discount ?? 0);
   return { unit: line.quantity > 0 ? total / line.quantity : 0, total };
 }
+
+/** What an order's source says first: the i18n key of its headline under `source.headline`, and the network it names. Null when it is not known. */
+export function sourceHeadline(source: { channel: OrderChannel | null; platform: string | null; app: string | null } | null | undefined): { key: string; network: string | null } | null {
+  if (!source?.channel) return null;
+  const { channel } = source;
+  if ((PAID_CHANNELS as readonly string[]).includes(channel)) return { key: "paid", network: networkOf(source.platform, source.app) };
+  if (channel === "organic_social" || channel === "organic_search") return { key: channel, network: networkOf(source.platform, source.app) };
+  return { key: channel, network: null };
+}
+
+/** The network a source names, as a key under `source.network`: the Meta app when known. */
+export function networkOf(platform: string | null, app: string | null): string {
+  if (platform === "meta") return app ?? "meta";
+  return platform === "tiktok" || platform === "google" || platform === "bing" || platform === "snapchat" ? platform : "other";
+}
+
+const META_PLACEMENT_APPS = ["Facebook", "Instagram", "Messenger", "Threads", "WhatsApp"];
+
+/** Meta's placement as a person reads it: `Facebook_Mobile_Feed` is "Facebook · Mobile Feed". */
+export function readablePlacement(placement: string): string {
+  const words = placement.split(/[_\s]+/).filter(Boolean);
+  if (words[0] === "Audience" && words[1] === "Network") return ["Audience Network", words.slice(2).join(" ")].filter(Boolean).join(" · ");
+  if (words[0] && META_PLACEMENT_APPS.includes(words[0]) && words.length > 1) return `${words[0]} · ${words.slice(1).join(" ")}`;
+  return words.join(" ");
+}
+
+/** How long before the order the shopper clicked: the i18n key under `source` and its count. */
+export function beforeOrder(clickedAt: string, orderedAt: string): { key: string; count?: number } {
+  const ms = Date.parse(orderedAt) - Date.parse(clickedAt);
+  if (!Number.isFinite(ms) || ms < 60_000) return { key: "just_before" };
+  const minutes = Math.floor(ms / 60_000);
+  if (minutes < 60) return { key: "minutes_before", count: minutes };
+  const hours = Math.floor(minutes / 60);
+  if (hours < 48) return { key: "hours_before", count: hours };
+  return { key: "days_before", count: Math.floor(hours / 24) };
+}
+
+export type SourceFactKey = "campaign" | "ad" | "placement" | "landing" | "referrer" | "clicked_at" | "arrived_at";
+export type SourceFact = { key: SourceFactKey; value: string };
+
+/** How the source card words what only translations know: an Android app's name, a storefront page. */
+export interface SourceLabels {
+  app: (app: string) => string;
+  page: (page: StorePage) => string;
+}
+
+/** The storefront page types whose path names one thing (a product, a landing page…). */
+const NAMED_PAGES = new Set(["category", "collection", "product", "page", "landing"]);
+
+/** A storefront page a visit landed on: its type and, for a page about one thing, its slug. */
+export interface StorePage {
+  type: string;
+  name: string | null;
+}
+
+/** The page a landing path is, as the source card names it: "Product · robe-qa", "Home page"; a path no page type has is kept as it is. */
+export function storePage(path: string | null, type: string | null): StorePage | null {
+  if (!path) return null;
+  if (!type) return { type: "other", name: path };
+  const slug = path.split("/").filter(Boolean).at(-1) ?? null;
+  if (!NAMED_PAGES.has(type) || !slug) return { type, name: null };
+  try {
+    return { type, name: decodeURIComponent(slug) };
+  } catch {
+    return { type, name: slug };
+  }
+}
+
+const pageValue = (path: string | null, type: string | null, labels: SourceLabels) => {
+  const page = storePage(path, type);
+  return page ? labels.page(page) : null;
+};
+
+const when = (at: string, locale: Locale) => new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(new Date(at));
+const kept = (facts: Array<{ key: SourceFactKey; value: string | null | undefined }>) => facts.filter((fact): fact is SourceFact => Boolean(fact.value));
+
+/** What the credited ad says, in reading order; only the facts it has. Names before ids. */
+export function adFacts(ad: NonNullable<OrderAttributionView["ad"]>, locale: Locale, labels: SourceLabels): SourceFact[] {
+  return kept([
+    { key: "campaign", value: ad.campaignName ?? ad.campaignId ?? ad.utmCampaign },
+    { key: "ad", value: ad.adName ?? ad.adId },
+    { key: "placement", value: ad.placement ? readablePlacement(ad.placement) : null },
+    { key: "landing", value: pageValue(ad.landingPath, ad.landingPageType, labels) },
+    { key: "clicked_at", value: ad.clickedAt ? when(ad.clickedAt, locale) : null },
+  ]);
+}
+
+/** Where a visit came from as a person reads it: the Android app by its name ("Google app on Android"), else the site. */
+export function referrerLabel(host: string | null, appLabel: (app: string) => string): string | null {
+  const app = androidAppName(host);
+  return app ? appLabel(app) : host;
+}
+
+/** What a visit says (this one, the earlier one the source comes from, or the first), in reading order; only the facts it has. */
+export function visitFacts(visit: NonNullable<OrderAttributionView["visit"]>, locale: Locale, labels: SourceLabels): SourceFact[] {
+  return kept([
+    { key: "referrer", value: referrerLabel(visit.referrerHost, labels.app) },
+    { key: "campaign", value: visit.utmCampaign },
+    { key: "landing", value: pageValue(visit.landingPath, visit.landingPageType, labels) },
+    { key: "arrived_at", value: visit.at ? when(visit.at, locale) : null },
+  ]);
+}
+
+/** One visit on an order's journey: the first visit, the credited ad or earlier visit, or the visit the shopper ordered in. */
+export interface JourneyStep {
+  kind: "first" | "ad" | "earlier" | "visit";
+  at: string | null;
+  source: { channel: OrderChannel; platform: string | null; app: string | null };
+  /** The order's source. */
+  credited: boolean;
+  /** The visit the shopper ordered in. */
+  ordered: boolean;
+}
+
+/**
+ * The visits that led to an order, oldest first: the first visit when it is
+ * not another step, the credited ad or earlier visit, then the visit the
+ * shopper ordered in. One visit is one step: an ad clicked in the visit that
+ * ordered is a single credited, ordered step. Empty when no visit is known.
+ */
+export function sourceJourney(view: Pick<OrderAttributionView, "channel" | "platform" | "app" | "ad" | "visit" | "earlier" | "first">): JourneyStep[] {
+  const { channel, ad, earlier, visit, first } = view;
+  if (!channel) return [];
+  const steps: JourneyStep[] = [];
+  if (ad || earlier) {
+    const at = ad ? ad.clickedAt : earlier!.at;
+    steps.push({ kind: ad ? "ad" : "earlier", at, source: { channel, platform: view.platform, app: view.app }, credited: true, ordered: visit !== null && visit.at === at });
+  }
+  if (visit && !steps[0]?.ordered) {
+    steps.push({ kind: "visit", at: visit.at, source: { channel: visit.channel, platform: visit.platform, app: visit.app }, credited: steps.length === 0, ordered: true });
+  }
+  if (first?.at && steps.length > 0 && !steps.some((step) => step.at === first.at)) {
+    steps.unshift({ kind: "first", at: first.at, source: { channel: first.channel, platform: first.platform, app: first.app }, credited: false, ordered: false });
+  }
+  return steps;
+}
+
+/** The source filter of the orders list: each choice and the channels it shows. */
+export const SOURCE_FILTERS = {
+  ads: ["paid_social", "paid_search", "paid_other"],
+  social: ["organic_social"],
+  search: ["organic_search"],
+  ai: ["ai_assistant"],
+  direct: ["direct"],
+  other: ["referral", "tagged", "email"],
+  team: ["dashboard", "api", "agent"],
+  unknown: ["unknown"],
+} as const satisfies Record<string, readonly (OrderChannel | "unknown")[]>;
+
+export type SourceFilter = keyof typeof SOURCE_FILTERS;

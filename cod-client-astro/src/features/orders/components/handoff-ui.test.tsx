@@ -43,7 +43,7 @@ beforeEach(() => {
   geography.listWilayas.mockResolvedValue([]);
   api.listDeliveryCompanies.mockResolvedValue([]);
   api.listDrivers.mockResolvedValue([driver]);
-  api.getOrderStageCounts.mockResolvedValue({ stages: [], needsAttention: 0, archived: 0, deliveryRate: null });
+  api.getOrderStageCounts.mockResolvedValue({ stages: [], needsAttention: 0, archived: 0, callbacks: 0, callbacksDue: 0, noAnswer: { call1: 0, call2: 0, call3OrMore: 0 }, deliveryRate: null });
 });
 
 afterEach(() => {
@@ -86,6 +86,7 @@ function order(id: string, overrides: Partial<OrderListItem> = {}): OrderListIte
     shipmentKind: null,
     carrierName: null,
     trackingNumber: null,
+    unansweredCalls: 0,
     ...overrides,
   };
 }

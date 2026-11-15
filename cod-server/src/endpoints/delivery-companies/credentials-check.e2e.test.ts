@@ -153,8 +153,9 @@ describe("the carrier's places are read as part of connecting", () => {
   const mapped = () => harness.db.select().from(schema.carrierPlaces).all();
   const synced = async (id: string) => (await harness.db.select({ at: schema.deliveryCompanies.placesSyncedAt }).from(schema.deliveryCompanies).where(eq(schema.deliveryCompanies.id, id)).get())?.at ?? null;
 
-  it("builds the company's map when the credentials are accepted — nothing for the merchant to run", async () => {
+  it("builds the company's map and its desks when the credentials are accepted — nothing for the merchant to run", async () => {
     await harness.db.delete(schema.carrierPlaces);
+    await harness.db.delete(schema.companyStopDesks);
     const res = await send("POST", "/api/delivery-companies", newCompany());
     expect(res.status).toBe(201);
     const { data } = (await res.json()) as any;
@@ -162,7 +163,11 @@ describe("the carrier's places are read as part of connecting", () => {
     expect(rows.length).toBeGreaterThan(0);
     expect(new Set(rows.map((r) => r.companyId))).toEqual(new Set([data.id]));
     expect(await synced(data.id)).not.toBeNull();
-    expect(server.callsFor("/api/v1/get/communes")).toHaveLength(1);
+    const desks = await harness.db.select().from(schema.companyStopDesks).all();
+    expect(desks.length).toBeGreaterThan(0);
+    expect(new Set(desks.map((d) => d.companyId))).toEqual(new Set([data.id]));
+    // EcoTrack's desks are its communes that have one: read once for the places, once for the desks.
+    expect(server.callsFor("/api/v1/get/communes")).toHaveLength(2);
   });
 
   it("builds it again when the credentials change", async () => {

@@ -37,6 +37,11 @@ export class ApiError extends Error {
   }
 }
 
+/** An admin turned this member off: no page works for them any more, so they go to sign-in, which says why. */
+function leaveIfTurnedOff(status: number, code: string | undefined) {
+  if (status === 403 && code === "USER_INACTIVE" && typeof window !== "undefined") window.location.replace("/sign-in?turned_off=1");
+}
+
 export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   const apiUrl = publicApiUrl();
   const call = () =>
@@ -73,6 +78,7 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
       category = body.category;
       context = body.context;
     } catch {}
+    leaveIfTurnedOff(res.status, code);
     throw new ApiError(message, res.status, code, category, context);
   }
   if (res.status === 204) return undefined as T;
@@ -96,11 +102,14 @@ export async function apiFetchBlob(path: string): Promise<Blob> {
   }
   if (!res.ok) {
     let message = `Request failed (${res.status})`;
+    let code: string | undefined;
     try {
       const body = (await res.json()) as { error?: string; code?: string };
       message = body.error ?? message;
+      code = body.code;
     } catch {}
-    throw new ApiError(message, res.status);
+    leaveIfTurnedOff(res.status, code);
+    throw new ApiError(message, res.status, code);
   }
   return res.blob();
 }

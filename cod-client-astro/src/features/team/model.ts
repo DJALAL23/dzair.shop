@@ -76,6 +76,8 @@ export function teamErrorMessage(cause: unknown, t: (key: string) => string) {
   if (code === "USER_NOT_FOUND") return t("error_member_not_found");
   if (code === "DUPLICATE_EMAIL") return t("error_duplicate_email");
   if (code === "PERMISSION_DENIED") return t("error_permission_denied");
+  if (code === "OWN_ACCOUNT") return t("error_own_account");
+  if (code === "LAST_ADMIN") return t("error_last_admin");
   return t("error_generic");
 }
 

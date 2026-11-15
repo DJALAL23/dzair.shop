@@ -9,6 +9,7 @@ import * as queries from "./queries";
 import * as validation from "./validation";
 import { NotFoundError, BusinessLogicError, ValidationError } from "@/lib/errors/classes";
 import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
+import { copyCarrierRates, planCarrierCopy, type CarrierCopyPlan } from "../../../../cod-shared/queries/profile-from-carrier";
 
 /**
  * GET /shipping-profiles
@@ -198,4 +199,40 @@ export async function deleteCommuneOverride(c: Context<AppContext>) {
   }
 
   return c.json({ success: true }, 200);
+}
+
+/** The refusals a carrier copy can meet, raised as the API's errors. */
+function assertCarrierCopy(planned: CarrierCopyPlan, profileId: string, companyId: string): asserts planned is Extract<CarrierCopyPlan, { kind: "ready" }> {
+  if (planned.kind === "profile-not-found") throw new NotFoundError("shipping_profile", profileId);
+  if (planned.kind === "company-not-found") throw new NotFoundError("delivery_company", companyId);
+  if (planned.kind === "places-not-read")
+    throw new BusinessLogicError(`${planned.company.name}'s places and prices have not been read yet`, ERROR_CODES.CARRIER_PLACES_NOT_READ, { companyId });
+  if (planned.kind === "no-rates")
+    throw new BusinessLogicError(`${planned.company.name} gives no price for any place`, ERROR_CODES.CARRIER_RATES_MISSING, { companyId });
+}
+
+/**
+ * POST /shipping-profiles/:id/carrier-rates/preview
+ * What copying a delivery company's rates would make of each wilaya's prices. Writes nothing.
+ */
+export async function previewCarrierCopy(c: Context<AppContext>) {
+  const db = getDb(c.env.DB);
+  const id = c.req.param("id")!;
+  const body = (c.req as any).valid("json") as validation.CarrierCopyInput;
+  const planned = await planCarrierCopy(db, id, body.companyId, { add: body.add, roundTo: body.roundTo });
+  assertCarrierCopy(planned, id, body.companyId);
+  return c.json({ success: true, data: planned.preview }, 200);
+}
+
+/**
+ * PUT /shipping-profiles/:id/carrier-rates
+ * Copy a delivery company's rates into the profile, replacing its prices, in one transaction.
+ */
+export async function copyCarrierRatesIntoProfile(c: Context<AppContext>) {
+  const db = getDb(c.env.DB);
+  const id = c.req.param("id")!;
+  const body = (c.req as any).valid("json") as validation.CarrierCopyInput;
+  const planned = await copyCarrierRates(db, id, body.companyId, { add: body.add, roundTo: body.roundTo });
+  assertCarrierCopy(planned, id, body.companyId);
+  return c.json({ success: true, data: await queries.getProfileById(db, id) }, 200);
 }

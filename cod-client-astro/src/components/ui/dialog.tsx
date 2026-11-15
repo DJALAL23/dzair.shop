@@ -36,6 +36,7 @@ export function Dialog({
   initialFocusRef?: RefObject<HTMLElement | null>;
   preventClose?: boolean;
   showClose?: boolean;
+  /** "end": a side panel, one width for every panel in the dashboard. */
   placement?: "center" | "end";
 }) {
   const common = useT("common");
@@ -108,8 +109,8 @@ export function Dialog({
         tabIndex={-1}
         className={`relative w-full overflow-y-auto bg-card shadow-2xl ${
           placement === "end"
-            ? "flex max-h-[85dvh] animate-sheet flex-col rounded-t-2xl p-4 sm:h-full sm:max-h-full sm:w-[440px] sm:animate-drawer sm:rounded-none sm:p-5 sm:[--drawer-from:1] rtl:sm:[--drawer-from:-1]"
-            : "max-h-[calc(100dvh-1.5rem)] max-w-lg animate-sheet rounded-xl p-4 sm:max-h-[calc(100dvh-2rem)] sm:p-5"
+            ? "flex max-h-[85dvh] animate-sheet flex-col rounded-t-2xl p-4 sm:h-full sm:max-h-full sm:w-[480px] sm:animate-drawer sm:rounded-none sm:p-5 sm:[--drawer-from:1] rtl:sm:[--drawer-from:-1]"
+            : `max-h-[calc(100dvh-1.5rem)] animate-sheet rounded-xl p-4 sm:max-h-[calc(100dvh-2rem)] sm:p-5 ${/(^|\s)max-w-/.test(className) ? "" : "max-w-lg"}`
         } ${className}`}
       >
         <div className="flex items-start justify-between gap-3">

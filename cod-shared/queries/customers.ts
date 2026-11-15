@@ -293,7 +293,8 @@ export async function updateCustomer(
   return getCustomerById(db, customerId);
 }
 
-export async function getOrdersByCustomerId(db: AppDb, customerId: string) {
+/** `assigneeId`: only the orders with that team member — for a member who sees only their own. */
+export async function getOrdersByCustomerId(db: AppDb, customerId: string, assigneeId?: string) {
   const customerOrders = await db
     .select({
       id: orders.id,
@@ -306,12 +307,13 @@ export async function getOrdersByCustomerId(db: AppDb, customerId: string) {
       wilayaName: wilayas.nameAr,
       communeName: communes.nameAr,
       stage: orderStageSql(),
+      unansweredCalls: orders.unansweredCalls,
     })
     .from(orders)
     .leftJoin(wilayas, eq(orders.wilayaId, wilayas.id))
     .leftJoin(communes, eq(orders.communeId, communes.id))
     .leftJoin(shipments, eq(shipments.orderId, orders.id))
-    .where(eq(orders.customerId, customerId))
+    .where(assigneeId === undefined ? eq(orders.customerId, customerId) : and(eq(orders.customerId, customerId), eq(orders.assigneeId, assigneeId)))
     .orderBy(desc(orders.createdAt))
     .all();
 

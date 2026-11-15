@@ -23,6 +23,8 @@ import type {
   OrderRemoval,
 } from "./types";
 import type { MerchantReport } from "../../../../cod-shared/shipments/merchant-reports";
+import type { CallList } from "../../../../cod-shared/orders/calls";
+import type { SeenOrder } from "../../../../cod-shared/orders/lifecycle";
 
 interface ListEnvelope<T> {
   success: boolean;
@@ -50,12 +52,22 @@ export interface OrderQuery {
   stages?: readonly OrderStage[];
   attention?: boolean;
   flagged?: boolean;
+  /** Only orders from these channels (`unknown`: not known). */
+  channels?: readonly string[];
   kind?: ShipmentKind;
   orderType?: "online" | "offline";
   wilayaId?: number;
   search?: string;
   /** The archived orders alone, instead of the working list. */
   archived?: boolean;
+  /** Only orders with this team member, or `none`: with nobody. */
+  assignee?: string;
+  /** Only orders whose customer asked to be called back, still waiting; soonest first. */
+  callbacks?: boolean;
+  /** One of the confirmation team's queues. */
+  team?: "unassigned" | "needs_manager" | "former";
+  /** Only orders on no answer after this many calls; 3 takes every later call too. */
+  calls?: CallList;
   limit?: number;
   cursor?: string | null;
 }
@@ -65,11 +77,16 @@ export async function listOrders(params: OrderQuery = {}): Promise<OrderPage> {
   if (params.stages?.length) query.set("stage", params.stages.join(","));
   if (params.attention !== undefined) query.set("attention", String(params.attention));
   if (params.flagged) query.set("flagged", "true");
+  if (params.channels?.length) query.set("channel", params.channels.join(","));
   if (params.kind) query.set("kind", params.kind);
   if (params.orderType) query.set("orderType", params.orderType);
   if (params.wilayaId) query.set("wilayaId", String(params.wilayaId));
   if (params.search?.trim()) query.set("search", params.search.trim());
   if (params.archived) query.set("archived", "only");
+  if (params.assignee) query.set("assignee", params.assignee);
+  if (params.callbacks) query.set("callback", "set");
+  if (params.team) query.set("team", params.team);
+  if (params.calls) query.set("calls", String(params.calls));
   if (params.cursor) query.set("cursor", params.cursor);
   const page = await apiFetch<ListEnvelope<OrderListItem> & { nextCursor: string | null }>(`/api/orders?${query}`);
   return { orders: page.data, nextCursor: page.nextCursor };
@@ -85,8 +102,9 @@ export async function getOrder(id: string) {
   return (await apiFetch<DataEnvelope<OrderDetail>>(`/api/orders/${encodeURIComponent(id)}`)).data;
 }
 
-export function updateOrderStatus(id: string, status: OrderStatus) {
-  return apiFetch<DataEnvelope<null>>(`/api/orders/${encodeURIComponent(id)}/status`, json({ method: "PATCH", body: JSON.stringify({ status }) }));
+/** `seen`: the order as shown, its status and calls without an answer; a move on an order that changed since is refused (ORDER_CHANGED). */
+export function updateOrderStatus(id: string, status: OrderStatus, seen?: SeenOrder) {
+  return apiFetch<DataEnvelope<null>>(`/api/orders/${encodeURIComponent(id)}/status`, json({ method: "PATCH", body: JSON.stringify({ status, seen }) }));
 }
 
 export async function updateOrder(id: string, body: Record<string, unknown>) {

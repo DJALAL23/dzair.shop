@@ -2,13 +2,16 @@ import { useLocale, useT } from "@/i18n/react";
 import { countryName } from "@/features/apps/order-protection/words";
 import type { AttemptSignals } from "../../../../../cod-shared/order-screening/facts";
 
-/** What is known about how an order was sent, one fact each. Empty when nothing is known. */
+/**
+ * What is known about how an order was sent, one fact each. Empty when nothing
+ * is known. Where the shopper came from is not one of them: the order's source
+ * says it, with the same words everywhere.
+ */
 export function useAttemptSignals(signals: AttemptSignals): string[] {
   const t = useT("apps");
   const locale = useLocale();
   return [
     signals.appSource && t(`order_protection.options.app_source.${signals.appSource}`),
-    signals.visitSource && t(`order_protection.options.visit_source.${signals.visitSource}`),
     signals.fillSeconds !== undefined && t("order_protection.signals.filled_in", { seconds: Math.round(signals.fillSeconds) }),
     signals.networkCountry && t("order_protection.signals.network_in", { country: countryName(signals.networkCountry, locale) }),
   ].filter((part): part is string => Boolean(part));

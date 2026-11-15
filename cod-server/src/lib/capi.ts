@@ -8,6 +8,8 @@
  * returns { success: false } on 4xx (Meta rejects the whole batch).
  */
 
+import { metaBrowserId, metaClickId } from "../../../cod-shared/attribution/meta-ids";
+
 const META_API_VERSION = "v26.0";
 const META_API_BASE = "https://graph.facebook.com";
 const DZ_COUNTRY_CODE = "213";
@@ -113,8 +115,10 @@ export async function sendCapiEvent(
   if (ud.lastName) userData.ln = await sha256hex(normaliseName(ud.lastName));
   if (ud.externalId) userData.external_id = await sha256hex(ud.externalId);
   if (ud.city) userData.ct = await sha256hex(normaliseAsciiText(ud.city));
-  if (ud.fbc) userData.fbc = ud.fbc;
-  if (ud.fbp) userData.fbp = ud.fbp;
+  const fbc = metaClickId(ud.fbc);
+  const fbp = metaBrowserId(ud.fbp);
+  if (fbc) userData.fbc = fbc;
+  if (fbp) userData.fbp = fbp;
   if (ud.clientIpAddress) userData.client_ip_address = ud.clientIpAddress;
   if (ud.clientUserAgent) userData.client_user_agent = ud.clientUserAgent;
 

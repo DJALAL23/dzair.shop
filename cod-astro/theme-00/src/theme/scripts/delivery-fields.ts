@@ -16,17 +16,12 @@
 import {
   communesForWilaya,
   isWilayaId,
-  readShippingRates,
   storefrontApiPath,
   type DeliveryDestination,
   type DeliverySelection,
-  type ShippingRates,
-  type WilayaRates,
 } from "@wocart/storefront";
 
-/** The rate table's shape, and the delivery-mode enum, are the SDK's. */
-export type ShippingRate = WilayaRates;
-export type { ShippingRates };
+/** The delivery-mode enum is the SDK's. */
 export type DeliveryType = DeliverySelection["deliveryType"];
 
 export interface DeliveryCopy {
@@ -39,64 +34,6 @@ export interface DeliveryCopy {
 // by Select.astro. They are called optionally here because this module can run
 // before that script has: a missing helper degrades to an unpopulated field,
 // never to a thrown error mid-checkout.
-
-export function parseShippingRates(raw: string | null | undefined): ShippingRates {
-  if (!raw) return {};
-  try {
-    // The shape check is the SDK's reader, which accepts what its schema does: a
-    // bridge from an older shape degrades to "to be calculated", never to a NaN
-    // the shopper can see.
-    return readShippingRates(JSON.parse(raw)) ?? {};
-  } catch {
-    // A malformed bridge must not take the page down: delivery simply shows as
-    // "to be calculated" until the shopper is told a real number.
-    return {};
-  }
-}
-
-/**
- * Read the rates the server put on the page, now or whenever they arrive.
- *
- * `ShippingIsland.astro` can be a deferred server island, so the element may
- * not exist yet when this runs. Returns a disposer.
- */
-export function watchShippingRates(onRates: (rates: ShippingRates) => void): () => void {
-  let disposed = false;
-
-  const read = (): boolean => {
-    const el = document.getElementById("shipping-rates-data");
-    const rates = parseShippingRates(el?.dataset.rates);
-    if (Object.keys(rates).length === 0) return false;
-    if (!disposed) onRates(rates);
-    return true;
-  };
-
-  const observer = new MutationObserver(() => {
-    if (read()) observer.disconnect();
-  });
-  observer.observe(document.body, { childList: true, subtree: true });
-  // Never leave a permanent observer behind if the island never lands.
-  const timer = window.setTimeout(() => observer.disconnect(), 10_000);
-
-  // The bridge can already be in the DOM when this runs (ShippingIsland.astro
-  // renders it inline), and a synchronous first delivery would re-enter the
-  // caller in the middle of its own initialization — while its later `const`
-  // bindings are still in the temporal dead zone. That crash killed the
-  // product page's whole init, so the first read is always a microtask: it
-  // runs only after the caller's synchronous setup has finished.
-  queueMicrotask(() => {
-    if (read()) {
-      observer.disconnect();
-      window.clearTimeout(timer);
-    }
-  });
-
-  return () => {
-    disposed = true;
-    observer.disconnect();
-    window.clearTimeout(timer);
-  };
-}
 
 export function currentDeliveryType(): DeliveryType {
   // The live `checked` property, not the `:checked` selector: a radio's
@@ -131,19 +68,6 @@ export function deliveryDestination(): DeliveryDestination | undefined {
     ...(communeId ? { communeId } : {}),
     deliveryType: currentDeliveryType(),
   };
-}
-
-/** NaN means "no rate known yet", which the caller shows as "to be calculated". */
-export function rateFor(
-  rates: ShippingRates,
-  wilayaId: string,
-  deliveryType: DeliveryType,
-): number {
-  if (!wilayaId) return NaN;
-  const rate = rates[wilayaId];
-  if (!rate) return NaN;
-  const value = deliveryType === "stop_desk" ? rate.stopDesk : rate.home;
-  return typeof value === "number" && Number.isFinite(value) ? value : NaN;
 }
 
 /** Home delivery needs a street address; a stop desk does not. */

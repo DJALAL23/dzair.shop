@@ -214,7 +214,7 @@
     "language_store": "The store's language",
     "language_store_now": "The store's language ({language})",
     "events_label": "Events",
-    "events_hint": "New orders and how deliveries end are on by default.",
+    "events_hint": "New orders, customers to call back now, and how deliveries end are on by default.",
     "events_required": "Choose at least one event.",
     "deliveries_title": "What was sent",
     "deliveries_subtitle": "Each notification and what Telegram answered.",
@@ -359,7 +359,7 @@
       "accepted": "Accepted",
       "flagged": "Flagged",
       "spam": "Spam",
-      "rescued": "Rescued"
+      "rescued": "Accepted"
     },
     "options": {
       "delivery_type": {
@@ -367,21 +367,21 @@
         "stop_desk": "Stop desk"
       },
       "visit_source": {
-        "meta": "Meta ad",
-        "tiktok": "TikTok ad",
-        "google": "Google ad",
-        "other": "Other"
+        "meta": "From Meta (Facebook, Instagram)",
+        "tiktok": "From TikTok",
+        "google": "From Google",
+        "other": "Other or direct"
       },
       "app_source": {
-        "facebook": "Facebook",
-        "instagram": "Instagram",
-        "tiktok": "TikTok",
-        "browser": "Normal browser"
+        "facebook": "Facebook app",
+        "instagram": "Instagram app",
+        "tiktok": "TikTok app",
+        "browser": "Web browser"
       }
     },
     "signals": {
-      "filled_in": "Filled in {seconds} s",
-      "network_in": "Network: {country}"
+      "filled_in": "Form filled in {seconds} s",
+      "network_in": "Connected from {country}"
     },
     "groups": {
       "who": "Who is ordering, and how",
@@ -423,22 +423,22 @@
     },
     "spam": {
       "title": "Spam",
-      "subtitle": "Orders your rules kept out. Nothing happens to them until you rescue them.",
+      "subtitle": "Orders your rules held back. They are not processed until you accept them.",
       "empty": "No orders in Spam",
       "empty_hint": "Orders sent here are deleted after 30 days.",
-      "rescue": "Rescue",
-      "rescued": "Rescued as order {number}",
+      "rescue": "Accept order",
+      "rescued": "Accepted as order {number}",
       "block": "Block number",
       "blocked": "{phone} is blocked",
       "delete": "Delete",
       "delete_body": "A deleted order cannot be brought back.",
       "rescue_no_stock": "Not enough stock to place this order.",
-      "rescue_already": "This order was already rescued.",
+      "rescue_already": "This order was already accepted.",
       "rescue_no_delivery": "You no longer deliver to this place.",
       "rescue_coupon": "Its coupon no longer applies.",
       "rescue_unavailable": "A product or option in this order can no longer be ordered: it is a draft, archived, deleted or turned off.",
-      "rescue_no_sku": "A product in this order has no SKU. Add one, then rescue it again.",
-      "rescue_failed": "This order could not be rescued. Please try again.",
+      "rescue_no_sku": "A product in this order has no SKU. Add one, then accept the order again.",
+      "rescue_failed": "This order could not be accepted. Please try again.",
       "line": "{name} × {quantity}",
       "also": "Also matched: {rules}",
       "number_blocked": "Number blocked",
@@ -456,6 +456,7 @@
     "flag": {
       "label": "Flagged as suspicious",
       "because": "Flagged because of: {rules}",
+      "rescued_because": "Accepted from Spam. Held because of: {rules}",
       "block_phone": "Block this number",
       "block_ip": "Block this network",
       "label_because": "Flagged as suspicious: {rules}",
@@ -507,7 +508,7 @@
       "ip": "Network on your Block List"
     },
     "action_hints": {
-      "spam": "The order is kept out of your orders. You can rescue it from Spam.",
+      "spam": "The order is held back from your orders. You can accept it from Spam.",
       "flag": "The order is placed and marked as suspicious, so you can check it before shipping.",
       "accept": "The order always goes through, whatever the other rules say. Your Block List still applies."
     },
@@ -526,7 +527,8 @@
       "reason_more": "{rule} +{more}",
       "when": "Received",
       "blocked": "Blocked",
-      "added": "Added"
+      "added": "Added",
+      "source": "Source"
     },
     "sheet": {
       "why_spam": "Why it went to Spam",
@@ -541,7 +543,8 @@
       "sent": "How it was sent",
       "open_order": "Open order",
       "open_spam": "Open Spam",
-      "unknown_customer": "No name given"
+      "unknown_customer": "No name given",
+      "source": "Where it came from"
     }
   }
 }

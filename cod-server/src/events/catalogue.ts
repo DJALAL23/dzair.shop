@@ -12,6 +12,7 @@ import { SHIPMENT_KINDS } from "../../../cod-shared/shipments/model";
 import { STORE_LOCALES } from "../../../cod-shared/i18n/locales";
 import { ORDER_FIELDS, EVENT_CATALOGUE, EVENT_TYPES, type EventData, type EventType } from "../../../cod-shared/events/catalogue";
 import { ORIGINS } from "../../../cod-shared/events/actor";
+import { ASSIGNMENT_WAYS } from "../../../cod-shared/team/model";
 
 const money = z.object({
   amount: z.string().regex(/^\d+\.\d{2}$/),
@@ -42,6 +43,8 @@ const orderLine = z.object({
 
 const deliveryType = z.enum(["home", "stop_desk"]);
 
+const teamMember = z.object({ id: z.string(), name: z.string() });
+
 const order = z.object({
   id: z.string(),
   number: z.string(),
@@ -68,6 +71,23 @@ const order = z.object({
   customFields: z.array(
     z.object({ id: z.string(), label: z.string(), type: z.enum(["text", "textarea", "number", "select"]), value: z.string() }),
   ),
+  unansweredCalls: z.number().int(),
+  callbackAt: instant.nullable(),
+  assignee: teamMember.nullable(),
+});
+
+const review = z.object({
+  id: z.string(),
+  product: z.object({ id: z.string(), name: z.string() }),
+  rating: z.number().int(),
+  title: z.string().nullable(),
+  body: z.string(),
+  status: z.enum(["pending", "approved"]),
+  verified: z.boolean(),
+  customerName: z.string(),
+  photos: z.number().int(),
+  voiceNote: z.boolean(),
+  submittedAt: instant,
 });
 
 const shipment = z.object({
@@ -103,6 +123,11 @@ export const EVENT_DATA_SCHEMAS = {
   "order.cancelled": statusChange,
   "order.line_returned": z.object({ order, lineId: z.string(), previousReturnedQuantity: z.number().int() }),
   "order.deleted": z.object({ order }),
+  "order.assigned": z.object({ order, assignee: teamMember, previousAssignee: teamMember.nullable(), way: z.enum(ASSIGNMENT_WAYS) }),
+  "order.unassigned": z.object({ order, previousAssignee: teamMember }),
+  "order.callback_scheduled": z.object({ order, at: instant, previousAt: instant.nullable() }),
+  "order.callback_cleared": z.object({ order, previousAt: instant }),
+  "order.callback_due": z.object({ order, at: instant }),
   "shipment.handed_off": shipmentChange,
   "shipment.out_for_delivery": shipmentReport,
   "shipment.delivery_failed": shipmentReport.extend({ attempt: z.number().int() }),
@@ -111,6 +136,7 @@ export const EVENT_DATA_SCHEMAS = {
   "shipment.returned": shipmentReport,
   "shipment.cancelled": shipmentReport,
   "shipment.voided": shipmentChange,
+  "review.submitted": z.object({ review, order }),
 } satisfies { [T in EventType]: z.ZodType<EventData<T>> };
 
 const actor = z.union([

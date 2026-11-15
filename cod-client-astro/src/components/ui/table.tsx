@@ -56,14 +56,15 @@ const HAS_EXPLICIT_ALIGN = /\btext-(start|end|center|left|right)\b/;
 export function TableHead({
   className = "",
   numeric = false,
+  wrap = false,
   ...props
-}: ThHTMLAttributes<HTMLTableCellElement> & { numeric?: boolean }) {
+}: ThHTMLAttributes<HTMLTableCellElement> & { numeric?: boolean; wrap?: boolean }) {
   const align = numeric ? "text-end" : HAS_EXPLICIT_ALIGN.test(className) ? "" : "text-start";
   return (
     <th
       scope="col"
       {...props}
-      className={`h-10 px-3 first:ps-4 last:pe-4 ${align} whitespace-nowrap font-medium align-middle ${className}`}
+      className={`h-10 px-3 first:ps-4 last:pe-4 ${align} ${wrap ? "whitespace-normal" : "whitespace-nowrap"} font-medium align-middle ${className}`}
     />
   );
 }

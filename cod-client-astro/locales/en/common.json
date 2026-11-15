@@ -107,5 +107,10 @@
   "confirm_type": "Type {text} to confirm",
   "confirm_copy": "Copy",
   "clear": "Clear",
-  "remove_item": "Remove {name}"
+  "remove_item": "Remove {name}",
+  "month": {
+    "previous": "Previous month",
+    "next": "Next month",
+    "this": "This month"
+  }
 }

@@ -1,0 +1,122 @@
+---
+description: How every storefront order gets its source — the ad it credits, the visit it came from, or a direct visit — and what Wocart can and cannot know.
+---
+
+# Where an order comes from
+
+Every order has a **source**: the ad it credits, the site or app the shopper
+came from, or a direct visit. Nobody chooses it by hand. The storefront
+records where each visit came from, and the server decides the source when
+the order is placed, with the same rules for every theme.
+
+## What an order shows
+
+The order page shows the source as a headline ("Instagram ad", "Google
+search", "Direct visit"), then up to four parts, kept apart:
+
+| Part | What it is |
+| --- | --- |
+| **Ad credited** | The last ad the shopper clicked, at most 7 days before ordering: campaign, ad, placement, landing page and click time. |
+| **Earlier visit** | Where the shopper came from before coming back directly, when that is the source. |
+| **This visit** | How the shopper came to the store the time they ordered, an ad or not. |
+| **First visit** | How the shopper first found the store, when that is not already shown. |
+
+Orders entered by your team, through the API or by an AI agent say so
+instead ("Added in the dashboard"). An order with no recorded visit says
+**Source unknown**, never a guess.
+
+## How the source is decided
+
+In this order:
+
+1. **The ad the order credits**: the last ad click at most **7 days** before
+   the order, the default click window of Meta's ads. A later visit from a
+   search engine, a social network or a typed address never takes the credit
+   from it.
+2. Else **this visit**, when it came from somewhere: a search engine, a
+   social network, an email, an AI assistant, another site or a tagged link.
+3. Else **the last visit that came from somewhere**, at most **30 days**
+   before the order. A shopper who finds the store on Google and comes back
+   two days later by typing the address ordered "from Google search", as
+   Google Analytics, Shopify and WooCommerce count it.
+4. Else **this visit as it is**: usually a direct visit.
+
+An ad clicked more than 7 days before the order is no longer an ad source: its
+visit counts as what it is without the ad (an Instagram ad becomes Instagram,
+a Google ad Google), and only when it is the last visit that came from
+somewhere.
+
+## Channels
+
+The channels follow Google Analytics' default channel group:
+
+| Channel | Means |
+| --- | --- |
+| `paid_social`, `paid_search`, `paid_other` | The ad the order credits, on a social network, a search engine or elsewhere |
+| `organic_social` | A social network, not an ad (a post, a profile, a message link) |
+| `organic_search` | A search engine, or Google's free product listings |
+| `ai_assistant` | An AI assistant: ChatGPT, Gemini, Copilot, Perplexity, Claude, DeepSeek, Grok |
+| `email` | An email, or a webmail like Gmail or Outlook |
+| `referral` | Another website |
+| `tagged` | A link with `utm_*` parameters from no known site |
+| `direct` | A typed address, a bookmark, or an app that says nothing about where it came from |
+| `dashboard`, `api`, `agent` | Entered by your team, the API or an AI agent |
+
+The orders list filters by them: `GET /api/orders?channel=paid_social,paid_search`.
+`unknown` lists the orders with no recorded source.
+
+## What makes a visit an ad
+
+A visit is an ad click when its URL carries one of these, all added by the ad
+platforms themselves, or a paid `utm_medium` (`cpc`, `ppc`, `paid…`,
+`retargeting`):
+
+| Parameter | Platform |
+| --- | --- |
+| `gclid`, `gbraid`, `wbraid`, `gad_source`, `gad_campaignid` | Google Ads. Google adds `gad_source` to every ad URL, so a Google ad is recognised even without its `gclid`. |
+| `ttclid` | TikTok Ads |
+| `msclkid` | Microsoft Advertising |
+| `ScCid` | Snapchat Ads |
+| `wc_cn`, `wc_an` | Wocart's URL template for Meta ads (below) |
+
+Meta's `fbclid` alone never makes a visit an ad: Meta adds it to every link
+that leaves Facebook and Instagram, ads or not. Google's `srsltid` marks
+Google's free product listings, never an ad.
+
+## Meta ads: the URL template
+
+Meta adds no parameter that tells an ad from a post. Paste this into every
+ad's **URL parameters** field in Ads Manager:
+
+```text
+utm_source=facebook&utm_medium=paid_social&utm_campaign={{campaign.id}}&utm_term={{adset.id}}&utm_content={{ad.id}}&wc_cn={{campaign.name}}&wc_an={{ad.name}}&wc_pl={{placement}}&wc_ss={{site_source_name}}
+```
+
+Meta fills it on each click. The order then shows the campaign, the ad, the
+placement and the app (Facebook, Instagram, Messenger, Threads, Audience
+Network), and the ids stay readable by any analytics tool.
+
+TikTok and Google add their own click ids (`ttclid`, `gclid`, `gad_source`)
+when auto-tagging is on, which it is by default.
+
+## What cannot be known
+
+These are shown as **Direct visit** or **Source unknown**, never guessed:
+
+- A shopper who taps an ad inside the Instagram or Facebook app and later
+  orders from another browser: the app's browser keeps its own cookies.
+- Cookies blocked, cleared, or a private window.
+- Another device.
+- Safari removes known click ids from links opened in Private Browsing, Mail
+  and Messages. Campaign parameters (`utm_*`, and the template's `wc_*`) are
+  kept, so the URL template still identifies the ad.
+- Apps that open a link without saying where it came from. WhatsApp often
+  does this.
+
+## For theme developers
+
+`@wocart/storefront` records the visits with no theme code: its middleware
+sets one first-party, HttpOnly cookie (`wc_touch`, 90 days) on the response
+of each page a shopper reaches from outside the store, and the order sends
+it. Pages must be rendered by the middleware: an arrival page served from a
+static cache records nothing. See the storefront SDK guide.

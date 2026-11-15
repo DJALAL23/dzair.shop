@@ -46,3 +46,37 @@ export function storefrontPath<T extends StorefrontPageType>(type: T, params?: S
     return encodeURIComponent(value);
   });
 }
+
+/** A pathname recognised as one of the page types, with its parameter. */
+export interface StorefrontPageMatch {
+  readonly type: StorefrontPageType;
+  readonly params: Readonly<Record<string, string>>;
+}
+
+const MATCHERS = (Object.entries(STOREFRONT_PAGE_PATHS) as Array<[StorefrontPageType, string]>).map(([type, path]) => {
+  const names: string[] = [];
+  const source = path.replace(/:([a-z]+)/g, (_, name: string) => {
+    names.push(name);
+    return "([^/]+)";
+  });
+  return { type, names, pattern: new RegExp(`^${source}$`) };
+});
+
+/**
+ * Which page type a pathname is, and its parameter (decoded), or null for any
+ * other path. Exact matches only; the query, the fragment and a trailing
+ * slash are ignored. Pass a pathname without its language prefix.
+ */
+export function matchStorefrontPath(rawPathname: string): StorefrontPageMatch | null {
+  const pathname = rawPathname.split(/[?#]/)[0]!.replace(/\/+$/, "") || "/";
+  for (const { type, names, pattern } of MATCHERS) {
+    const match = pattern.exec(pathname);
+    if (!match) continue;
+    try {
+      return { type, params: Object.fromEntries(names.map((name, i) => [name, decodeURIComponent(match[i + 1]!)])) };
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}

@@ -8,6 +8,8 @@ export interface CreateVariantData {
   variations: Record<string, string>;
   price: number;
   compareAtPrice?: number | null;
+  /** What one unit costs the merchant (DZD); null falls back to the product's cost. */
+  costPrice?: number | null;
   sku: string;
   barcode?: string | null;
   inventory: number;
@@ -23,6 +25,7 @@ export interface UpdateVariantData {
   variations?: Record<string, string>;
   price?: number;
   compareAtPrice?: number | null;
+  costPrice?: number | null;
   sku?: string;
   barcode?: string | null;
   inventory?: number;
@@ -100,6 +103,7 @@ export async function createVariant(db: AppDb, productId: string, data: CreateVa
       currency: "DZD",
       price: data.price,
       compareAtPrice: data.compareAtPrice ?? null,
+      costPrice: data.costPrice ?? null,
       sku: data.sku ?? null,
       barcode: data.barcode ?? null,
       inventory: data.inventory,
@@ -147,6 +151,7 @@ export async function updateVariant(db: AppDb, variantId: string, data: UpdateVa
   if (data.variations !== undefined) updates.variations = JSON.stringify(data.variations);
   if (data.price !== undefined) updates.price = data.price;
   if (data.compareAtPrice !== undefined) updates.compareAtPrice = data.compareAtPrice ?? null;
+  if (data.costPrice !== undefined) updates.costPrice = data.costPrice ?? null;
   if (data.sku !== undefined) updates.sku = data.sku ?? null;
   if (data.barcode !== undefined) updates.barcode = data.barcode ?? null;
   if (data.inventory !== undefined) updates.inventory = data.inventory;

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Translate } from "@/i18n/core";
-import { Home, Info, Search, Store } from "lucide-react";
+import { Home, Info, Layers, Search, Store } from "lucide-react";
 import { Dialog } from "@/components/ui";
 import { useLocale, useT } from "@/i18n/react";
 import {
@@ -220,7 +220,7 @@ export function CommuneOverridesDrawer({
       open={open}
       onClose={onClose}
       placement="end"
-      className="sm:w-[520px]"
+      icon={<Layers size={17} aria-hidden="true" />}
       title={sp("communes_drawer_title")}
       description={sp("communes_drawer_subtitle")}
     >
@@ -275,7 +275,7 @@ export function CommuneOverridesDrawer({
         <p className="mt-3 text-sm font-semibold text-destructive">{error}</p>
       )}
 
-      <div className="-mx-5 mt-4 max-h-[45dvh] divide-y divide-border overflow-y-auto border-y border-border px-5">
+      <div className="-mx-4 mt-4 divide-y divide-border border-t border-border px-4 sm:-mx-5 sm:px-5">
         {items === null ? (
           <p className="py-12 text-center text-xs font-semibold text-muted-foreground/60">
             {sp("communes_loading")}

@@ -23,7 +23,8 @@ import { processInboxEvent } from "@/inbound/process";
 import { requeueInboxEvent } from "../../../../cod-shared/inbound/inbox";
 import { NotFoundError, ValidationError, BusinessLogicError, ConflictError } from "@/lib/errors/classes";
 import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
-import { carrierPlacesSummary, carrierRatesByWilaya, syncCarrierPlaces } from "../../../../cod-shared/carriers/places";
+import { carrierPlacesSummary, carrierRatesByWilaya } from "../../../../cod-shared/carriers/places";
+import { readCarrierLists } from "./carrier-lists";
 import { storeStopDesks } from "./stop-desks";
 
 /**
@@ -77,17 +78,16 @@ async function assertCredentialsAccepted(company: CarrierCompany, context: { cod
 
 
 /**
- * Read the carrier's list of places into the company's map, as part of
- * connecting: the merchant has nothing to map. A list that cannot be read
- * does not undo the connection; the company then has no map, the page says
- * so, and every hand-off is refused until it is read (never sent under our
- * own names).
+ * Read the carrier's lists (places, then desks) as part of connecting: the
+ * merchant has nothing to map. A list that cannot be read does not undo the
+ * connection; the company then has no map, the page says so, and every
+ * hand-off is refused until it is read (never sent under our own names).
  */
 async function readCarrierPlaces(db: ReturnType<typeof getDb>, companyId: string, company: CarrierCompany & { code: string }): Promise<void> {
   if (!company.apiToken?.trim() || !company.provider) return;
   try {
-    const result = await syncCarrierPlaces(db, companyId, await buildCarrier(company).places());
-    console.info(`[delivery-companies] places code=${company.code} communes=${result.communes} home=${result.home} priced=${result.priced} unmatched=${result.unmatched.length}`);
+    const { places, desks } = await readCarrierLists(db, companyId, buildCarrier(company));
+    console.info(`[delivery-companies] places code=${company.code} communes=${places.communes} home=${places.home} priced=${places.priced} unmatched=${places.unmatched.length}${desks ? ` desks=${desks.total}` : ""}`);
   } catch (error) {
     console.warn(`[delivery-companies] places not read for ${company.code}:`, error instanceof Error ? error.message : error);
   }
@@ -441,8 +441,8 @@ export async function syncCompanyPlaces(c: Context<AppContext>) {
 
   const context = { companyId: id, code: company.code };
   const carrier = await connectedCarrier(company, context);
-  const result = await syncCarrierPlaces(db, id, await callCarrier(context, () => carrier.places()));
-  console.info(`[delivery-companies] places company=${id} code=${company.code} communes=${result.communes} home=${result.home} priced=${result.priced} unmatched=${result.unmatched.length}`);
+  const { places: result, desks } = await callCarrier(context, () => readCarrierLists(db, id, carrier));
+  console.info(`[delivery-companies] places company=${id} code=${company.code} communes=${result.communes} home=${result.home} priced=${result.priced} unmatched=${result.unmatched.length}${desks ? ` desks=${desks.total}` : ""}`);
   return c.json({ success: true, data: await carrierPlacesSummary(db, id) }, 200);
 }
 

@@ -83,7 +83,7 @@ beforeAll(async () => {
     wilaya: "ولاية 99", createdAt: now,
   });
   await db.insert(schema.products).values({
-    id: "prod-e2e", name: "E2E Product", handle: "e2e-product", price: 1500,
+    id: "prod-e2e", name: "E2E Product", handle: "e2e-product", price: 1500, costPrice: 700,
     hasVariants: false, inventory: 50, trackInventory: true,
     status: "ACTIVE", visibility: true, showInStore: true,
     createdAt: now, updatedAt: now,
@@ -152,6 +152,17 @@ describe("getOrderById — real D1", () => {
     expect(order!.statusHistory[0].status).toBe("confirmed");
     expect(order!.statusHistory[0].byName).toBe("Sara Staff");
     expect(order!.statusHistory[1].byName).toBeNull();
+  });
+
+  it("keeps what each line cost on the server: the order it returns carries no cost", async () => {
+    const stored = await db.select({ unitCost: schema.orderProducts.unitCost }).from(schema.orderProducts).where(eq(schema.orderProducts.id, "op-a1")).get();
+    expect(stored).toEqual({ unitCost: 700 });
+    const order = await getOrderById(db, "ord-e2e-a");
+    for (const line of order!.products) {
+      expect(line).not.toHaveProperty("unitCost");
+      expect(line).not.toHaveProperty("unitCostSource");
+    }
+    expect(JSON.stringify(order)).not.toMatch(/unitCost/);
   });
 
   it("resolves nulls for the minimal order (no driver/wilaya/commune/shipment)", async () => {

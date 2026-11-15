@@ -23,6 +23,8 @@ export interface VariantRow {
   key: string;
   variations: Record<string, string>;
   price: string;
+  /** Empty: the variant costs what the product costs. */
+  cost: string;
   sku: string;
   inventory: string;
   lowStockThreshold: string;
@@ -43,6 +45,8 @@ interface ProductVariantsCardProps {
   setErrors: Dispatch<SetStateAction<Record<string, string>>>;
   busy: boolean;
   showImageCol: boolean;
+  /** The product's cost, shown where a variant has none of its own. */
+  productCost: string;
 }
 
 export function ProductVariantsCard({
@@ -57,6 +61,7 @@ export function ProductVariantsCard({
   setErrors,
   busy,
   showImageCol,
+  productCost,
 }: ProductVariantsCardProps) {
   const t = useT("products");
   const common = useT("common");
@@ -67,7 +72,7 @@ export function ProductVariantsCard({
 
   function updateVariantRow(
     index: number,
-    field: "price" | "sku" | "inventory" | "lowStockThreshold" | "active",
+    field: "price" | "cost" | "sku" | "inventory" | "lowStockThreshold" | "active",
     value: string | boolean,
   ) {
     setVariantRows((prev) =>
@@ -238,6 +243,10 @@ export function ProductVariantsCard({
                       <input type="number" inputMode="decimal" value={row.price} onChange={(event) => updateVariantRow(i, "price", event.currentTarget.value)} className="h-10 w-full rounded-lg border bg-card px-2 text-sm font-medium tabular-nums border-border" disabled={busy} />
                     </label>
                     <label className="space-y-1 text-xs text-muted-foreground">
+                      {t("form.variant_cost")} ({common("currency.symbol")})
+                      <input type="number" inputMode="decimal" min={0} value={row.cost} placeholder={productCost} onChange={(event) => updateVariantRow(i, "cost", event.currentTarget.value)} className="h-10 w-full rounded-lg border bg-card px-2 text-sm font-medium tabular-nums border-border" disabled={busy} />
+                    </label>
+                    <label className="space-y-1 text-xs text-muted-foreground">
                       {t("form.variant_sku")}
                       <input value={row.sku} onChange={(event) => { updateVariantRow(i, "sku", event.currentTarget.value); setErrors((prev) => ({ ...prev, variantRowsSku: "" })); }} placeholder={t("form.sku_placeholder")} className="h-10 w-full rounded-lg border bg-card px-2 text-sm font-medium tabular-nums border-border" disabled={busy} dir="ltr" />
                     </label>
@@ -258,7 +267,7 @@ export function ProductVariantsCard({
             </ul>
             <div className="hidden overflow-x-auto rounded-xl border border-border sm:block">
               <div
-                className={showImageCol ? "min-w-[800px]" : "min-w-[680px]"}
+                className={showImageCol ? "min-w-[900px]" : "min-w-[780px]"}
               >
                 <Table>
                   <TableHeader>
@@ -269,6 +278,9 @@ export function ProductVariantsCard({
                       <TableHead className="text-start">
                         {t("form.variant_price")} ({common("currency.symbol")}
                         )
+                      </TableHead>
+                      <TableHead className="text-start" title={t("form.variant_cost_hint")}>
+                        {t("form.variant_cost")} ({common("currency.symbol")})
                       </TableHead>
                       <TableHead className="text-start">
                         {t("form.variant_sku")}
@@ -314,6 +326,18 @@ export function ProductVariantsCard({
                               )
                             }
                             className="h-9 w-28 rounded-lg border border-border bg-card px-2 text-xs font-medium tabular-nums"
+                            disabled={busy}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <input
+                            type="number"
+                            min={0}
+                            value={row.cost}
+                            placeholder={productCost}
+                            aria-label={t("form.variant_cost")}
+                            onChange={(event) => updateVariantRow(i, "cost", event.currentTarget.value)}
+                            className="h-9 w-24 rounded-lg border border-border bg-card px-2 text-xs font-medium tabular-nums"
                             disabled={busy}
                           />
                         </TableCell>

@@ -15,9 +15,11 @@ import {
   Settings,
   Shield,
   ShieldAlert,
+  Headset,
   Sparkles,
   Star,
   Printer,
+  Receipt,
   Tag,
   Ticket,
   Truck,
@@ -46,7 +48,8 @@ export type NavGroup = {
   label: string;
   icon: LucideIcon;
   href?: string;
-  scope?: string;
+  /** One permission, or a list of which any one is enough. */
+  scope?: string | readonly string[];
   badge?: string;
   children: NavLeaf[];
 };
@@ -79,7 +82,7 @@ export function useNavSections(): NavSection[] {
           label: tN("sidebar.orders"),
           icon: Inbox,
           href: "/orders",
-          scope: "orders:read",
+          scope: ["orders:read", "orders:read_assigned"],
           children: [
             {
               kind: "leaf",
@@ -94,6 +97,13 @@ export function useNavSections(): NavSection[] {
               label: tN("sidebar.orders_spam"),
               icon: ShieldAlert,
               scope: "order-protection:read",
+            },
+            {
+              kind: "leaf",
+              href: "/orders/team",
+              label: tN("sidebar.orders_team"),
+              icon: Headset,
+              scope: "team:read",
             },
           ],
         },
@@ -196,6 +206,13 @@ export function useNavSections(): NavSection[] {
               scope: "delivery:read",
             },
           ],
+        },
+        {
+          kind: "leaf",
+          href: "/finance/costs",
+          label: tN("sidebar.costs"),
+          icon: Receipt,
+          scope: "finance:read",
         },
         {
           kind: "leaf",
@@ -307,7 +324,8 @@ export function isCurrentPath(pathname: string, href: string): boolean {
       currentPath === "/orders" ||
       (currentPath.startsWith("/orders/") &&
         currentPath !== "/orders/abandoned" &&
-        currentPath !== "/orders/spam")
+        currentPath !== "/orders/spam" &&
+        currentPath !== "/orders/team")
     );
   }
   if (href === "/products") {

@@ -121,7 +121,7 @@ npm create wocart-theme@latest my-theme
 
 ```sh
 npm ci                      # every workspace, from the repo root
-cd cod-server && npm test   # and the same in cod-client-astro
+npm run typecheck && npm test   # cod-server, then the dashboard
 (cd cod-astro/theme-00 && npm ci && npm test)   # the theme, on the npm SDKs
 ```
 

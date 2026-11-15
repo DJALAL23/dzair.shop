@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { OrderTeamCard } from "@/features/confirmation/components/OrderTeamCard";
 import { Archive, ArchiveRestore, Pencil, StickyNote, Trash2 } from "lucide-react";
 import { canScope, useIdentity } from "@/features/auth/components/RequireAuth";
 import { useLocale, useT } from "@/i18n/react";
@@ -9,8 +10,9 @@ import { canEditOrder, canHandOff, canRecordRefusedUnits, handoffKinds, orderDel
 import type { DeliveryCompany, Driver, OrderDetail as OrderDetailType, OrderRemoval, OrderStatus } from "@/features/orders/types";
 import { StageBadge } from "@/features/orders/components/StageBadge";
 import { OrderCustomerCard } from "@/features/orders/components/OrderCustomerCard";
-import { OrderProtectionCard } from "@/features/orders/components/OrderProtectionCard";
+import { OrderProtectionCard, protectionNeedsAttention, useOrderAttempt } from "@/features/orders/components/OrderProtectionCard";
 import { OrderCustomAnswersCard } from "@/features/orders/components/OrderCustomAnswersCard";
+import { OrderSourceCard } from "@/features/orders/components/OrderSourceCard";
 import { OrderProductsCard } from "@/features/orders/components/OrderProductsCard";
 import { OrderShipmentCard } from "@/features/orders/components/OrderShipmentCard";
 import { OrderNextStepCard } from "@/features/orders/components/OrderNextStepCard";
@@ -23,9 +25,9 @@ import { HandoffDialog } from "@/features/orders/components/HandoffDialog";
 import { useStatusMove } from "@/features/orders/components/useStatusMove";
 
 /**
- * One order, as the merchant follows it: the customer and what they ordered,
- * the next step while it is being processed, and once it is shipped its
- * delivery — who carries it, where it stands, and what can be done now.
+ * One order, as the merchant follows it: the customer and what they ordered
+ * first, then what to do with it now, then where it came from. On a phone the
+ * next step comes right after the order itself, never below its source.
  */
 export function OrderDetail({ orderId }: { orderId: string }) {
   const t = useT("orders");
@@ -44,6 +46,7 @@ export function OrderDetail({ orderId }: { orderId: string }) {
   const [editing, setEditing] = useState(false);
   const [shipping, setShipping] = useState(false);
   const kinds = may("delivery:read") ? handoffKinds(may) : [];
+  const attempt = useOrderAttempt(orderId);
 
   async function load() {
     try {
@@ -115,8 +118,7 @@ export function OrderDetail({ orderId }: { orderId: string }) {
     }
   }
 
-
-  if (!may("orders:read")) {
+  if (!may("orders:read") && !may("orders:read_assigned")) {
     return (
       <Alert role="alert" tone="critical">
         {auth("no_access")}
@@ -152,12 +154,18 @@ export function OrderDetail({ orderId }: { orderId: string }) {
     <div className="space-y-5 pb-24 lg:pb-0">
       <PageHeader
         title={order.orderNumber}
-        subtitle={order.orderType === "online" ? t("type.online") : t("type.offline")}
+        subtitle={
+          <>
+            <time dateTime={order.createdAt}>{new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(new Date(order.createdAt))}</time>
+            {" · "}
+            {order.orderType === "online" ? t("type.online") : t("type.offline")}
+          </>
+        }
+        badges={<StageBadge stage={order.stage} needsAttention={order.needsAttention} calls={order.unansweredCalls} />}
         backHref="/orders"
         backLabel={t("detail.back_to_orders")}
         actions={
           <div className="flex items-center gap-2">
-            <StageBadge stage={order.stage} needsAttention={order.needsAttention} />
             {may("orders:update") && canEditOrder(facts) && (
               <Button type="button" variant="secondary" className="size-9 min-h-9 px-0" onClick={() => setEditing(true)} disabled={busy} aria-label={t("actions.edit")}>
                 <Pencil size={16} />
@@ -196,11 +204,11 @@ export function OrderDetail({ orderId }: { orderId: string }) {
         </Alert>
       )}
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_400px]">
-        <div className="space-y-5">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_400px] lg:grid-rows-[auto_1fr]">
+        <div className="min-w-0 space-y-5">
           <OrderCustomerCard order={order} />
-          <OrderCustomAnswersCard customFieldsJson={order.customFieldsJson} />
           <OrderProductsCard order={order} locale={locale} canRecordRefused={may("orders:update") && canRecordRefusedUnits(order.stage)} onChanged={load} />
+          <OrderCustomAnswersCard customFieldsJson={order.customFieldsJson} />
           {order.notes && (
             <Card title={t("detail.notes")}>
               <p className="flex gap-2 text-sm">
@@ -211,18 +219,24 @@ export function OrderDetail({ orderId }: { orderId: string }) {
           )}
         </div>
 
-        <div className="space-y-5 lg:sticky lg:top-5 lg:self-start">
-          <OrderProtectionCard orderId={order.id} />
+        <div className="min-w-0 space-y-5 lg:sticky lg:top-5 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:self-start">
+          {attempt && protectionNeedsAttention(attempt) && <OrderProtectionCard attempt={attempt} />}
           {order.shipment ? (
             <OrderShipmentCard order={order} shipment={order.shipment} companies={companies} onChanged={load} />
           ) : (
-            <OrderNextStepCard moves={moves} canShip={canShip} busy={busy} onMove={(status) => void changeStatus(status)} onShip={() => setShipping(true)} />
+            <OrderNextStepCard moves={moves} status={order.status} calls={order.unansweredCalls} canShip={canShip} busy={busy} onMove={(status) => void changeStatus(status)} onShip={() => setShipping(true)} />
           )}
-          <OrderProgressCard history={order.statusHistory} action={<OrderEventsButton orderId={order.id} {...orderEventsAccess(may)} />} />
+          <OrderTeamCard order={order} canUpdate={may("orders:update")} canManage={may("team:manage")} onChanged={load} />
+          {attempt && !protectionNeedsAttention(attempt) && <OrderProtectionCard attempt={attempt} />}
+          <OrderProgressCard history={order.statusHistory} calls={order.unansweredCalls} action={<OrderEventsButton orderId={order.id} {...orderEventsAccess(may)} />} />
+        </div>
+
+        <div className="min-w-0 lg:self-start">
+          <OrderSourceCard order={order} locale={locale} />
         </div>
       </div>
 
-      <OrderMobileActionBar moves={moves} canShip={canShip} busy={busy} onMove={(status) => void changeStatus(status)} onShip={() => setShipping(true)} />
+      <OrderMobileActionBar moves={moves} status={order.status} calls={order.unansweredCalls} canShip={canShip} busy={busy} onMove={(status) => void changeStatus(status)} onShip={() => setShipping(true)} />
 
       {editing && <EditOrderDialog order={order} onClose={() => setEditing(false)} onChanged={load} onError={setError} />}
       {shipping && <HandoffDialog order={order} kinds={kinds} companies={companies} drivers={drivers} onClose={() => setShipping(false)} onDone={load} />}

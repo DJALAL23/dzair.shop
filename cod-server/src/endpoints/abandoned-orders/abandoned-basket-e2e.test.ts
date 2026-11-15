@@ -360,3 +360,19 @@ describe("names come from the catalog, in the store's language", () => {
     expect(await rowFor(sessionId)).toMatchObject({ productName: "Hoodie Classic", variantLabel: "Noir / L" });
   });
 });
+
+describe("the Meta cookies of an abandoned checkout", () => {
+  it("keeps well-formed ones, so a recovered sale still matches its ad click", async () => {
+    const sessionId = crypto.randomUUID();
+    const res = await track(shopper({ sessionId, fbc: "fb.1.1709136167115.IwAR2F4-dbP0l7Mn1", fbp: "fb.1.1596403881668.1116446470" }));
+    expect(res.status).toBe(200);
+    expect(await rowFor(sessionId)).toMatchObject({ fbc: "fb.1.1709136167115.IwAR2F4-dbP0l7Mn1", fbp: "fb.1.1596403881668.1116446470" });
+  });
+
+  it("still saves the shopper when a cookie is malformed, without the bad value", async () => {
+    const sessionId = crypto.randomUUID();
+    const res = await track(shopper({ sessionId, fbc: "IwAR2F4-dbP0l7Mn1", fbp: "fb.1.1596403881.x" }));
+    expect(res.status).toBe(200);
+    expect(await rowFor(sessionId)).toMatchObject({ customerName: "Ahmed Benali", fbc: null, fbp: null });
+  });
+});

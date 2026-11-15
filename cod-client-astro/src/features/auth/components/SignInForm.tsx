@@ -5,11 +5,11 @@ import { notify } from "@/lib/notify";
 import { useT } from "@/i18n/react";
 import { Button, Alert, inputClass } from "@/components/ui";
 
-export function SignInForm({ next }: { next?: string | null }) {
+export function SignInForm({ next, turnedOff = false }: { next?: string | null; turnedOff?: boolean }) {
   const t = useT("auth");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(() => (turnedOff ? t("account_turned_off") : null));
   const [busy, setBusy] = useState(false);
 
   async function onSubmit(e: SyntheticEvent<HTMLFormElement>) {
@@ -22,7 +22,9 @@ export function SignInForm({ next }: { next?: string | null }) {
         const message =
           authError.code === "INVALID_EMAIL_OR_PASSWORD"
             ? t("invalid_credentials")
-            : t("unexpected_error");
+            : authError.code === "USER_INACTIVE"
+              ? t("account_turned_off")
+              : t("unexpected_error");
         setError(message);
         notify.error(message);
         setBusy(false);

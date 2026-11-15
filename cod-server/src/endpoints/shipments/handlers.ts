@@ -7,6 +7,8 @@
 
 import type { Context } from "hono";
 import { actingOf } from "@/lib/acting";
+import { hiddenOrderIds } from "@/lib/order-visibility";
+import { NotFoundError } from "@/lib/errors/classes";
 import type { AppContext } from "@/types";
 import { getDb, type AppDb } from "@/db";
 import { handOffToCarrier, resolveHandoff } from "./carrier-handoff";
@@ -27,6 +29,12 @@ import * as operations from "./operations";
 import type { RecordedEvents } from "../../../../cod-shared/shipments/record-events";
 import type { z } from "@hono/zod-openapi";
 
+/** A member who sees only their own orders hands off only theirs: any other is not found. */
+async function refuseHiddenOrders(c: Context<AppContext>, orderIds: readonly string[]) {
+  const [hidden] = await hiddenOrderIds(c, orderIds);
+  if (hidden) throw new NotFoundError("Order", hidden);
+}
+
 /**
  * POST /orders/{id}/shipment — hand one order to a carrier or to the store's driver.
  * 201 accepted · 202 unknown (a carrier's; resolve it, never re-send) · an error when refused.
@@ -42,6 +50,7 @@ export async function handOffOrder(c: Context<AppContext>) {
 export async function handOffBulk(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
   const body = (c.req as any).valid("json") as z.infer<typeof bulkCarrierHandoffSchema>;
+  await refuseHiddenOrders(c, body.orderIds);
   const company = await companyOrThrow(db, body.companyId);
 
   const results = await handOffToCarrier(
@@ -57,6 +66,7 @@ export async function handOffBulk(c: Context<AppContext>) {
 export async function handOffDriverBulk(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
   const body = (c.req as any).valid("json") as z.infer<typeof bulkDriverHandoffSchema>;
+  await refuseHiddenOrders(c, body.orderIds);
   const driver = await driverFor(db, body.driverId);
   const results = await handOffToDriverOrders(db, driver, body.orderIds.map((orderId) => ({ orderId })), actingOf(c));
   return c.json({ success: true, data: bulkData(await resultItems(db, null, results), results) }, 200);

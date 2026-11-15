@@ -197,11 +197,16 @@ describe("browser policy bindings", () => {
     expect(offenders).toEqual([]);
   });
 
-  it("delivery rates are read by the SDK's reader, which accepts what its schema does", () => {
-    const delivery = scripts.find((f) => f.relPath === "theme/scripts/delivery-fields.ts");
+  it("prices delivery only from the server's quote, never from the default rate table", () => {
+    // A product may ship on its own profile and a commune at its own price, so
+    // the default profile's table (shipping.rates) would show another price
+    // than the one the order is charged.
+    const offenders = files
+      .filter((f) => !f.relPath.includes("__tests__"))
+      .filter((f) => /shipping\.rates?\(|readShippingRates\(|shipping-rates-data/.test(f.content))
+      .map((f) => f.relPath);
 
-    expect(delivery?.content).toContain("readShippingRates(");
-    expect(delivery?.content).not.toContain("as ShippingRates");
+    expect(offenders).toEqual([]);
   });
 
   it("basket money goes through the SDK formatter", () => {

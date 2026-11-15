@@ -21,7 +21,7 @@ beforeAll(async () => {
 afterAll(async () => d1?.dispose());
 
 beforeEach(async () => {
-  for (const table of [schema.shipments, schema.deliveryCompanies, schema.orderProducts, schema.orders, schema.customers]) await d1.db.delete(table);
+  for (const table of [schema.shipments, schema.deliveryCompanies, schema.orderProducts, schema.orders, schema.customers, schema.users]) await d1.db.delete(table);
   await d1.db.insert(schema.customers).values({ id: "c1", name: "Karim", phone: "0551234567", wilaya: "Alger", createdAt: T0 });
 });
 
@@ -66,7 +66,15 @@ describe("the order snapshot", () => {
 
   it("holds an order with no lines, no place, no coupon and no answers", async () => {
     await order("o1");
-    expect(await snapshot("o1")).toMatchObject({ lines: [], destination: { wilaya: null, commune: null }, coupon: null, freeDeliveryOffer: null, customFields: [] });
+    expect(await snapshot("o1")).toMatchObject({ lines: [], destination: { wilaya: null, commune: null }, coupon: null, freeDeliveryOffer: null, customFields: [], unansweredCalls: 0, callbackAt: null, assignee: null });
+  });
+
+  it("says where the order's confirmation stands: the calls without an answer, when to call back, and who has it", async () => {
+    await d1.db.insert(schema.users).values({ id: "u-samira", name: "Samira", email: "samira@shop.dz", role: "staff", status: "active" });
+    await order("o1", { status: "unreachable", unansweredCalls: 3, callbackAt: "2026-10-21 14:30:00", assigneeId: "u-samira", assignedAt: T0 });
+    expect(await snapshot("o1")).toMatchObject({ unansweredCalls: 3, callbackAt: "2026-10-21T14:30:00.000Z", assignee: { id: "u-samira", name: "Samira" } });
+    await d1.db.delete(schema.users);
+    expect((await snapshot("o1")).assignee).toBeNull();
   });
 
   it("never lets a malformed answers column break the event", async () => {

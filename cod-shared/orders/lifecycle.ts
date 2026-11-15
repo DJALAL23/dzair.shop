@@ -9,6 +9,9 @@
  *
  * Pure: the server, the MCP tools and the dashboard all decide with these
  * functions, so the three can never disagree about what is allowed.
+ *
+ * `unreachable` moves to itself: each call without an answer is one more
+ * move to it, and the order counts them (Call 1, Call 2, Call 3).
  */
 
 import { ERROR_CODES } from "../errors/codes";
@@ -27,7 +30,7 @@ export type OrderStatus = (typeof ORDER_STATUSES)[number];
 const TRANSITIONS: Readonly<Record<OrderStatus, readonly OrderStatus[]>> = {
   new: ["confirmed", "unreachable", "cancelled"],
   confirmed: ["preparing", "ready", "unreachable", "cancelled"],
-  unreachable: ["confirmed", "cancelled"],
+  unreachable: ["confirmed", "unreachable", "cancelled"],
   preparing: ["ready", "cancelled"],
   ready: ["cancelled"],
   cancelled: [],
@@ -87,4 +90,20 @@ export function checkHandoff(order: OrderFacts): LifecycleVerdict {
 export function checkDeliveryDetailsEdit(order: OrderFacts): LifecycleVerdict {
   if (order.hasShipment) return { ok: false, code: ERROR_CODES.ORDER_HAS_SHIPMENT };
   return { ok: true };
+}
+
+/**
+ * What a member saw of the order when they moved it: its status and its
+ * calls without an answer. A move made on it applies only while the order
+ * still is so — someone else may have confirmed it, cancelled it or
+ * recorded the same call meanwhile.
+ */
+export interface SeenOrder {
+  status: OrderStatus;
+  unansweredCalls: number;
+}
+
+/** Whether the order's status moved on since its author saw it: their move is refused then, whatever the lifecycle allows from where it is now. */
+export function statusMovedOn(order: Pick<OrderFacts, "status">, seen: SeenOrder | undefined): boolean {
+  return seen !== undefined && seen.status !== order.status;
 }

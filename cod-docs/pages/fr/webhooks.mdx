@@ -141,7 +141,13 @@ Le corps est le Business Event, exactement tel que le renvoie l'[API du journal 
           "type": "select",
           "value": "M"
         }
-      ]
+      ],
+      "unansweredCalls": 0,
+      "callbackAt": null,
+      "assignee": {
+        "id": "7b9d1f3a-5c7e-4a9b-8d1f-3a5c7e9b1d3f",
+        "name": "Karim"
+      }
     },
     "previousStatus": "new"
   }
@@ -153,14 +159,16 @@ Le corps est le Business Event, exactement tel que le renvoie l'[API du journal 
 | `id` | L'id unique de l'événement. Reconnaissez par lui un événement déjà traité. |
 | `sequence` | Sa position dans le journal d'événements de la boutique : un événement plus récent a un numéro plus grand. |
 | `type`, `version` | Le type d'événement et la version de ses `data`. |
-| `subject` | Ce dont parle l'événement : une commande ou une expédition. |
+| `subject` | Ce dont parle l'événement : une commande, une expédition ou un avis. |
 | `orderId` | La commande concernée. |
 | `occurredAt` | Quand il s'est produit : un transporteur peut signaler une livraison des heures plus tard. |
 | `recordedAt` | Quand la boutique l'a enregistré. |
 | `actor`, `origin` | Qui l'a causé (équipe, agent IA, client, transporteur, système) et par où (tableau de bord, API, vitrine, webhook transporteur…). |
-| `data` | La commande, et l'expédition pour un événement de livraison, telles qu'elles étaient à ce moment-là. |
+| `data` | La commande, avec l'expédition pour un événement de livraison et l'avis pour un événement d'avis, tels qu'ils étaient à ce moment-là. |
 
 Les montants sont des chaînes décimales avec leur devise : `{ "amount": "9000.00", "currency": "DZD" }`. Un événement ne dépasse jamais 64 Ko.
+
+Chaque commande dit aussi où en est sa confirmation : `unansweredCalls` (les appels au client restés sans réponse : une commande injoignable en est à l'appel 1, à l'appel 2…), `callbackAt` (quand rappeler le client, ou `null`) et `assignee` (le membre de l'équipe de confirmation qui l'a, ou `null`). Un événement enregistré avant l'arrivée de ces champs ne les contient pas : lisez chacun comme facultatif.
 
 ## Vérifier la signature
 
@@ -318,12 +326,17 @@ Un événement livré à nouveau garde son id, donc votre endpoint le reconnaît
 | `order.created` | Une commande a été passée : sur la boutique, dans le tableau de bord, par l'API ou par un agent IA. |
 | `order.updated` | Le client, la destination ou les notes d'une commande ont été modifiés. |
 | `order.confirmed` | Le client a confirmé la commande, le plus souvent au téléphone. |
-| `order.unreachable` | Le client n'a pas pu être joint pour confirmer la commande. |
+| `order.unreachable` | Un appel pour confirmer la commande est resté sans réponse ; l'événement est renvoyé à chaque nouvel appel sans réponse, et le champ unansweredCalls de la commande dit de quel appel il s'agit. |
 | `order.preparing` | La commande est en préparation. |
 | `order.ready` | La commande est emballée, prête à être remise à la livraison. |
 | `order.cancelled` | La commande a été annulée. |
 | `order.line_returned` | Des unités d'une ligne de commande ont été refusées à la porte et sont revenues. |
 | `order.deleted` | La commande a été supprimée ; l'événement la contient telle qu'elle était. |
+| `order.assigned` | La commande a été confiée à un membre de l'équipe de confirmation : par la règle de la boutique, par un responsable, ou reprise à un membre qui ne l'a pas traitée à temps. |
+| `order.unassigned` | Un responsable a repris la commande à son membre d'équipe ; elle n'est plus confiée à personne. |
+| `order.callback_scheduled` | Une heure a été fixée pour rappeler le client, ou l'heure fixée a été déplacée. |
+| `order.callback_cleared` | L'heure fixée pour rappeler le client a été retirée. Confirmer ou annuler la commande la retire aussi, sans cet événement. |
+| `order.callback_due` | L'heure fixée pour rappeler le client est arrivée et la commande attend toujours ; envoyé une fois pour chaque heure fixée. |
 | `shipment.handed_off` | La commande a été remise à un transporteur ou à un livreur de la boutique. |
 | `shipment.out_for_delivery` | Le colis est parti chez le client. |
 | `shipment.delivery_failed` | Une tentative de livraison du colis a échoué. |
@@ -332,6 +345,7 @@ Un événement livré à nouveau garde son id, donc votre endpoint le reconnaît
 | `shipment.returned` | Le colis est de retour à la boutique. |
 | `shipment.cancelled` | L'expédition a été annulée avant la livraison. |
 | `shipment.voided` | La remise a été annulée : la commande n'est plus en livraison. |
+| `review.submitted` | Un client a donné son avis sur un produit de sa commande livrée : publié tout de suite, ou en attente de validation, selon les réglages d'avis de la boutique. |
 
 Le schéma complet de chaque type est dans la [référence de l'API](/api), sous Webhooks.
 

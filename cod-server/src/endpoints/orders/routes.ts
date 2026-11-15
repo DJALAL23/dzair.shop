@@ -7,11 +7,15 @@
 import { OpenAPIHono, z } from "@hono/zod-openapi";
 import type { AppContext } from "@/types";
 import { defineRoute } from "@/lib/route-builder";
+import { guardOrderId } from "@/lib/order-visibility";
 import { SCOPES } from "../../../../cod-shared/rbac/scopes";
 
 import * as handlers from "./handlers";
 import * as statusTransitions from "./status-transitions";
 import { handOffOrderRoute } from "../shipments/routes";
+import * as team from "../team/handlers";
+import { assignOrdersSchema, callbackSchema } from "../team/validation";
+import { AssignmentResultSchema } from "@/openapi/schemas/team";
 
 import {
   createOrderSchema,
@@ -44,7 +48,7 @@ const jsonContent = <T extends z.ZodType>(schema: T) => ({
 const listOrdersRoute = defineRoute({
   method: "get",
   path: "/",
-  auth: { scope: SCOPES.ORDERS_READ },
+  auth: { anyOf: [SCOPES.ORDERS_READ, SCOPES.ORDERS_READ_ASSIGNED] },
   tags: ["Orders"],
   summary: "List orders",
   operationId: "listOrders",
@@ -62,7 +66,7 @@ const listOrdersRoute = defineRoute({
 const getOrderRoute = defineRoute({
   method: "get",
   path: "/{id}",
-  auth: { scope: SCOPES.ORDERS_READ },
+  auth: { anyOf: [SCOPES.ORDERS_READ, SCOPES.ORDERS_READ_ASSIGNED] },
   tags: ["Orders"],
   summary: "Get order",
   description: "Returns full order detail including products and status history.",
@@ -202,7 +206,7 @@ const deleteOrderRoute = defineRoute({
 const orderRemovalRoute = defineRoute({
   method: "get",
   path: "/{id}/removal",
-  auth: { scope: SCOPES.ORDERS_READ },
+  auth: { anyOf: [SCOPES.ORDERS_READ, SCOPES.ORDERS_READ_ASSIGNED] },
   tags: ["Orders"],
   summary: "What clearing an order away does",
   description:
@@ -261,12 +265,16 @@ const updateStatusRoute = defineRoute({
 
 - \`new\` → \`confirmed\` | \`unreachable\` | \`cancelled\`
 - \`confirmed\` → \`preparing\` | \`ready\` | \`unreachable\` | \`cancelled\`
-- \`unreachable\` → \`confirmed\` | \`cancelled\` (the customer did not answer; call again)
+- \`unreachable\` → \`confirmed\` | \`unreachable\` | \`cancelled\` (the customer did not answer: each further call without an answer is one more move to \`unreachable\`)
 - \`preparing\` → \`ready\` | \`cancelled\`
 - \`ready\` → \`cancelled\`; a ready order is handed off with \`POST /orders/{id}/shipment\`
 - \`cancelled\` is final
 
 Any other move returns \`400 INVALID_STATUS_TRANSITION\` with the allowed next statuses.
+
+**Calls without an answer:** each move to \`unreachable\` adds one to the order's \`unansweredCalls\` (Call 1, Call 2, Call 3…); nothing else changes it, and nothing cancels the order for you.
+
+**The order as you saw it:** send \`seen\` (its \`status\` and \`unansweredCalls\` as you read them) and the move applies only while the order still is so: otherwise \`409 ORDER_CHANGED\`, nothing is written, and you read the order again. One press on No answer then counts one call, and a move on an order someone else confirmed or cancelled meanwhile is refused rather than applied.
 
 **Side effects:** \`confirmed\` starts the Meta CAPI confirmed stage (when the store tracks it); \`cancelled\` restores inventory for products with \`trackInventory\` and rolls back the customer's spend. Delivery and return are the shipment's milestones, with their own effects.
 
@@ -331,7 +339,47 @@ Refused (422) once the order is cancelled or its parcel came back — every rema
 
 
 
+// ─── Confirmation team ────────────────────────────────────────────────────────
+
+const assignOrdersRoute = defineRoute({
+  method: "post",
+  path: "/assign",
+  auth: { scope: SCOPES.TEAM_MANAGE },
+  tags: ["Orders", "Confirmation team"],
+  summary: "Give orders to a team member, to nobody, or by the store's rule",
+  description:
+    "Each order moves only while it is still with whoever it was with when read, and records `order.assigned` (or `order.unassigned`). An order already with that member is left as it is. `to: \"rule\"` shares each one out by the store's rule, to someone other than who has it. One result per order, in the order given; a manager's choice also resets the order's take-back count.",
+  operationId: "assignOrders",
+  body: assignOrdersSchema,
+  responses: {
+    200: { description: "One result per order", content: jsonContent(SuccessResponseSchema(z.array(AssignmentResultSchema))) },
+    404: { description: "No such member (USER_NOT_FOUND)" },
+    422: { description: "The member's account is inactive (USER_INACTIVE), they are not on the confirmation team (NOT_TEAM_MEMBER), or they cannot see orders (NO_ORDER_ACCESS)" },
+  },
+  handler: team.assign,
+});
+
+const callbackRoute = defineRoute({
+  method: "put",
+  path: "/{id}/callback",
+  auth: { scope: SCOPES.ORDERS_UPDATE },
+  tags: ["Orders", "Confirmation team"],
+  summary: "Set when to call the customer back",
+  description: "On an order still waiting (new, or the customer not reached); `at: null` clears it. It ends by itself once the order is confirmed or cancelled, and an order with a callback is never taken back from its member.",
+  operationId: "setOrderCallback",
+  params: IdParamSchema,
+  body: callbackSchema,
+  responses: {
+    200: { description: "The callback", content: jsonContent(SuccessResponseSchema(z.object({ callbackAt: z.string().nullable() }))) },
+    404: { description: "Order not found" },
+    422: { description: "The order no longer waits (ORDER_NOT_WAITING)" },
+  },
+  handler: team.setCallback,
+});
+
 const router = new OpenAPIHono<AppContext>();
+
+router.use("/:id/*", guardOrderId());
 
 router.openapi(listOrdersRoute.route, listOrdersRoute.handler);
 
@@ -346,5 +394,7 @@ router.openapi(unarchiveOrderRoute.route, unarchiveOrderRoute.handler);
 router.openapi(updateStatusRoute.route, updateStatusRoute.handler);
 router.openapi(returnOrderProductRoute.route, returnOrderProductRoute.handler);
 router.openapi(handOffOrderRoute.route, handOffOrderRoute.handler);
+router.openapi(assignOrdersRoute.route, assignOrdersRoute.handler);
+router.openapi(callbackRoute.route, callbackRoute.handler);
 
 export default router;

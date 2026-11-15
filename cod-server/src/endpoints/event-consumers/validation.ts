@@ -1,7 +1,7 @@
 import { z } from "@hono/zod-openapi";
 import { REPLAY_MAX_EVENTS } from "../../../../cod-shared/events/deliveries";
 import { EVENT_TYPES } from "../../../../cod-shared/events/catalogue";
-import { isSubscriptionPattern, type SubscriptionPattern } from "../../../../cod-shared/events/subscription";
+import { isSubscriptionPattern, SUBSCRIPTION_PATTERNS_MAX, type SubscriptionPattern } from "../../../../cod-shared/events/subscription";
 import { WEBHOOK_KIND, WEBHOOK_URL_MAX, webhookUrlProblem, type WebhookUrlProblem } from "../../../../cod-shared/events/webhooks";
 
 const URL_PROBLEMS: Record<WebhookUrlProblem, string> = {
@@ -26,7 +26,7 @@ const url = z
 const subscription = z
   .array(z.string().refine(isSubscriptionPattern, { message: "Not an Event Type, a subject (`order.*`) or `*`" }))
   .min(1)
-  .max(EVENT_TYPES.length + 3)
+  .max(SUBSCRIPTION_PATTERNS_MAX)
   .transform((patterns) => patterns as SubscriptionPattern[])
   .openapi({ description: "The Event Types it receives, each named exactly, by subject (`order.*`), or `*`", example: ["order.created", "shipment.*"] });
 

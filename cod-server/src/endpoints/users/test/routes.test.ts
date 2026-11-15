@@ -221,6 +221,7 @@ describe("Users routes (OpenAPIHono)", () => {
 
   describe("PATCH /api/users/:id", () => {
     it("updates user successfully", async () => {
+      vi.mocked(queries.getUserById).mockResolvedValue(userRow());
       vi.mocked(queries.updateUser).mockResolvedValue(userRow({ name: "Updated Name" }));
 
       const res = await app.request("/api/users/user_123", {
@@ -235,7 +236,7 @@ describe("Users routes (OpenAPIHono)", () => {
     });
 
     it("returns 404 when user is not found", async () => {
-      vi.mocked(queries.updateUser).mockResolvedValue(null);
+      vi.mocked(queries.getUserById).mockResolvedValue(null);
 
       const res = await app.request("/api/users/user_missing", {
         method: "PATCH",
@@ -249,6 +250,7 @@ describe("Users routes (OpenAPIHono)", () => {
 
   describe("PATCH /api/users/:id/role", () => {
     it("updates role successfully", async () => {
+      vi.mocked(queries.getUserById).mockResolvedValue(userRow());
       vi.mocked(queries.updateUser).mockResolvedValue(userRow({ role: "admin", scopes: ["*"] }));
 
       const res = await app.request("/api/users/user_123/role", {
@@ -274,7 +276,7 @@ describe("Users routes (OpenAPIHono)", () => {
     });
 
     it("returns 404 when user is not found", async () => {
-      vi.mocked(queries.updateUser).mockResolvedValue(null);
+      vi.mocked(queries.getUserById).mockResolvedValue(null);
 
       const res = await app.request("/api/users/user_missing/role", {
         method: "PATCH",

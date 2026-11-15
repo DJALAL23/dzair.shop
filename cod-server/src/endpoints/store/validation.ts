@@ -1,6 +1,30 @@
 import { z } from "zod";
 import { toLocalAlgerianMobile } from "../../../../cod-shared/lib/phone";
 import { LAST_WILAYA_ID } from "../../../../cod-shared/places";
+import { metaBrowserId, metaClickId } from "../../../../cod-shared/attribution/meta-ids";
+import { parseCapturedTouches } from "../../../../cod-shared/attribution/touch";
+
+/** Meta's `_fbc` / `_fbp` as sent by a storefront: kept when well formed, otherwise absent. */
+export const metaClickIdField = z.preprocess((v) => metaClickId(v) ?? undefined, z.string().optional());
+export const metaBrowserIdField = z.preprocess((v) => metaBrowserId(v) ?? undefined, z.string().optional());
+
+const touchSchema = z.object({
+  at: z.string(),
+  params: z.record(z.string(), z.string()),
+  path: z.string().nullable(),
+  ref: z.string().nullable(),
+});
+
+/**
+ * The visit's first touch, last ad touch, last source (the latest arrival that
+ * was neither direct nor an ad) and latest arrival, as the storefront captured
+ * them (`cod-shared/attribution`). Read from a cookie the shopper holds: what
+ * is unreadable is dropped, never the reason an order is refused.
+ */
+export const capturedTouchesField = z.preprocess(
+  (v) => parseCapturedTouches(v, new Date()) ?? undefined,
+  z.object({ first: touchSchema.nullable(), last: touchSchema.nullable(), source: touchSchema.nullable().optional(), visit: touchSchema.nullable() }).optional(),
+);
 
 export const variantSelectionSchema = z.object({
   variantId: z.string().min(1),
@@ -149,8 +173,10 @@ export const storeOrderSchema = z.object({
     z.union([z.string(), z.array(z.unknown())]).optional()
   ),
   // Meta Pixel tracking cookies captured by the storefront at placement time.
-  fbc: z.string().optional(),
-  fbp: z.string().optional(),
+  // A malformed value is dropped, never the reason an order is refused.
+  fbc: metaClickIdField,
+  fbp: metaBrowserIdField,
+  attribution: capturedTouchesField,
   // WhatsApp OTP verification proof (HMAC token from /store/otp/verify, or a
   // bypass token when dzverify could not serve the send). Required only when
   // the store's OTP verification is enabled.

@@ -55,7 +55,7 @@
   "api_key_revoked": "تم إلغاء مفتاح API بنجاح",
   "api_key_revoke_failed": "فشل في إلغاء مفتاح API",
   "invite_dialog": {
-    "title": "دعوة مستخدم جديد",
+    "title": "دعوة عضو إلى الفريق",
     "name": "الاسم",
     "name_placeholder": "أدخل اسم المستخدم",
     "email": "البريد الإلكتروني",
@@ -64,10 +64,10 @@
     "cancel": "إلغاء",
     "send_invite": "إرسال الدعوة",
     "sending": "جاري الإرسال...",
-    "success": "تم إرسال الدعوة بنجاح",
+    "success": "تم إرسال الدعوة",
     "error": "فشل في إرسال الدعوة",
     "validation_error": "يرجى ملء جميع الحقول المطلوبة",
-    "description": "تأهيل عضو فريق جديد",
+    "description": "أضف شخصًا إلى فريقك واختر ما يمكنه فعله.",
     "role_help": "المدير يملك كل الصلاحيات. أما الموظف فله الصلاحيات التي تحددها أدناه فقط.",
     "language_help": "لغة رسالة الدعوة بالبريد الإلكتروني. لا تغيّر لغة لوحة التحكم."
   },
@@ -132,7 +132,21 @@
       "event_consumer.updated": "عدّل webhook",
       "event_consumer.deleted": "حذف webhook",
       "event_consumer.secret_rotated": "غيّر مفتاح توقيع webhook",
-      "event_consumer.tested": "أرسل حدثًا تجريبيًا إلى webhook"
+      "event_consumer.tested": "أرسل حدثًا تجريبيًا إلى webhook",
+      "order.callback_set": "حدّد موعد معاودة الاتصال بزبون",
+      "team.member_added": "أضاف شخصًا إلى فريق التأكيد",
+      "team.member_removed": "أخرج شخصًا من فريق التأكيد",
+      "team.receiving_changed": "شغّل أو أوقف استقبال عضو للطلبات الجديدة",
+      "team.settings_updated": "غيّر طريقة توزيع الطلبات الجديدة",
+      "team.pay_set": "حدّد أجر عضو",
+      "team.pay_removed": "حذف معدّل أجر",
+      "user.deactivated": "ألغى تفعيل عضو",
+      "user.reactivated": "أعاد تفعيل عضو",
+      "finance.cost_added": "أضاف مصروفًا",
+      "finance.cost_changed": "عدّل مصروفًا",
+      "finance.cost_removed": "حذف مصروفًا",
+      "finance.rate_set": "حدّد سعر صرف",
+      "finance.rate_removed": "أزال سعر صرف"
     },
     "table": {
       "action": "الإجراء",
@@ -145,15 +159,17 @@
   },
   "scope_dialog": {
     "title": "إدارة الأذونات",
-    "security_warning": "منح صلاحيات واسعة قد يؤثر على أمان النظام",
+    "security_warning": "امنح كل شخص ما يحتاجه عمله فقط.",
     "cancel": "إلغاء",
     "save_changes": "حفظ التغييرات",
     "saving": "جاري الحفظ...",
-    "success": "تم تحديث الأذونات بنجاح",
+    "success": "تم حفظ الأذونات",
     "error": "فشل في تحديث الأذونات",
-    "will_grant": "سيتم منحه",
-    "will_revoke": "سيتم إلغاؤه",
-    "admin_full_access": "مستخدمو المدير لديهم جميع الصلاحيات افتراضيًا"
+    "will_grant": "ستُضاف",
+    "will_revoke": "ستُزال",
+    "admin_full_access": "المسؤول يمكنه فعل كل شيء في المتجر، فلا يوجد ما تختاره.",
+    "select_all": "تحديد الكل",
+    "clear_all": "إزالة الكل"
   },
   "scope_categories": {
     "dashboard": "لوحة التحكم",
@@ -177,6 +193,8 @@
     "mcp": "وكلاء الذكاء الاصطناعي (MCP)",
     "apps": "التطبيقات",
     "integrations": "التكاملات",
+    "team": "فريق التأكيد",
+    "finance": "المالية",
     "settings": "الإعدادات"
   },
   "scope_actions": {
@@ -188,7 +206,8 @@
     "assign": "تعيين",
     "manage": "إدارة",
     "dispatch": "إرسال",
-    "team": "الفريق"
+    "team": "الفريق",
+    "read_assigned": "المسندة إليه فقط"
   },
   "invite_dialog_extra": {
     "permissions_label": "الصلاحيات",
@@ -198,7 +217,7 @@
     "n_selected_few": "{count} صلاحيات محددة",
     "n_selected_many": "{count} صلاحية محددة",
     "n_selected_other": "{count} صلاحية محددة",
-    "admin_full_access": "المسؤولون لديهم وصول كامل لجميع الميزات — لا حاجة لتحديد الصلاحيات.",
+    "admin_full_access": "المسؤول يمكنه فعل كل شيء في المتجر، فلا يوجد ما تختاره.",
     "api_key_label": "مفتاح API",
     "temp_password_label": "كلمة المرور المؤقتة",
     "api_key_warning": "لن يُعرض مفتاح API هذا مجددًا. انسخه الآن وشاركه بأمان مع عضو الفريق.",
@@ -220,5 +239,21 @@
   "count_few": "{count} أعضاء",
   "count_many": "{count} عضوًا",
   "count_other": "{count} عضو",
-  "scope_app": "{app} · {action}"
+  "scope_app": "{app} · {action}",
+  "member": {
+    "admin_everything": "المسؤول يمكنه فعل كل شيء في المتجر.",
+    "no_permissions": "لا توجد أذونات بعد. يمكنه تسجيل الدخول لكنه لن يرى شيئًا حتى تمنحه بعضها.",
+    "access_title": "الوصول",
+    "access_on": "يمكنه تسجيل الدخول، ومفتاح API الخاص به يعمل.",
+    "access_off": "لا يمكنه تسجيل الدخول، ومفتاح API الخاص به مرفوض. تبقى طلباته ونشاطه وراتبه محفوظة.",
+    "you": "هذا حسابك.",
+    "deactivate": "إلغاء التفعيل",
+    "reactivate": "إعادة التفعيل",
+    "deactivate_title": "إلغاء تفعيل {name}؟",
+    "deactivate_body": "يُسجَّل خروجه فورًا ولا يمكنه تسجيل الدخول بعد ذلك، ويتوقف مفتاح API الخاص به. الطلبات التي ما زالت عنده تنتقل إلى بقية فريق التأكيد، أو تنتظر أن تُسندها بنفسك. يبقى نشاطه وراتبه محفوظين، ويمكنك إعادة تفعيله في أي وقت.",
+    "deactivated": "تم إلغاء تفعيل {name}",
+    "reactivated": "{name} نشط من جديد"
+  },
+  "error_own_account": "لا يمكنك إلغاء تفعيل حسابك أو إزالة صلاحية المسؤول عن نفسك.",
+  "error_last_admin": "يحتاج متجرك إلى مسؤول نشط واحد على الأقل."
 }

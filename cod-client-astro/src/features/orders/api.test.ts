@@ -54,6 +54,8 @@ describe("the orders API seam", () => {
     await updateOrderStatus("o/1", "confirmed");
     expect(seam.apiFetch).toHaveBeenLastCalledWith("/api/orders/o%2F1/status", expect.objectContaining({ method: "PATCH" }));
     expect(body()).toEqual({ status: "confirmed" });
+    await updateOrderStatus("o/1", "unreachable", { status: "unreachable", unansweredCalls: 2 });
+    expect(body()).toEqual({ status: "unreachable", seen: { status: "unreachable", unansweredCalls: 2 } });
     await setLineReturn("o/1", "l1", 2);
     expect(seam.apiFetch).toHaveBeenLastCalledWith("/api/orders/o%2F1/products/l1/return", expect.objectContaining({ method: "PATCH" }));
     expect(body()).toEqual({ returnedQuantity: 2 });

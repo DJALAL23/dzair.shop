@@ -4,12 +4,15 @@
  * Zod schemas for request validation.
  */
 
+import { TEAM_QUEUES } from "../../../../cod-shared/team/queue";
 import { z } from "zod";
+import { ORDER_CHANNELS, type OrderChannel } from "../../../../cod-shared/attribution/model";
 import { editedEmailField, newEmailField } from "@/lib/email-field";
 import { parseOrderCursor } from "../../../../cod-shared/queries/orders";
 import { ORDER_STAGES, type OrderStage } from "../../../../cod-shared/orders/stage";
 import { SHIPMENT_KINDS } from "../../../../cod-shared/shipments/model";
 import { ORDER_STATUSES } from "../../../../cod-shared/orders/lifecycle";
+import type { CallList } from "../../../../cod-shared/orders/calls";
 import { LAST_WILAYA_ID } from "../../../../cod-shared/places";
 
 export const createOrderSchema = z.object({
@@ -59,6 +62,15 @@ export { ORDER_STATUSES, type OrderStatus } from "../../../../cod-shared/orders/
 
 export const updateOrderStatusSchema = z.object({
   status: z.enum(ORDER_STATUSES),
+  seen: z
+    .object({
+      status: z.enum(ORDER_STATUSES),
+      unansweredCalls: z.number().int().min(0),
+    })
+    .optional()
+    .describe(
+      "The order as you read it, its `status` and `unansweredCalls`: the move applies only while the order still is so (409 ORDER_CHANGED otherwise, and nothing is written). One press on No answer then counts one call, and a move on an order someone else confirmed or cancelled meanwhile is refused",
+    ),
 });
 
 /**
@@ -126,7 +138,37 @@ export const orderFiltersSchema = z.object({
     .transform(() => true)
     .optional()
     .describe("true: only orders Order Protection flagged"),
+  channel: z
+    .string()
+    .optional()
+    .transform((value, ctx) => {
+      if (!value) return undefined;
+      const channels = value.split(",").map((channel) => channel.trim());
+      const allowed: readonly string[] = [...ORDER_CHANNELS, "unknown"];
+      const unknown = channels.filter((channel) => !allowed.includes(channel));
+      if (unknown.length) ctx.addIssue({ code: "custom", message: `Unknown channel: ${unknown.join(", ")}. Expected: ${allowed.join(", ")}` });
+      return channels as (OrderChannel | "unknown")[];
+    })
+    .describe("Where the order came from: one channel, or several separated by commas (paid_social,paid_search). `unknown`: orders whose source is not known"),
   orderType: z.enum(["online", "offline"]).optional(),
+  assignee: z
+    .string()
+    .min(1)
+    .optional()
+    .describe("Only orders with this confirmation team member (their user id), or `none`: only orders with nobody. A member who sees only their own orders always gets only theirs"),
+  callback: z
+    .enum(["set"])
+    .optional()
+    .describe("`set`: only orders whose customer asked to be called back, still waiting (new or unreachable), the soonest callback first"),
+  calls: z
+    .enum(["1", "2", "3"])
+    .transform((value) => Number(value) as CallList)
+    .optional()
+    .describe("Only orders on no answer (unreachable) after this many calls without an answer: `1`, `2`, or `3` for three and more"),
+  team: z
+    .enum(TEAM_QUEUES)
+    .optional()
+    .describe("One of the confirmation team's queues, among orders still waiting: `unassigned` (new, with nobody), `needs_manager` (moved on as often as the store allows), `former` (with someone who left the team or whose account is inactive)"),
   wilayaId: z.coerce.number().int().optional(),
   search: z.string().optional().describe("Order number, customer name, phone, or the parcel's tracking number"),
   limit: z.coerce.number().int().positive().max(100).default(50),

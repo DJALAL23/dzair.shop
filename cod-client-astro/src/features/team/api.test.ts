@@ -5,12 +5,12 @@ vi.mock("@/lib/api", () => ({ apiFetch: seam.apiFetch }));
 
 import {
   createTeamMember,
-  grantTeamMemberScope,
   listAllTeamMembers,
   listTeamMembers,
   listUserActivityLogs,
-  revokeTeamMemberScope,
   rotateTeamMemberApiKey,
+  setTeamMemberScopes,
+  setTeamMemberStatus,
 } from "./api";
 
 describe("team API adapters", () => {
@@ -68,6 +68,14 @@ describe("team API adapters", () => {
       method: "POST",
       body: JSON.stringify({ name: "Amina", email: "a@b.dz", role: "staff", language: "ar" }),
     }));
+  });
+
+  it("saves a member's permissions in one request, and turns their access off or on", async () => {
+    seam.apiFetch.mockResolvedValue({ success: true, data: { id: "m1" } });
+    await expect(setTeamMemberScopes("m/1", ["orders:read_assigned", "orders:update"])).resolves.toEqual({ id: "m1" });
+    expect(seam.apiFetch).toHaveBeenCalledWith("/api/users/m%2F1/scopes", expect.objectContaining({ method: "PUT", body: JSON.stringify({ scopes: ["orders:read_assigned", "orders:update"] }) }));
+    await setTeamMemberStatus("m1", "inactive");
+    expect(seam.apiFetch).toHaveBeenLastCalledWith("/api/users/m1", expect.objectContaining({ method: "PATCH", body: JSON.stringify({ status: "inactive" }) }));
   });
 
   it("unwraps user activity logs", async () => {

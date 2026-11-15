@@ -15,6 +15,7 @@ import type { AppDb } from "../db/client";
 import { samePhone } from "../lib/phone";
 import type { ReviewMediaKind, ReviewStatus } from "../reviews/model";
 import { DEFAULT_REVIEW_POLICY, reviewPolicy, type ReviewPolicy } from "../reviews/policy";
+import { recordReviewSubmitted } from "../reviews/submitted";
 
 export interface ReviewableProduct {
   productId: string;
@@ -228,23 +229,26 @@ export async function insertShopperReview(db: AppDb, review: NewShopperReview): 
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
   try {
-    await db.insert(reviews).values({
-      id,
-      storeId: review.storeId,
-      productId: review.productId,
-      orderId: review.order.id,
-      customerId: review.order.customerId,
-      orderNumber: review.order.orderNumber,
-      customerName: review.order.customerName,
-      rating: review.rating,
-      title: review.title,
-      body: review.body,
-      status: review.status,
-      source: "storefront",
-      verified: review.verified,
-      createdAt: now,
-      updatedAt: now,
-    });
+    await db.batch([
+      db.insert(reviews).values({
+        id,
+        storeId: review.storeId,
+        productId: review.productId,
+        orderId: review.order.id,
+        customerId: review.order.customerId,
+        orderNumber: review.order.orderNumber,
+        customerName: review.order.customerName,
+        rating: review.rating,
+        title: review.title,
+        body: review.body,
+        status: review.status,
+        source: "storefront",
+        verified: review.verified,
+        createdAt: now,
+        updatedAt: now,
+      }),
+      recordReviewSubmitted(db, id),
+    ]);
   } catch (error) {
     if (/UNIQUE constraint failed: reviews\.order_id/.test(`${(error as Error)?.message} ${(error as { cause?: unknown })?.cause ?? ""}`)) {
       return { ok: false, reason: "already_reviewed" };

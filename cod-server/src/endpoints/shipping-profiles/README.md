@@ -60,7 +60,7 @@ Update name / notes / isDefault. The system always keeps exactly one default pro
 Bulk-replace all wilaya rules for a profile.
 - **Request:** `{ "rules": [{ "wilayaId": 16, "homePrice": 400, "stopDeskPrice": 300, "homeEnabled": true, "stopDeskEnabled": true }, ...] }`
 - **Dedup:** each `wilayaId` may appear at most once — duplicates are rejected with `DUPLICATE_WILAYA_RULE` (400).
-- **Cascade:** existing rules are deleted first, which cascades to any commune overrides on those rules.
+- **Overrides kept:** a wilaya that stays keeps its rule and its commune overrides; a wilaya left out is removed with its overrides. One batch (one transaction).
 
 ### GET /api/shipping-profiles/:id/rules/:wilayaId/communes
 List every commune in a wilaya with its override status. Returns `hasOverride`, the raw override fields (null = inherited), and the effective values after inheritance.
@@ -77,7 +77,7 @@ Delete a profile. Blocked (`PROFILE_IN_USE`, 422) when the profile is currently 
 ## Implementation Details
 
 - **Product Link Only:** Profiles are referenced only by `products.shippingProfileId` (set-null on delete). Drivers and delivery companies do **not** link to shipping profiles — they have their own compensation tables.
-- **Atomic Rule Replacement:** `setProfileRules` uses a delete-then-insert pattern. Commune overrides cascade automatically.
+- **Atomic rule save:** `setProfileRules` writes through `writeProfileRules` (cod-shared) in one D1 batch: rules that stay are updated in place, new ones inserted, dropped ones deleted with their overrides.
 - **Reference Join:** Rules are joined with `wilayas` to provide French and Arabic names in responses.
-- **Fee Resolution:** Order creation consults (1) the FIRST product's profile override, then (2) the default profile. Wilaya rule → commune override (inherit-on-null) → mode check → free-shipping offer. See `endpoints/orders/resolve-fee.ts`.
+- **Fee Resolution:** every quote and order: each product's profile, else the default profile; wilaya rule → commune override (inherit-on-null) → mode check; the dearest across the basket; then the free-delivery threshold or a free-shipping offer. See `cod-shared/queries/shipping-resolution.ts` (`resolveDeliveryFee`).
 - **RBAC:** Requires `delivery:read` to view and `delivery:manage` to modify.

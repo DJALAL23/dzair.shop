@@ -13,11 +13,13 @@
  * - endpoints/orders/routes.ts: OpenAPI route definitions
  */
 
+import { ASSIGNMENT_WAYS } from "../../../../cod-shared/team/model";
 import { z } from "@hono/zod-openapi";
 import { ShipmentSchema } from "./shipments";
 import { ORDER_STAGES } from "../../../../cod-shared/orders/stage";
 import { ORDER_STATUSES } from "../../../../cod-shared/orders/lifecycle";
 import { STORE_LOCALES } from "../../../../cod-shared/i18n/locales";
+import { ATTRIBUTION_METHODS, ATTRIBUTION_PLATFORMS, CLICK_ID_TYPES, ORDER_CHANNELS } from "../../../../cod-shared/attribution/model";
 import { LAST_WILAYA_ID } from "../../../../cod-shared/places";
 
 // ─── Enums & Constants ────────────────────────────────────────────────────────
@@ -73,7 +75,7 @@ export const OrderProductSchema = z
     }),
     returnedQuantity: z.number().int().openapi({
       description:
-        "Units the customer refused at the door. Always 0 when status=fulfilled, = quantity when status=returned.",
+        "Units back in stock: those the customer refused at the door on a delivered order, or every unit once the order is cancelled or its parcel comes back (for a product that tracks stock). Always 0 when status=fulfilled, = quantity when status=returned.",
     }),
     createdAt: z.string().datetime(),
     offerId: z.string().nullable().openapi({
@@ -85,6 +87,8 @@ export const OrderProductSchema = z
     }),
     reward: z.boolean().openapi({ description: "A gift, given by `offerId` at no charge" }),
     discount: z.number().int().openapi({ description: "The line's share of the order's coupon discount; `lineTotal` is already net of it" }),
+    unitCost: z.number().int().nullable().optional().openapi({ description: "What one unit cost the merchant, frozen when the order was written (the variant's cost, else the product's); null when not known. Only for a member with finance:read" }),
+    unitCostSource: z.enum(["catalog", "manual"]).nullable().optional().openapi({ description: "Where `unitCost` came from: the catalog when the order was written, or set by hand. Only with finance:read" }),
   })
   .openapi("OrderProduct");
 
@@ -163,6 +167,16 @@ const OrderBaseSchema = z.object({
     description: "The language the order was placed in — the shopper's storefront language, the store's primary for a dashboard or agent order — and the one its customer messages are written in; null for an order placed before it was recorded",
     example: "fr",
   }),
+  assigneeId: z.string().nullable().openapi({ description: "The confirmation team member the order is with now; null while it is with nobody" }),
+  assigneeName: z.string().nullable().optional().openapi({ description: "That member's name" }),
+  assignedAt: z.string().nullable().openapi({ description: "When it was given to them" }),
+  takeBacks: z.number().int().openapi({ description: "How many times it was taken back from a member who did not act on it in time. At the store's limit it waits for a manager" }),
+  callbackAt: z.string().nullable().openapi({ description: "When the customer asked to be called back; cleared once the order is confirmed or cancelled" }),
+  decidedAt: z.string().nullable().openapi({ description: "Its first move away from new (confirmed, not reached or cancelled); null while new, or for an order older than the store's 90-day event log when the team arrived" }),
+  decidedBy: z.string().nullable().openapi({ description: "The member who made that first move; null when the system did" }),
+  confirmedAt: z.string().nullable().openapi({ description: "When it was first confirmed" }),
+  confirmedBy: z.string().nullable().openapi({ description: "The member credited with confirming it" }),
+  unansweredCalls: z.number().int().openapi({ description: "Calls without an answer: one more for each move to `unreachable`, so an order on no answer is at Call 1, Call 2, Call 3… Kept once it is confirmed or cancelled", example: 2 }),
 });
 
 export const OrderRemovalSchema = z
@@ -184,6 +198,17 @@ export const OrderRemovalSchema = z
 /**
  * Order list item - includes joins but not heavy nested arrays
  */
+/** Where an order came from, in short: what an order list and an Order Protection attempt show. */
+export const OrderSourceSchema = z
+  .object({
+    channel: z.enum(ORDER_CHANNELS),
+    platform: z.enum(ATTRIBUTION_PLATFORMS),
+    app: z.string().nullable().openapi({ description: "The Meta app: `fb`, `ig`, `msg`, `an`, `th`, `wa`" }),
+    adName: z.string().nullable().openapi({ description: "The credited ad's name, when the ad URL carried one" }),
+    campaignName: z.string().nullable().openapi({ description: "The credited campaign's name, when the ad URL carried one" }),
+  })
+  .openapi("OrderSource");
+
 export const OrderListItemSchema = OrderBaseSchema.extend({
   hasReview: z.number().int().optional().openapi({
     description:
@@ -212,6 +237,9 @@ export const OrderListItemSchema = OrderBaseSchema.extend({
     description: "Where the order stands overall — its processing, then its shipment's delivery. List responses only.",
   }),
   needsAttention: z.boolean().optional().openapi({ description: "Whether the order's delivery needs the merchant. List responses only." }),
+  source: OrderSourceSchema.nullable()
+    .optional()
+    .openapi({ description: "Where the order came from (the detail's `attribution`, in short); null when it is not known. List responses only." }),
 }).openapi("OrderListItem", {
   description: "Order summary for list view - includes joins but not nested arrays",
 });
@@ -221,6 +249,56 @@ export const OrderListItemSchema = OrderBaseSchema.extend({
 /**
  * Full order detail - includes products and status history
  */
+const nullableText = (description: string) => z.string().nullable().openapi({ description });
+
+/** One visit an order's attribution describes. */
+const AttributionVisitSchema = z.object({
+  at: nullableText("When the shopper arrived"),
+  channel: z.enum(ORDER_CHANNELS),
+  platform: z.enum(ATTRIBUTION_PLATFORMS).nullable(),
+  app: nullableText("The Meta app, when known"),
+  referrerHost: nullableText("The other site that linked to the store, or the Android app that opened it"),
+  landingPath: nullableText("The storefront path the visit landed on"),
+  landingPageType: nullableText("The page type of that path"),
+  utmSource: nullableText("As received"),
+  utmMedium: nullableText("As received"),
+  utmCampaign: nullableText("As received"),
+});
+
+/** Where an order came from (ADR 0026, attribution v2). */
+export const OrderAttributionSchema = z
+  .object({
+    method: z.enum(ATTRIBUTION_METHODS).openapi({ description: "`captured` from the shopper's visit; `entered` for an order staff, the API or the AI agent created; `merchant` only on orders before attribution v2" }),
+    channel: z.enum(ORDER_CHANNELS).nullable().openapi({ description: "Null when nothing is known. Where the order came from: the credited ad's channel (`paid_social`, `paid_search`, `paid_other`); else the channel of this visit, or of the last visit within 30 days that was neither direct nor an ad (`organic_social`, `organic_search`, `ai_assistant`, `email`, `referral`, `tagged`), else `direct`; or who entered it (`dashboard`, `api`, `agent`)" }),
+    platform: z.enum(ATTRIBUTION_PLATFORMS),
+    app: nullableText("The Meta app: `fb`, `ig`, `msg`, `an`, `th`, `wa`; null when unknown or not Meta"),
+    legacy: z.boolean().openapi({ description: "Written with no channel: before attribution v2, or by a storefront that sent no visit. Its source is unknown (a source a merchant chose before v2 is `dashboard`)" }),
+    ad: z
+      .object({
+        platform: z.enum(ATTRIBUTION_PLATFORMS),
+        app: nullableText("The Meta app the ad ran in"),
+        clickedAt: nullableText("When the shopper clicked the ad"),
+        clickIdType: z.enum(CLICK_ID_TYPES).nullable(),
+        campaignId: nullableText("The campaign id, from `utm_campaign` when it is digits"),
+        campaignName: nullableText("The campaign name the ad URL carried (`wc_cn`)"),
+        adsetId: nullableText("The ad set id, from `utm_term` when it is digits"),
+        adId: nullableText("The ad id, from `utm_content` when it is digits"),
+        adName: nullableText("The ad name the ad URL carried (`wc_an`)"),
+        placement: nullableText("Meta's placement (`wc_pl`), as Meta sends it"),
+        utmSource: nullableText("As received"),
+        utmCampaign: nullableText("As received"),
+        landingPath: nullableText("The storefront path the ad click landed on"),
+        landingPageType: nullableText("The page type of that path: `landing`, `product`, `home`…"),
+      })
+      .nullable()
+      .openapi({ description: "The ad the order credits: the last ad click at most 7 days before the order. Null when there is none." }),
+    visit: AttributionVisitSchema.nullable().openapi({ description: "This visit: how the shopper came to the store the time they ordered, an ad or not. Null for an entered order, or one recorded before attribution v2." }),
+    earlier: AttributionVisitSchema.nullable().openapi({ description: "The earlier visit the order's source comes from, when this visit was direct (or an ad too old to credit): the last visit within 30 days that was neither direct nor an ad. Null otherwise." }),
+    first: AttributionVisitSchema.nullable().openapi({ description: "The shopper's first visit, as the storefront kept it. Null when not kept." }),
+    firstTouchAt: nullableText("When the shopper first arrived from an ad or another site"),
+  })
+  .openapi("OrderAttribution");
+
 export const OrderDetailSchema = OrderBaseSchema.extend({
   products: z.array(OrderProductSchema).optional().openapi({
     description: "Order line items. Included in GET /api/orders/{id} (detail view only).",
@@ -234,9 +312,27 @@ export const OrderDetailSchema = OrderBaseSchema.extend({
   stage: z.enum(ORDER_STAGES).optional().openapi({
     description: "Where the order stands overall — its processing, then its shipment's delivery.",
   }),
+  attribution: OrderAttributionSchema.nullable().optional().openapi({
+    description: "Where the order came from: its channel, the ad it credits and this visit. Null when nothing is known (an order before tracking, or from a theme on an older SDK). Detail view only.",
+  }),
   needsAttention: z.boolean().optional().openapi({
     description: "The merchant must act on the delivery: the carrier flagged it, the handoff outcome is unknown, or the carrier cancelled it",
   }),
+  decidedByName: z.string().nullable().optional().openapi({ description: "The name of the member who first decided it" }),
+  confirmedByName: z.string().nullable().optional().openapi({ description: "The name of the member credited with confirming it" }),
+  assignmentHistory: z
+    .array(
+      z.object({
+        id: z.string(),
+        at: z.string(),
+        to: z.object({ id: z.string(), name: z.string() }).nullable().openapi({ description: "Who it was given to; null when it was taken back to nobody" }),
+        from: z.object({ id: z.string(), name: z.string() }).nullable().openapi({ description: "Who had it before" }),
+        way: z.enum(ASSIGNMENT_WAYS).openapi({ description: "`automatic` by the store's rule, `manual` by a manager, `take_back` from a member who did not act in time" }),
+        byName: z.string().nullable().openapi({ description: "The manager's name for a manual change; null for the store's rule" }),
+      }),
+    )
+    .optional()
+    .openapi({ description: "Who the order was given to, newest first, as its Business Events recorded it. Detail view only." }),
 }).openapi("Order", {
   description: "Complete order record with products and status history",
 });

@@ -181,6 +181,12 @@ describe("the stage wherever an order is shown", () => {
     });
   });
 
+  it("in a customer's order history — which call a customer who does not answer is at", async () => {
+    await d1.db.update(schema.orders).set({ status: "unreachable", unansweredCalls: 2 }).where(eq(schema.orders.id, "fresh"));
+    const { data } = await json(await call("GET", "/api/customers/c1/orders"));
+    expect(Object.fromEntries(data.map((o: any) => [o.id, [o.stage, o.unansweredCalls]]))).toMatchObject({ fresh: ["unreachable", 2], waiting: ["ready_to_ship", 0], dropped: ["cancelled", 0] });
+  });
+
   it("in the driver's recent shipments", async () => {
     const { data } = await json(await call("GET", "/api/drivers/dr1"));
     expect(data.recentShipments.map((s: any) => [s.orderId, s.stage])).toEqual([["driven", "delivered"]]);

@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { AlertCircle, CheckCircle2, X } from "lucide-react";
 import {
   canScope,
   useIdentity,
@@ -11,7 +10,6 @@ import {
   listAllDeliveryCompanies,
   syncCompanyPlaces,
   syncCompanyShipments,
-  syncCompanyStopDesks,
   updateDeliveryCompany,
 } from "@/features/delivery/api";
 import type { CarrierPlacesSummary, DeliveryCompany } from "@/features/delivery/types";
@@ -37,34 +35,6 @@ function Loading() {
   );
 }
 
-function Notice({
-  message,
-  tone,
-  onDismiss,
-}: {
-  message: string;
-  tone: "success" | "error";
-  onDismiss: () => void;
-}) {
-  const common = useT("common");
-  return (
-    <Alert
-      role={tone === "error" ? "alert" : "status"}
-      tone={tone === "error" ? "critical" : "info"}
-    >
-      {tone === "error" ? (
-        <AlertCircle size={18} className="shrink-0" />
-      ) : (
-        <CheckCircle2 size={18} className="shrink-0" />
-      )}
-      <span className="flex-1">{message}</span>
-      <button type="button" onClick={onDismiss} aria-label={common("cancel")}>
-        <X size={16} />
-      </button>
-    </Alert>
-  );
-}
-
 export function CompanyProfileDetail({ providerCode }: { providerCode: string }) {
   const t = useT("delivery_companies");
   const auth = useT("auth");
@@ -73,7 +43,6 @@ export function CompanyProfileDetail({ providerCode }: { providerCode: string })
   const [company, setCompany] = useState<DeliveryCompany | null | undefined>(undefined);
   const [loadError, setLoadError] = useState<unknown>(null);
   const [notice, setNotice] = useState<{ message: string; tone: "success" | "error" } | null>(null);
-  const [syncingDesks, setSyncingDesks] = useState(false);
   const [places, setPlaces] = useState<CarrierPlacesSummary | null>(null);
   const [readingPlaces, setReadingPlaces] = useState(false);
   const [syncingShipments, setSyncingShipments] = useState(false);
@@ -102,30 +71,6 @@ export function CompanyProfileDetail({ providerCode }: { providerCode: string })
   useEffect(() => {
     if (company) setAutoValidate(company.autoValidate);
   }, [company?.id, company?.autoValidate]);
-
-  async function handleSyncDesks() {
-    if (!company) return;
-    setNotice(null);
-    setSyncingDesks(true);
-    try {
-      const result = await syncCompanyStopDesks(company.id);
-      const detail = [
-        `${result.total} ${t("desks")}`,
-        ...(result.removed > 0 ? [`${result.removed} ${t("removed")}`] : []),
-        ...(result.unplaced > 0 ? [t("desks_unplaced", { count: result.unplaced })] : []),
-      ].join(" · ");
-      const message = `${t("sync_desks_success")} — ${detail}`;
-      setNotice({ message, tone: "success" });
-      notify.success(message);
-      await load();
-    } catch {
-      const message = t("error_saving");
-      setNotice({ message, tone: "error" });
-      notify.error(message);
-    } finally {
-      setSyncingDesks(false);
-    }
-  }
 
   async function handleReadPlaces() {
     if (!company) return;
@@ -225,11 +170,9 @@ export function CompanyProfileDetail({ providerCode }: { providerCode: string })
   return (
     <div className="space-y-5">
       {notice && (
-        <Notice
-          message={notice.message}
-          tone={notice.tone}
-          onDismiss={() => setNotice(null)}
-        />
+        <Alert role={notice.tone === "error" ? "alert" : "status"} tone={notice.tone === "error" ? "critical" : "success"} onDismiss={() => setNotice(null)}>
+          {notice.message}
+        </Alert>
       )}
 
       <PageHeader
@@ -279,8 +222,6 @@ export function CompanyProfileDetail({ providerCode }: { providerCode: string })
         autoValidate={autoValidate}
         savingAutoValidate={savingAutoValidate}
         onToggleAutoValidate={() => void handleToggleAutoValidate()}
-        syncingDesks={syncingDesks}
-        onSyncDesks={() => void handleSyncDesks()}
         syncingShipments={syncingShipments}
         onSyncShipments={() => void handleSyncShipments()}
       />

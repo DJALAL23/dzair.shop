@@ -7,10 +7,6 @@
 import { embeddedMessage, embeddedTemplate } from "@/theme/content/messages";
 import {
   bindDeliveryFields,
-  watchShippingRates,
-  rateFor,
-  selectedWilayaId,
-  currentDeliveryType,
   deliveryDestination,
   toggleAddressFields,
 } from "./delivery-fields";
@@ -48,9 +44,6 @@ export function initProductPage(): () => void {
   const productId = data.productId;
   const productName = data.productName;
   
-  /** @type {Record<string, Object>} Shipping rates per wilaya: { wilayaId: { home, stopDesk } } */
-  let rates: Record<string, { home: number; stopDesk: number }> = {};
-
   // Localized strings and configuration. Labels come from the bridge and are
   // null when the markup did not carry them — the UI then keeps its
   // server-rendered text instead of inventing copy.
@@ -522,17 +515,10 @@ export function initProductPage(): () => void {
 
   // ── DELIVERY & SHIPPING ────────────────────────────────────────────────────
 
-  // Rates ride in on the shipping bridge, which can already be in the DOM at
-  // mount. This subscription lives here — after every piece of state
-  // `refreshShipping` touches — so the callback, whenever it fires, never
-  // meets an uninitialized binding. (Historical note: registering this at the
-  // top of initProductPage delivered rates synchronously into a TDZ
-  // ReferenceError that killed the page's whole init, commune selector
-  // included.)
-  watchShippingRates((loaded) => {
-    rates = loaded;
-    refreshShipping();
-  });
+  // The first quote, for a destination already on the form (a returning
+  // shopper's autofill): a microtask, so it runs once the page's init has
+  // finished and every binding `refreshShipping` touches exists.
+  queueMicrotask(() => refreshShipping());
 
   // Delivery type, the address field and commune loading are shared with
   // the checkout page so the two cannot drift apart — see delivery-fields.ts.
@@ -580,13 +566,18 @@ export function initProductPage(): () => void {
     return JSON.stringify({ destination: deliveryDestination() ?? null, form: productFormBody(), coupon: couponAsk() });
   }
 
-  /** Shows the server's answer. Without a destination yet, the rate table prices delivery. */
+  /**
+   * Shows the server's answer. Delivery is the quote's alone: this product may
+   * have its own shipping profile and the commune its own price, so nothing
+   * else on the page knows the fee. Without a destination yet, it is still to
+   * be calculated.
+   */
   function applyQuote(answer: CartValidation): void {
     coupon?.show(answer.coupon);
     const delivery = answer.delivery;
     if (delivery === undefined) {
       undeliverable = false;
-      currentShipping = rateFor(rates, selectedWilayaId(), currentDeliveryType());
+      currentShipping = NaN;
     } else {
       undeliverable = delivery.available === false;
       currentShipping = delivery.available === true ? delivery.fee : NaN;
@@ -607,7 +598,7 @@ export function initProductPage(): () => void {
 
   /**
    * Recalculates the delivery for the destination and form on screen: the
-   * server's quote when it has answered for them, the rate table until then.
+   * server's quote when it has answered for them, "to be calculated" until then.
    */
   function refreshShipping() {
     // 1. The server's quote for exactly this destination and form.
@@ -617,9 +608,10 @@ export function initProductPage(): () => void {
       return;
     }
 
-    // 2. Until it answers, the merchant's rate table stands in.
+    // 2. Until it answers, the fee is to be calculated: never a price the
+    //    server has not quoted for this product and this place.
     undeliverable = false;
-    currentShipping = rateFor(rates, selectedWilayaId(), currentDeliveryType());
+    currentShipping = NaN;
     syncSubmit();
     updatePriceUI();
     void requestQuote(key);
@@ -763,15 +755,6 @@ export function initProductPage(): () => void {
   // The page's pixel is the head's (trackingHead); a page with none reports nothing.
   const tracking = storefrontTracking();
 
-  function getCookie(name: string): string | null {
-    return (
-      document.cookie
-        .split("; ")
-        .find((r) => r.startsWith(name + "="))
-        ?.split("=")[1] ?? null
-    );
-  }
-
   // 1. The product was seen, at the price shown.
   tracking.productViewed({ productId, price: currentPrice });
 
@@ -788,18 +771,6 @@ export function initProductPage(): () => void {
     orderSection.addEventListener("focusin", fireCheckoutStarted);
     orderSection.addEventListener("input", fireCheckoutStarted);
     orderSection.addEventListener("change", fireCheckoutStarted);
-  }
-
-  // 3. Populate fbc/fbp hidden inputs right before form submits so the values
-  //    travel with the order payload to cod-server for CAPI attribution.
-  const orderForm = document.querySelector<HTMLFormElement>("form[method=POST]");
-  const fbcInput = document.getElementById("fbc-input") as HTMLInputElement | null;
-  const fbpInput = document.getElementById("fbp-input") as HTMLInputElement | null;
-  if (orderForm && (fbcInput || fbpInput)) {
-    orderForm.addEventListener("submit", () => {
-      if (fbcInput) fbcInput.value = getCookie("_fbc") ?? "";
-      if (fbpInput) fbpInput.value = getCookie("_fbp") ?? "";
-    });
   }
 
   return () => {

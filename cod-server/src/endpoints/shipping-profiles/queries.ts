@@ -8,13 +8,13 @@
 
 import { eq } from "drizzle-orm";
 import type { AppDb } from "@/db";
-import { shippingProfiles, shippingRules } from "@/db/schema";
+import { shippingProfiles } from "@/db/schema";
 import type { UpdateProfileInput, BulkRulesInput } from "./validation";
 import { BusinessLogicError, ValidationError } from "@/lib/errors/classes";
 import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
 import {
   getProfileById,
-  newProfileId,
+  writeProfileRules,
 } from "../../../../cod-shared/queries/shipping-profiles";
 
 export {
@@ -90,14 +90,18 @@ export async function updateProfile(
   return getProfileById(db, id);
 }
 
-/** Replace all rules for a profile. Deletes existing rules (and their commune overrides via CASCADE), then inserts new ones. */
+/**
+ * Set a profile's rules to exactly the ones given, in one batch. A wilaya that
+ * stays keeps its rule and its Commune Overrides; one that goes takes its
+ * overrides with it.
+ */
 export async function setProfileRules(
   db: AppDb,
   profileId: string,
   data: BulkRulesInput,
 ): Promise<ShippingProfileWithRules | null> {
   const existing = await db
-    .select()
+    .select({ id: shippingProfiles.id })
     .from(shippingProfiles)
     .where(eq(shippingProfiles.id, profileId))
     .get();
@@ -118,30 +122,17 @@ export async function setProfileRules(
     );
   }
 
-  await db.delete(shippingRules).where(eq(shippingRules.profileId, profileId)).run();
-
-  const ts = now();
-  for (const rule of data.rules) {
-    await db
-      .insert(shippingRules)
-      .values({
-        id: newProfileId(),
-        profileId,
-        wilayaId: rule.wilayaId,
-        homePrice: rule.homePrice,
-        stopDeskPrice: rule.stopDeskPrice,
-        homeEnabled: rule.homeEnabled ?? true,
-        stopDeskEnabled: rule.stopDeskEnabled ?? false,
-        createdAt: ts,
-      })
-      .run();
-  }
-
-  await db
-    .update(shippingProfiles)
-    .set({ updatedAt: now() })
-    .where(eq(shippingProfiles.id, profileId))
-    .run();
+  await writeProfileRules(
+    db,
+    profileId,
+    data.rules.map((rule) => ({
+      wilayaId: rule.wilayaId,
+      homePrice: rule.homePrice,
+      stopDeskPrice: rule.stopDeskPrice,
+      homeEnabled: rule.homeEnabled ?? true,
+      stopDeskEnabled: rule.stopDeskEnabled ?? false,
+    })),
+  );
 
   return getProfileById(db, profileId);
 }

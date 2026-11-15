@@ -5,12 +5,16 @@
  */
 
 import { z } from "zod";
+import { ALL_SCOPES, type Scope } from "../../../../cod-shared/rbac/scopes";
+
+/** A permission a member can be given: one the platform defines, never the wildcard. */
+export const scopeSchema = z.enum(ALL_SCOPES as [Scope, ...Scope[]], { message: "Unknown permission" });
 
 export const createUserSchema = z.object({
   email: z.string().email("Invalid email format"),
   name: z.string().min(1, "Name is required"),
   role: z.enum(["admin", "staff"]).default("staff"),
-  scopes: z.array(z.string()).default([]),
+  scopes: z.array(scopeSchema).default([]),
   /** Invite-email language. Falls back to the users.language column default ("en"). */
   language: z.enum(["ar", "en"]).optional(),
 });
@@ -27,7 +31,11 @@ export const updateUserRoleSchema = z.object({
 });
 
 export const grantScopeSchema = z.object({
-  scope: z.string().min(1, "Scope is required"),
+  scope: scopeSchema,
+});
+
+export const setScopesSchema = z.object({
+  scopes: z.array(scopeSchema),
 });
 
 export const userFiltersSchema = z.object({

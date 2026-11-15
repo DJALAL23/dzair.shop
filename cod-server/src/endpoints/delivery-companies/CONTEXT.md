@@ -98,7 +98,7 @@ _Avoid_: Delivery cost, carrier fee
 ### Stop Desks
 
 **Stop Desk Sync**:
-Pulling a carrier's desks into the local cache, from the company's page and with the hourly refresh of its places. Reads never call the carrier; desks the carrier dropped are removed on the next sync, and the merchant's on/off choice is kept. Each desk is placed in a commune of ours through the map of places (by the carrier's commune id, or by its commune, then its name, under its wilaya number) and offered under that commune's wilaya; a desk placed nowhere is kept but offered under no wilaya.
+Pulling a carrier's desks into the local cache, always right after its places (connecting the company, its page's "Read again", the hourly refresh), since a desk is placed through the map of places. Reads never call the carrier; desks the carrier dropped are removed on the next sync, and the merchant's on/off choice is kept. Each desk is placed in a commune of ours through the map of places (by the carrier's commune id, or by its commune, then its name, under its wilaya number) and offered under that commune's wilaya; a desk placed nowhere is kept but offered under no wilaya.
 _Avoid_: Import, refresh, live lookup
 
 **Station Code**:

@@ -2,6 +2,7 @@
  * Abandoned Orders Queries
  */
 
+import type { CapturedTouches } from "../attribution/model";
 import { eq, and, desc, lt, sql, like, or, inArray } from "drizzle-orm";
 import { abandonedOrders, wilayas, communes, products, productVariants } from "../db/schema";
 import type { AppDb } from "../db/client";
@@ -41,6 +42,8 @@ export interface UpsertAbandonedOrderData {
   deliveryType?: (typeof abandonedOrders.$inferSelect)["deliveryType"];
   fbc?: string;
   fbp?: string;
+  /** The visit's touches, already read by `parseCapturedTouches`. A save without them keeps the ones stored. */
+  attribution?: CapturedTouches | null;
   ipAddress?: string;
   userAgent?: string;
 }
@@ -216,6 +219,7 @@ export async function upsertAbandonedOrder(
   const now = new Date().toISOString();
   const id = crypto.randomUUID();
   const product = deriveAbandonedProductColumns(withCatalogNames(data, await loadCatalogNames(db, data)));
+  const attributionJson = data.attribution ? JSON.stringify(data.attribution) : null;
 
   await db
     .insert(abandonedOrders)
@@ -237,6 +241,7 @@ export async function upsertAbandonedOrder(
       status: "pending",
       createdAt: now,
       updatedAt: now,
+      attributionJson,
     })
     .onConflictDoUpdate({
       target: abandonedOrders.sessionId,
@@ -254,6 +259,7 @@ export async function upsertAbandonedOrder(
         ipAddress: data.ipAddress ?? null,
         userAgent: data.userAgent ?? null,
         updatedAt: now,
+        ...(attributionJson ? { attributionJson } : {}),
       },
     });
 

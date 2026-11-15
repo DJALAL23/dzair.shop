@@ -25,6 +25,20 @@ export const ACTIONS = {
   ORDER_DELETED:           "order.deleted",
   ORDER_ARCHIVED:          "order.archived",
   ORDER_UNARCHIVED:        "order.unarchived",
+  ORDER_CALLBACK_SET:      "order.callback_set",
+
+  // Confirmation team
+  TEAM_MEMBER_ADDED:       "team.member_added",
+  TEAM_MEMBER_REMOVED:     "team.member_removed",
+  TEAM_RECEIVING_CHANGED:  "team.receiving_changed",
+  TEAM_SETTINGS_UPDATED:   "team.settings_updated",
+  TEAM_PAY_SET:            "team.pay_set",
+  TEAM_PAY_REMOVED:        "team.pay_removed",
+  FINANCE_COST_ADDED:      "finance.cost_added",
+  FINANCE_COST_CHANGED:    "finance.cost_changed",
+  FINANCE_COST_REMOVED:    "finance.cost_removed",
+  FINANCE_RATE_SET:        "finance.rate_set",
+  FINANCE_RATE_REMOVED:    "finance.rate_removed",
 
   // Shipments
   SHIPMENT_VOIDED:         "shipment.voided",
@@ -116,6 +130,8 @@ export const ACTIONS = {
   USER_CREATED:            "user.created",
   USER_UPDATED:            "user.updated",
   USER_ROLE_CHANGED:       "user.role_changed",
+  USER_DEACTIVATED:        "user.deactivated",
+  USER_REACTIVATED:        "user.reactivated",
   USER_SCOPE_GRANTED:      "user.scope_granted",
   USER_SCOPE_REVOKED:      "user.scope_revoked",
 

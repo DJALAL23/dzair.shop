@@ -41,12 +41,7 @@ import {
 } from "./cart-render";
 import {
   bindDeliveryFields,
-  watchShippingRates,
-  rateFor,
-  selectedWilayaId,
-  currentDeliveryType,
   deliveryDestination,
-  type ShippingRates,
 } from "./delivery-fields";
 import { storefrontTracking } from "@wocart/storefront";
 import { collectCustomFieldAnswers } from "./custom-fields";
@@ -127,21 +122,19 @@ export function initCheckout(): () => void {
     const phone = toLocalAlgerianMobile((document.getElementById("f-phone") as HTMLInputElement | null)?.value ?? "");
     return { couponCode: code, ...(phone ? { phone } : {}) };
   }
-  let rates: ShippingRates = {};
-
   const destinationKey = () => JSON.stringify(deliveryDestination() ?? null);
 
   /**
    * The server's quote for the destination on screen; `null` when the store
-   * does not deliver there. Without a quote for it, the wilaya rate stands in,
-   * and NaN — no wilaya the merchant priced yet — shows as "calculated after
-   * selecting wilaya" rather than as free.
+   * does not deliver there. Without a quote for it yet, NaN: "to be
+   * calculated", never a price the server has not quoted for this basket
+   * (each product may have its own shipping profile, each commune its own price).
    */
   function deliveryFee(): number | null {
     const quote = validated?.delivery;
     if (quote && quotedFor === destinationKey()) return quote.available ? quote.fee : null;
     if (validated?.freeDelivery.qualified) return 0;
-    return rateFor(rates, selectedWilayaId(), currentDeliveryType());
+    return NaN;
   }
 
   function render(): void {
@@ -260,11 +253,6 @@ export function initCheckout(): () => void {
     },
   );
 
-  const unwatchRates = watchShippingRates((loaded) => {
-    rates = loaded;
-    render();
-  });
-
   // ─── InitiateCheckout ──────────────────────────────────────────────────────
   //
   // Fires once, on the first real interaction with the form — the same rule
@@ -323,7 +311,6 @@ export function initCheckout(): () => void {
   const teardown = () => {
     aborter.abort();
     unbindDelivery();
-    unwatchRates();
     unsubscribe();
     unbindRequiredSelects();
     controllers.delete(root);

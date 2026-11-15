@@ -9,12 +9,13 @@ import type { AppContext } from "@/types";
 import { getDb } from "@/db";
 import * as queries from "./queries";
 import * as validation from "./validation";
-import { orderHasShipment, refusalFor } from "./refusals";
+import { orderChanged, orderHasShipment, refusalFor } from "./refusals";
 import { transitionVerdict } from "./transitions";
 import { getOrderShipment } from "../../../../cod-shared/shipments/queries";
 import { logActivity, ACTIONS } from "@/lib/activity";
 import { NotFoundError, ValidationError } from "@/lib/errors/classes";
 import { ERROR_CODES, ERROR_CATEGORIES } from "../../../../cod-shared/errors/codes";
+import { statusMovedOn } from "../../../../cod-shared/orders/lifecycle";
 
 /**
  * PATCH /orders/:id/status
@@ -40,6 +41,8 @@ export async function updateStatus(c: Context<AppContext>) {
   if (!order) {
     throw new NotFoundError("Order", orderId);
   }
+  // A move made on an order that has moved on since is stale, not a move the lifecycle refuses.
+  if (statusMovedOn(order, validated.seen)) throw orderChanged(orderId);
 
   const verdict = transitionVerdict(order.status, Boolean(await getOrderShipment(db, orderId)), validated.status);
   if (!verdict.ok) {
@@ -59,7 +62,7 @@ export async function updateStatus(c: Context<AppContext>) {
   // Get user from context (set by auth middleware)
   const user = c.get("user");
 
-  const change = await queries.updateOrderStatus(db, orderId, validated.status, c.get("author"));
+  const change = await queries.updateOrderStatus(db, orderId, validated.status, c.get("author"), validated.seen);
   if (!change.ok) throw refusalFor(change, orderId, "its status no longer changes");
 
   await logActivity(db, user, ACTIONS.ORDER_STATUS_CHANGED, {

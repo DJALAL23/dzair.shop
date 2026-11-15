@@ -17,11 +17,11 @@ import { ORDER_STAGES } from "../../../../cod-shared/orders/stage";
 const orderStagesRoute = defineRoute({
   method: "get",
   path: "/order-stages",
-  auth: { anyOf: [SCOPES.DASHBOARD_VIEW, SCOPES.ORDERS_READ] },
+  auth: { anyOf: [SCOPES.DASHBOARD_VIEW, SCOPES.ORDERS_READ, SCOPES.ORDERS_READ_ASSIGNED] },
   tags: ["Analytics"],
   summary: "Orders by stage",
   description:
-    "Orders counted by the stage the merchant sees — their processing, then their shipment's delivery (the same stage as `GET /api/orders/{id}`) — with only the stages that have orders, how many orders need the merchant's attention, how many are archived, and the delivery rate; `archived=exclude` leaves archived orders out of the stages, as the working lists do (an unknown handoff, a parcel the carrier cancelled or flagged).",
+    "Orders counted by the stage the merchant sees — their processing, then their shipment's delivery (the same stage as `GET /api/orders/{id}`) — with only the stages that have orders, how many orders need the merchant's attention, how many are archived, and the delivery rate (only their own orders for a member who sees only theirs); `archived=exclude` leaves archived orders out of the stages, as the working lists do (an unknown handoff, a parcel the carrier cancelled or flagged).",
   operationId: "getOrderStageStats",
   query: z.object({
     archived: z
@@ -40,6 +40,15 @@ const orderStagesRoute = defineRoute({
               stages: z.array(z.object({ stage: z.enum(ORDER_STAGES), count: z.number().int().openapi({ example: 12 }) })),
               needsAttention: z.number().int().openapi({ example: 3 }),
               archived: z.number().int().openapi({ description: "Archived orders", example: 40 }),
+              callbacks: z.number().int().openapi({ description: "Orders still waiting (new, or the customer not reached) with a callback set; an agent who sees only their own orders counts only theirs", example: 4 }),
+              callbacksDue: z.number().int().openapi({ description: "Of those, the ones whose callback time has come", example: 1 }),
+              noAnswer: z
+                .object({
+                  call1: z.number().int().openapi({ example: 6 }),
+                  call2: z.number().int().openapi({ example: 3 }),
+                  call3OrMore: z.number().int().openapi({ example: 2 }),
+                })
+                .openapi({ description: "Orders on no answer (unreachable) by their call: after one call without an answer, two, or three and more" }),
               deliveryRate: z.number().int().min(0).max(100).nullable().openapi({
                 description: "Of the parcels whose delivery ended — delivered or returned — the share delivered, a whole percent; null before any ended. A return under way and a parcel the carrier cancelled count for neither.",
                 example: 82,

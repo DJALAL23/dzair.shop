@@ -54,8 +54,4 @@ describe("server island copy budget", () => {
     expect(source).not.toContain("define:vars={{ content }}");
     expect(source).toContain("loadMoreLabel");
   });
-
-  it("ShippingIsland takes no props (nothing to encrypt)", () => {
-    expect(component("ShippingIsland.astro")).not.toContain("interface Props");
-  });
 });

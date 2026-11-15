@@ -109,7 +109,12 @@ const LONG_HAUL_WILAYA_IDS: ReadonlySet<number> = new Set([
   11, // Tamanrasset
   33, // Illizi
   37, // Tindouf
-  44, // Aïn Guezzam
+  49, // Timimoun
+  50, // Bordj Badji Mokhtar
+  52, // Béni Abbès
+  53, // In Salah
+  54, // In Guezzam
+  56, // Djanet
 ]);
 
 export function isLongHaulWilaya(wilayaId: number | null | undefined): boolean {

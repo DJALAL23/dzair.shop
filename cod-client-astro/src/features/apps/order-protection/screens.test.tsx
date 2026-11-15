@@ -40,7 +40,7 @@ import { RequireAuth } from "@/features/auth/components/RequireAuth";
 import OrderProtectionApp from "./OrderProtectionApp";
 import RulePageApp from "./RulePageApp";
 import SpamOrdersPageApp from "@/features/orders/components/SpamOrdersPageApp";
-import { OrderProtectionCard } from "@/features/orders/components/OrderProtectionCard";
+import { OrderProtectionCard, useOrderAttempt } from "@/features/orders/components/OrderProtectionCard";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -336,7 +336,7 @@ describe("the rule builder", () => {
     await type(nameInput(), "From apps");
     await click("Add a condition");
     await click("App the store was opened in");
-    for (const box of ["Facebook", "TikTok", "Normal browser", "Normal browser"]) {
+    for (const box of ["Facebook app", "TikTok app", "Web browser", "Web browser"]) {
       await act(async () => byText(box, "label")!.querySelector("input")!.click());
     }
     await click("Flag as suspicious");
@@ -365,7 +365,7 @@ describe("the rule builder", () => {
   it("explains each mode and each action where they are chosen", async () => {
     await mount(<RulePageApp />);
     expect(document.body.textContent).toContain("Watches only");
-    expect(document.body.textContent).toContain("You can rescue it from Spam");
+    expect(document.body.textContent).toContain("You can accept it from Spam");
     await click("Active");
     await type(nameInput(), "R");
     await click("Add a condition");
@@ -403,8 +403,8 @@ describe("the rule builder", () => {
     api.getProtection.mockResolvedValue({ enabled: true, rules: [{ ...RULE, id: "r2", conditions: [{ key: "visit_source", op: "one_of", value: ["tiktok"] }] }] });
     api.updateRule.mockResolvedValue({});
     await mount(<RulePageApp />);
-    expect(byText("TikTok ad", "label")!.querySelector("input")!.checked).toBe(true);
-    expect(byText("Meta ad", "label")!.querySelector("input")!.checked).toBe(false);
+    expect(byText("From TikTok", "label")!.querySelector("input")!.checked).toBe(true);
+    expect(byText("From Meta (Facebook, Instagram)", "label")!.querySelector("input")!.checked).toBe(false);
   });
 
   it("says what is missing, and saves nothing", async () => {
@@ -445,7 +445,7 @@ describe("a rule in words", () => {
   it("names the fixed choices it holds", async () => {
     api.getProtection.mockResolvedValue({ enabled: true, rules: [{ ...RULE, conditions: [{ key: "app_source", op: "one_of", value: ["facebook", "browser"] }] }] });
     await mount(<OrderProtectionApp canManage onSaved={onSaved} />);
-    expect(document.body.textContent).toContain("App the store was opened in is one of Facebook or Normal browser");
+    expect(document.body.textContent).toContain("App the store was opened in is one of Facebook app or Web browser");
     expect(document.body.textContent).not.toContain("،");
   });
 });
@@ -526,41 +526,54 @@ describe("the Spam page", () => {
     expect(document.querySelector("[role=dialog]")!.textContent).toContain("Why it went to Spam");
   });
 
+  it("shows where each Spam Order came from, in the list and in the sheet", async () => {
+    api.listAttempts.mockResolvedValue({ data: [{ ...SPAM, source: { channel: "paid_social", platform: "meta", app: "ig", adName: "Robe rouge", campaignName: "Été" } }, { ...SPAM, id: "s2", customerName: "Nadia", source: null }], total: 2 });
+    await mount(<SpamOrdersPageApp />);
+    const [ad, unknown] = [...document.querySelectorAll("tbody tr")];
+    expect(ad!.textContent).toContain("Instagram ad");
+    expect(ad!.textContent).toContain("Robe rouge");
+    expect(unknown!.textContent).toContain("Source unknown");
+    const sheet = await openSheet("Amel");
+    expect(sheet.textContent).toContain("Where it came from");
+    expect(sheet.textContent).toContain("Instagram ad");
+  });
+
   it("shows how the order was sent", async () => {
     api.listAttempts.mockResolvedValue({ data: [{ ...SPAM, signals: { fillSeconds: 3.4, visitSource: "tiktok", appSource: "instagram", networkCountry: "DZ" } }], total: 1 });
     await mount(<SpamOrdersPageApp />);
     const sheet = await openSheet("Amel");
     expect(sheet.textContent).toContain("How it was sent");
-    for (const signal of ["Instagram", "TikTok ad", "Filled in 3 s", "Network: Algeria"]) expect(sheet.textContent).toContain(signal);
+    for (const signal of ["Instagram app", "Form filled in 3\u00a0s", "Connected from Algeria"]) expect(sheet.textContent).toContain(signal);
+    expect(sheet.textContent).not.toContain("From TikTok");
   });
 
   it("shows a form filled in no time, and no section when nothing is known", async () => {
     api.listAttempts.mockResolvedValue({ data: [{ ...SPAM, id: "known", customerName: "Known", signals: { fillSeconds: 0 } }, { ...SPAM, id: "unknown", customerName: "Unknown", signals: {} }], total: 2 });
     await mount(<SpamOrdersPageApp />);
-    expect((await openSheet("Known")).textContent).toContain("Filled in 0 s");
+    expect((await openSheet("Known")).textContent).toContain("Form filled in 0\u00a0s");
     await act(async () => document.querySelector<HTMLElement>('[role=dialog] [aria-label="Close"]')!.click());
     await settle();
     expect((await openSheet("Unknown")).textContent).not.toContain("How it was sent");
   });
 
-  it("rescues from the sheet, reloads and closes it", async () => {
+  it("accepts from the sheet, reloads and closes it", async () => {
     api.listAttempts.mockResolvedValueOnce({ data: [SPAM], total: 1 }).mockResolvedValue({ data: [], total: 0 });
     api.rescueSpamOrder.mockResolvedValue({ orderId: "o", orderNumber: "ORD-1" });
     await mount(<SpamOrdersPageApp />);
     await openSheet("Amel");
-    await click("Rescue");
+    await click("Accept order");
     expect(api.rescueSpamOrder).toHaveBeenCalledWith("s1");
-    expect(notifications.success).toHaveBeenCalledWith("Rescued as order ORD-1");
+    expect(notifications.success).toHaveBeenCalledWith("Accepted as order ORD-1");
     expect(api.listAttempts).toHaveBeenCalledTimes(2);
     expect(document.querySelector("[role=dialog]")).toBeNull();
   });
 
-  it("says why a Rescue was refused, and keeps the sheet open", async () => {
+  it("says why an accept was refused, and keeps the sheet open", async () => {
     api.listAttempts.mockResolvedValue({ data: [SPAM], total: 1 });
     api.rescueSpamOrder.mockRejectedValue({ code: "INSUFFICIENT_STOCK" });
     await mount(<SpamOrdersPageApp />);
     await openSheet("Amel");
-    await click("Rescue");
+    await click("Accept order");
     expect(notifications.error).toHaveBeenCalledWith("Not enough stock to place this order.");
     expect(document.querySelector("[role=dialog]")).not.toBeNull();
   });
@@ -609,7 +622,7 @@ describe("the Spam page", () => {
     expect(document.body.textContent).toContain("Amel");
     expect(document.querySelector("input[type=checkbox]")).toBeNull();
     const sheet = await openSheet("Amel");
-    expect(byText("Rescue")).toBeUndefined();
+    expect(byText("Accept order")).toBeUndefined();
     expect(sheet.textContent).not.toContain("Block number");
     await act(async () => root.unmount());
     root = createRoot(host);
@@ -620,15 +633,20 @@ describe("the Spam page", () => {
   });
 });
 
+function OnOrder() {
+  const attempt = useOrderAttempt("o");
+  return attempt && <OrderProtectionCard attempt={attempt} />;
+}
+
 describe("the card on an order", () => {
   const FLAGGED = { ...ATTEMPT, id: "a", createdAt: "2026-11-09T08:00:00.000Z", phone: "0551234567", ipKey: "41.100.1.1", outcome: "flagged", orderId: "o", orderNumber: "ORD-1", customerName: null, total: null, signals: {}, matches: [{ ruleId: "r", name: "Too many", mode: "active", action: "flag" }, { ruleId: "t", name: "Only trying", mode: "trial", action: "spam" }] };
 
   it("says why it was flagged and blocks the number or network", async () => {
     api.attemptOfOrder.mockResolvedValue({ ...FLAGGED, signals: { appSource: "browser" } });
     api.addToBlockList.mockResolvedValue({});
-    await mount(<RequireAuth><OrderProtectionCard orderId="o" /></RequireAuth>);
+    await mount(<RequireAuth><OnOrder /></RequireAuth>);
     expect(document.body.textContent).toContain("Flagged because of: Too many");
-    expect(document.body.textContent).toContain("Normal browser");
+    expect(document.body.textContent).toContain("Web browser");
     expect(document.body.textContent).not.toContain("Only trying");
     await click("Block this number");
     expect(api.addToBlockList).toHaveBeenCalledWith({ kind: "phone", value: "0551234567", note: "ORD-1" });
@@ -641,15 +659,29 @@ describe("the card on an order", () => {
     expect(api.addToBlockList).toHaveBeenCalledWith({ kind: "ip", value: "41.100.1.1", note: "ORD-1" });
   });
 
+  it("says why an order accepted from Spam was held", async () => {
+    api.attemptOfOrder.mockResolvedValue({ ...FLAGGED, outcome: "rescued", matches: [{ ruleId: "r", name: "Too many", mode: "active", action: "flag" }, { ruleId: "s", name: "Blocked area", mode: "active", action: "spam" }] });
+    await mount(<RequireAuth><OnOrder /></RequireAuth>);
+    expect(document.body.textContent).toContain("Accepted from Spam. Held because of: Blocked area");
+    expect(document.body.textContent).not.toContain("Too many");
+  });
+
+  it("gives no reason for an order it simply let through", async () => {
+    api.attemptOfOrder.mockResolvedValue({ ...FLAGGED, outcome: "accepted", matches: [] });
+    await mount(<RequireAuth><OnOrder /></RequireAuth>);
+    expect(document.body.textContent).not.toContain("because");
+    expect(document.body.textContent).toContain("Block this number");
+  });
+
   it("shows nothing for an order the App did not screen, or without permission", async () => {
     api.attemptOfOrder.mockResolvedValue(null);
-    await mount(<RequireAuth><OrderProtectionCard orderId="o" /></RequireAuth>);
+    await mount(<RequireAuth><OnOrder /></RequireAuth>);
     expect(host.textContent).toBe("");
     await act(async () => root.unmount());
     root = createRoot(host);
     api.attemptOfOrder.mockClear();
     signIn(member(["orders:read"]));
-    await mount(<RequireAuth><OrderProtectionCard orderId="o" /></RequireAuth>);
+    await mount(<RequireAuth><OnOrder /></RequireAuth>);
     expect(api.attemptOfOrder).not.toHaveBeenCalled();
   });
 });

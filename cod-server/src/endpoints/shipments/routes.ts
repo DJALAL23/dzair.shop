@@ -7,6 +7,7 @@
 import { OpenAPIHono, z } from "@hono/zod-openapi";
 import type { AppContext } from "@/types";
 import { defineRoute } from "@/lib/route-builder";
+import { guardShipmentId } from "@/lib/order-visibility";
 import { SCOPES } from "../../../../cod-shared/rbac/scopes";
 import { IdParamSchema, SuccessResponseSchema } from "@/openapi/schemas";
 import {
@@ -108,7 +109,7 @@ ${DRIVER_HANDOFF}`,
 const getShipmentRoute = defineRoute({
   method: "get",
   path: "/{id}",
-  auth: { scope: SCOPES.ORDERS_READ },
+  auth: { anyOf: [SCOPES.ORDERS_READ, SCOPES.ORDERS_READ_ASSIGNED] },
   tags: ["Shipments"],
   summary: "Get a shipment",
   description: "The shipment with its full history (carrier statuses as reported, and what Wocart concluded from them) and the actions available now.",
@@ -306,6 +307,8 @@ const reportRoute = defineRoute({
 });
 
 const router = new OpenAPIHono<AppContext>();
+
+router.use("/:id/*", guardShipmentId());
 
 // The bulk routes before /{id}, so "bulk" is never read as an id.
 router.openapi(bulkHandoffRoute.route, bulkHandoffRoute.handler);

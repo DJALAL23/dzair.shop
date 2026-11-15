@@ -10,7 +10,7 @@ import type { AppContext } from "@/types";
 import { createTestD1, type TestD1 } from "@/test-utils/d1";
 import * as schema from "@/db/schema";
 import { createEcotrackMockServer, type EcotrackMockServer } from "@/carriers/ecotrack/test/mock-server";
-import { ALL_SCOPES } from "../../../../cod-shared/rbac/scopes";
+import { ALL_SCOPES, SCOPES } from "../../../../cod-shared/rbac/scopes";
 import { SHIPMENT_ACTIONS, scopeForShipmentAction, type ShipmentAction } from "../../../../cod-shared/shipments/actions";
 import type { ShipmentKind } from "../../../../cod-shared/shipments/model";
 import { jsonRequest, seedOrder, seedStore, shipmentsApp, T0 } from "./test/harness";
@@ -79,7 +79,7 @@ describe("each action on a shipment takes the permission the shared table names"
     const needed = scopeForShipmentAction(action, kind);
     const [method, path, body] = REQUEST[action](shipmentOf[kind]);
 
-    scopes = ALL.filter((scope) => scope !== needed);
+    scopes = ALL.filter((scope) => scope !== needed && !(needed === SCOPES.ORDERS_READ && scope === SCOPES.ORDERS_READ_ASSIGNED));
     expect((await jsonRequest(app, method, path, body)).status, `without ${needed}`).toBe(403);
 
     scopes = [needed];

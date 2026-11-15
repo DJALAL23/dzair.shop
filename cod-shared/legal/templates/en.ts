@@ -174,6 +174,9 @@ export const en: LegalTemplatePack = {
         p(
           "The site uses cookies necessary for it to work (such as remembering your cart) and may use measurement tools to understand how our pages and ads perform. You can delete or block cookies from your browser settings, bearing in mind that some site features may be affected.",
         ),
+        p(
+          "When you arrive from an ad or a tracked link, a cookie of this site keeps for 90 days which ad or link brought you and the page you arrived on, so that we know which ads lead to orders. It holds no name, phone number or address.",
+        ),
       ),
       section(
         "How long we keep it",

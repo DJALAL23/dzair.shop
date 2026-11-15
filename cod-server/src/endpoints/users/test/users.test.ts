@@ -71,8 +71,13 @@ describe("createUserSchema", () => {
 
   it("accepts scopes array", () => {
     expect(
-      createUserSchema.safeParse({ ...validBase, scopes: ["orders.read", "products.read"] }).success
+      createUserSchema.safeParse({ ...validBase, scopes: ["orders:read", "products:read"] }).success
     ).toBe(true);
+  });
+
+  it("rejects a permission the platform does not define, and the wildcard", () => {
+    expect(createUserSchema.safeParse({ ...validBase, scopes: ["orders.read"] }).success).toBe(false);
+    expect(createUserSchema.safeParse({ ...validBase, scopes: ["*"] }).success).toBe(false);
   });
 });
 
@@ -140,7 +145,12 @@ describe("userFiltersSchema", () => {
 
 describe("grantScopeSchema", () => {
   it("accepts a valid scope string", () => {
-    expect(grantScopeSchema.safeParse({ scope: "orders.read" }).success).toBe(true);
+    expect(grantScopeSchema.safeParse({ scope: "orders:read" }).success).toBe(true);
+  });
+
+  it("rejects an unknown scope and the wildcard", () => {
+    expect(grantScopeSchema.safeParse({ scope: "orders.read" }).success).toBe(false);
+    expect(grantScopeSchema.safeParse({ scope: "*" }).success).toBe(false);
   });
 
   it("rejects empty scope", () => {

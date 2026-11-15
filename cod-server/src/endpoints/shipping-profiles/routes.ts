@@ -21,6 +21,7 @@ import {
   ListResponseSchema,
 } from "@/openapi/schemas";
 import { LAST_WILAYA_ID } from "../../../../cod-shared/places";
+import { CARRIER_PRICING_MAX_ADD } from "../../../../cod-shared/carriers/profile-from-rates";
 
 const jsonContent = <T extends z.ZodType>(schema: T) => ({
   "application/json": { schema },
@@ -217,7 +218,7 @@ const setProfileRulesRoute = defineRoute({
   tags: ["Shipping Profiles"],
   summary: "Replace wilaya rules",
   description:
-    "Atomically replaces the full rules list for a profile — prior rules are deleted (commune overrides cascade) before new ones are inserted.\n\n" +
+    "Sets the profile's rules to exactly this list, in one transaction. A wilaya that stays keeps its commune overrides (only its prices and switches change); a wilaya left out is removed with its overrides.\n\n" +
     "**Constraints:**\n" +
     "- Each `wilayaId` may appear **at most once** per profile. Duplicates are rejected with `DUPLICATE_WILAYA_RULE`.\n" +
     "- Setting both `homeEnabled: false` and `stopDeskEnabled: false` on a wilaya effectively disables delivery for that wilaya under this profile.\n" +
@@ -310,6 +311,70 @@ const deleteCommuneOverrideRoute = defineRoute({
   handler: handlers.deleteCommuneOverride,
 });
 
+// ─── Copying a delivery company's rates ──────────────────────────────────────
+
+const carrierCopyBodySchema = z.object({
+  companyId: z.string().min(1).openapi({ description: "The delivery company whose rates are copied", example: "company_zr" }),
+  add: z.number().int().min(0).max(CARRIER_PRICING_MAX_ADD).default(0).openapi({ description: "DZD added to every carrier price; 0 copies the carrier's price as it is", example: 100 }),
+  roundTo: z.union([z.literal(0), z.literal(10), z.literal(50), z.literal(100)]).default(0).openapi({ description: "Each price is rounded up to a multiple of this; 0 does not round", example: 50 }),
+});
+
+const WilayaPricesSchema = z.object({
+  homePrice: z.number(),
+  stopDeskPrice: z.number(),
+  homeEnabled: z.boolean(),
+  stopDeskEnabled: z.boolean(),
+  communes: z.number().int().openapi({ description: "Communes with a price or a switch of their own" }),
+});
+
+const CarrierCopyPreviewSchema = z
+  .object({
+    company: z.object({ id: z.string(), name: z.string(), nameAr: z.string(), placesSyncedAt: z.string().nullable().openapi({ description: "When the company's places and prices were last read from its API" }) }),
+    wilayas: z.array(z.object({ wilayaId: z.number().int(), before: WilayaPricesSchema.nullable(), after: WilayaPricesSchema.nullable() })).openapi({ description: "Every wilaya the profile has now or would have, in order; null where it has none (after: null is a wilaya the profile would stop delivering to)" }),
+  })
+  .openapi("CarrierCopyPreview");
+
+const carrierCopyDescription =
+  "Builds the profile's prices from the delivery company's rates as its API last gave them (POST /delivery-companies/{id}/sync-places reads them again): " +
+  "each wilaya takes the company's most common price there plus `add`, rounded up to `roundTo`; a commune priced otherwise gets its own price; " +
+  "home delivery is off where the company does not reach the door; stop desk is on wherever it gives a stop-desk price; a wilaya it does not serve is removed. " +
+  "The profile and the company never follow each other afterwards (ADR 0024). " +
+  "Refused with CARRIER_PLACES_NOT_READ before the company's places are read, and CARRIER_RATES_MISSING when it gives no price.";
+
+const previewCarrierCopyRoute = defineRoute({
+  method: "post",
+  path: "/{id}/carrier-rates/preview",
+  auth: { scope: SCOPES.DELIVERY_MANAGE },
+  tags: ["Shipping Profiles"],
+  summary: "Preview copying a delivery company's rates",
+  description: `${carrierCopyDescription} Writes nothing.`,
+  params: idParams,
+  body: carrierCopyBodySchema,
+  responses: {
+    200: { description: "Each wilaya's prices before and after", content: jsonContent(SuccessResponseSchema(CarrierCopyPreviewSchema)) },
+    404: { description: "Profile or delivery company not found" },
+    422: { description: "CARRIER_PLACES_NOT_READ or CARRIER_RATES_MISSING" },
+  },
+  handler: handlers.previewCarrierCopy,
+});
+
+const copyCarrierRatesRoute = defineRoute({
+  method: "put",
+  path: "/{id}/carrier-rates",
+  auth: { scope: SCOPES.DELIVERY_MANAGE },
+  tags: ["Shipping Profiles"],
+  summary: "Copy a delivery company's rates into the profile",
+  description: `${carrierCopyDescription} Replaces the profile's prices and commune prices in one transaction.`,
+  params: idParams,
+  body: carrierCopyBodySchema,
+  responses: {
+    200: { description: "The profile with its new rules", content: jsonContent(SuccessResponseSchema(ShippingProfileWithRulesSchema)) },
+    404: { description: "Profile or delivery company not found" },
+    422: { description: "CARRIER_PLACES_NOT_READ or CARRIER_RATES_MISSING" },
+  },
+  handler: handlers.copyCarrierRatesIntoProfile,
+});
+
 // ─── Router ───────────────────────────────────────────────────────────────────
 
 const router = new OpenAPIHono<AppContext>();
@@ -324,5 +389,7 @@ router.openapi(setProfileRulesRoute.route, setProfileRulesRoute.handler);
 router.openapi(listCommuneOverridesRoute.route, listCommuneOverridesRoute.handler);
 router.openapi(setCommuneOverrideRoute.route, setCommuneOverrideRoute.handler);
 router.openapi(deleteCommuneOverrideRoute.route, deleteCommuneOverrideRoute.handler);
+router.openapi(previewCarrierCopyRoute.route, previewCarrierCopyRoute.handler);
+router.openapi(copyCarrierRatesRoute.route, copyCarrierRatesRoute.handler);
 
 export default router;

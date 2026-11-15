@@ -94,6 +94,8 @@ export const ERROR_CODES = {
   MISSING_ADDRESS: "MISSING_ADDRESS",
   /** The delivery company's list of places has never been read, so no parcel can be addressed to it yet. */
   CARRIER_PLACES_NOT_READ: "CARRIER_PLACES_NOT_READ",
+  /** The delivery company's places were read, but it gives no price for any of them: there is nothing to build a profile from. */
+  CARRIER_RATES_MISSING: "CARRIER_RATES_MISSING",
   /** The delivery company does not deliver to the order's commune (or not to the door there). */
   PLACE_NOT_SERVED: "PLACE_NOT_SERVED",
   INSUFFICIENT_STOCK: "INSUFFICIENT_STOCK",
@@ -207,6 +209,38 @@ export const ERROR_CODES = {
   USER_NOT_FOUND: "USER_NOT_FOUND",
   DUPLICATE_EMAIL: "DUPLICATE_EMAIL",
   INVALID_ROLE: "INVALID_ROLE",
+  /** An admin cannot turn off their own account or take away their own admin access. */
+  OWN_ACCOUNT: "OWN_ACCOUNT",
+  /** The store must keep at least one active admin. */
+  LAST_ADMIN: "LAST_ADMIN",
+
+  // ============================================================================
+  // BUSINESS LOGIC ERRORS - CONFIRMATION TEAM
+  // ============================================================================
+  /** The member is already on the confirmation team. */
+  ALREADY_TEAM_MEMBER: "ALREADY_TEAM_MEMBER",
+  /** The person is not on the confirmation team. */
+  NOT_TEAM_MEMBER: "NOT_TEAM_MEMBER",
+  /** The member cannot see orders, so they cannot be given one. */
+  NO_ORDER_ACCESS: "NO_ORDER_ACCESS",
+  /** A callback is set only on an order still waiting: new, or the customer not reached. */
+  ORDER_NOT_WAITING: "ORDER_NOT_WAITING",
+  /** That pay rate does not exist. */
+  PAY_RATE_NOT_FOUND: "PAY_RATE_NOT_FOUND",
+
+  // ============================================================================
+  // BUSINESS LOGIC ERRORS - THE STORE'S COSTS
+  // ============================================================================
+  /** That cost does not exist. */
+  COST_NOT_FOUND: "COST_NOT_FOUND",
+  /** That exchange rate does not exist. */
+  EXCHANGE_RATE_NOT_FOUND: "EXCHANGE_RATE_NOT_FOUND",
+  /** A cost with earlier amounts cannot become a one-time cost, nor stop being one. */
+  COST_HAS_HISTORY: "COST_HAS_HISTORY",
+  /** A cost's days must fit: it stops on or after it starts, and a change applies from today at the latest, while it runs. */
+  COST_DATES_INVALID: "COST_DATES_INVALID",
+  /** The cost was changed or deleted by someone else since it was read: nothing was written. */
+  COST_CHANGED: "COST_CHANGED",
   
   // ============================================================================
   // BUSINESS LOGIC ERRORS - OFFERS

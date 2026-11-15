@@ -1,8 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { EVENT_TYPES } from "./catalogue";
-import { isSubscriptionPattern, readSubscription, subscribesTo } from "./subscription";
+import { EVENT_CATALOGUE, EVENT_TYPES } from "./catalogue";
+import { isSubscriptionPattern, readSubscription, subscribesTo, SUBSCRIPTION_PATTERNS_MAX } from "./subscription";
 
 describe("a Subscription", () => {
+  it("can name every pattern there is, a review's subject too, and no more", () => {
+    const every = ["*", ...new Set(EVENT_TYPES.map((type) => `${EVENT_CATALOGUE[type].subject}.*`)), ...EVENT_TYPES];
+    expect(every).toContain("review.*");
+    expect(every.every(isSubscriptionPattern)).toBe(true);
+    expect(SUBSCRIPTION_PATTERNS_MAX).toBe(every.length);
+    expect(subscribesTo(["review.*"], "review.submitted")).toBe(true);
+    expect(subscribesTo(["order.*"], "review.submitted")).toBe(false);
+  });
+
   it("names a type exactly, a whole subject, or everything", () => {
     expect(subscribesTo(["order.confirmed"], "order.confirmed")).toBe(true);
     expect(subscribesTo(["order.confirmed"], "order.cancelled")).toBe(false);

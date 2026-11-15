@@ -15,7 +15,7 @@ The single profile always marked as default — the fallback for any order whose
 _Avoid_: Active profile, global profile
 
 **Product Override**:
-A product's link to a specific profile. At fee resolution, only the FIRST product of an order gets to steer it — later products' overrides are ignored.
+A product's link to a specific profile. At fee resolution every product counts: each brings its own profile (or the Default Profile), and a basket pays the dearest of them there; one profile that cannot deliver there refuses the basket. A store set to "one profile for everything" (`cart_shipping_mode = default_profile`) ignores product profiles.
 _Avoid_: Product pricing, product shipping rule
 
 ### Rules
@@ -29,7 +29,7 @@ Turning off both switches for a wilaya — that profile simply cannot deliver th
 _Avoid_: Closed zone, blackout area
 
 **Rule Replacement**:
-Rules are always replaced in bulk, never patched one by one. Replacement deletes prior rules first — and their Commune Overrides vanish with them.
+A save sets the profile's rules to exactly the list given, in one batch (one transaction). A wilaya that stays keeps its rule and its Commune Overrides — only its prices and switches change; a wilaya left out is removed with its overrides.
 _Avoid_: Rule update, partial edit
 
 ### Commune Overrides
@@ -53,7 +53,7 @@ _Avoid_: Clearing, zeroing out
 ### Fee Resolution
 
 **Fee Resolution**:
-The authoritative computation at online order creation: first-product override else Default Profile → wilaya rule → commune merge → mode check → pick the price for the chosen delivery type.
+The one computation every quote and order uses (`resolveDeliveryFee`): each product's profile else the Default Profile → wilaya rule → commune merge → mode check → the price for the chosen delivery type; the dearest across the basket's profiles; then the free-delivery threshold.
 _Avoid_: Price lookup, fee calculation
 
 **Delivery Not Available**:

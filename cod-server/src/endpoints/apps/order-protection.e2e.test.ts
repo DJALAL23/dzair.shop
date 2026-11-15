@@ -191,6 +191,21 @@ describe("the Spam page", () => {
     expect(JSON.stringify(body)).not.toContain("submission");
   });
 
+  it("shows where a Spam Order came from, the same before and after it is accepted", async () => {
+    const ad = { at: new Date(Date.now() - 3_600_000).toISOString(), params: { utm_source: "facebook", utm_medium: "paid_social", wc_cn: "Été", wc_an: "Robe rouge", wc_ss: "ig", fbclid: "IwAR2F4" }, path: "/products/robe", ref: null };
+    const visit = { at: new Date(Date.now() - 60_000).toISOString(), params: { fbclid: "IwAR9Z" }, path: "/", ref: "l.facebook.com" };
+    const held = await spamOrder(2, { attribution: { first: ad, last: ad, visit } });
+    const source = { channel: "paid_social", platform: "meta", app: "ig", adName: "Robe rouge", campaignName: "Été" };
+    expect((await admin.get(`${BASE}/attempts?outcome=spam`)).body.data[0].source).toEqual(source);
+    expect((await admin.post(`${BASE}/spam/${held.orderId}/rescue`)).status).toBe(201);
+    expect((await admin.get(`${BASE}/attempts?outcome=rescued`)).body.data[0].source).toEqual(source);
+  });
+
+  it("says nothing is known about a Spam Order sent with no touches", async () => {
+    await spamOrder();
+    expect((await admin.get(`${BASE}/attempts?outcome=spam`)).body.data[0].source).toBeNull();
+  });
+
   it("deletes a Spam Order, and only a Spam Order", async () => {
     const held = await spamOrder();
     await d1.db.insert(schema.orderAttempts).values({ id: "other", createdAt: T, phone: PHONE, outcome: "accepted" });
@@ -213,6 +228,23 @@ describe("Rescue", () => {
     expect((await d1.db.select({ inventory: schema.products.inventory }).from(schema.products).get())!.inventory).toBe(3);
     expect(await d1.db.select({ type: schema.businessEvents.type }).from(schema.businessEvents).all()).toEqual([{ type: "order.created" }]);
     expect(await attempt(held.orderId)).toMatchObject({ outcome: "rescued", orderId: order.id, orderNumber: held.orderNumber, submissionJson: null });
+  });
+
+  it("keeps the attribution of the submission it holds", async () => {
+    const last = { at: new Date(Date.now() - 2 * 86_400_000).toISOString(), params: { utm_source: "facebook", utm_medium: "paid_social", utm_content: "120200000000000003", fbclid: "IwAR2F4" }, path: "/lp/robe-ete", ref: null };
+    const held = await spamOrder(2, { attribution: { first: null, last, visit: null } });
+    const { status, body } = await admin.post(`${BASE}/spam/${held.orderId}/rescue`);
+    expect(status).toBe(201);
+    expect(await d1.db.select().from(schema.orderAttribution).get()).toMatchObject({ orderId: body.data.orderId, method: "captured", channel: "paid_social", capturedAt: last.at, platform: "meta", adId: "120200000000000003", clickId: "IwAR2F4", landingPath: "/lp/robe-ete" });
+  });
+
+  it("counts the ad's seven days from when the shopper submitted, not from the Rescue", async () => {
+    const day = 86_400_000;
+    const last = { at: new Date(Date.now() - 9 * day).toISOString(), params: { utm_source: "facebook", utm_medium: "paid_social", utm_content: "120200000000000003" }, path: "/", ref: null };
+    const held = await spamOrder(2, { attribution: { first: null, last, visit: null } });
+    await d1.db.update(schema.orderAttempts).set({ createdAt: new Date(Date.now() - 8 * day).toISOString() }).where(eq(schema.orderAttempts.id, held.orderId));
+    expect((await admin.post(`${BASE}/spam/${held.orderId}/rescue`)).status).toBe(201);
+    expect(await d1.db.select().from(schema.orderAttribution).get()).toMatchObject({ channel: "paid_social", adId: "120200000000000003" });
   });
 
   it("uses today's price, not the one kept", async () => {

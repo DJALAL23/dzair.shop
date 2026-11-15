@@ -155,7 +155,7 @@ export function ConsumerRow({ consumer, canManage, onChanged, onIssued }: { cons
         <Dialog
           placement="end"
           onClose={() => setShowDeliveries(false)}
-          icon={native ? <BarChart2 size={16} aria-hidden="true" /> : <Webhook size={16} aria-hidden="true" />}
+          icon={native ? <BarChart2 size={17} aria-hidden="true" /> : <Webhook size={17} aria-hidden="true" />}
           title={t("deliveries.title", { name: consumer.name })}
           description={consumer.webhook ? <bdi dir="ltr" className="break-all font-mono text-xs">{consumer.webhook.url}</bdi> : undefined}
         >
@@ -219,7 +219,7 @@ function DeliveriesList({ consumer, canManage, onChanged }: { consumer: EventCon
   }
 
   return (
-    <div className="mt-5">
+    <div>
       <div role="group" className="inline-flex gap-0.5 rounded-lg bg-muted p-0.5">
         <Button variant={onlyDead ? "ghost" : "secondary"} size="sm" aria-pressed={!onlyDead} onClick={() => setOnlyDead(false)}>{t("actions.all")}</Button>
         <Button variant={onlyDead ? "secondary" : "ghost"} size="sm" aria-pressed={onlyDead} onClick={() => setOnlyDead(true)}>{t("actions.only_dead")}</Button>

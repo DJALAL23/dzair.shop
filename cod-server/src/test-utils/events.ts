@@ -69,6 +69,9 @@ export const sampleOrder: OrderSnapshot = {
   freeDeliveryOffer: null,
   notes: null,
   customFields: [{ id: "f-1", label: "Taille", type: "select", value: "M" }],
+  unansweredCalls: 0,
+  callbackAt: null,
+  assignee: { id: "u-2", name: "Karim" },
 };
 
 export const sampleShipment: ShipmentSnapshot = {

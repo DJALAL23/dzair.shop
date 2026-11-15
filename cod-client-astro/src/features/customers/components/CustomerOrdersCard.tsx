@@ -56,7 +56,7 @@ export function CustomerOrdersCard({ orders, locale }: CustomerOrdersCardProps) 
                   <span className="text-sm font-semibold">
                     {formatMoney(order.price, locale)}
                   </span>
-                  <StageBadge stage={order.stage} />
+                  <StageBadge stage={order.stage} calls={order.unansweredCalls} />
                 </div>
               </div>
             ))}
@@ -95,7 +95,7 @@ export function CustomerOrdersCard({ orders, locale }: CustomerOrdersCardProps) 
                       {formatMoney(order.price, locale)}
                     </TableCell>
                     <TableCell className="text-center">
-                      <StageBadge stage={order.stage} />
+                      <StageBadge stage={order.stage} calls={order.unansweredCalls} />
                     </TableCell>
                     <TableCell className="text-end text-xs text-muted-foreground">
                       {new Intl.DateTimeFormat(

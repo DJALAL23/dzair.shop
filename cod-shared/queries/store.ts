@@ -45,6 +45,7 @@ import {
   customers,
   orders,
   orderProducts,
+  orderAttribution,
   shippingProfiles,
   shippingRules,
   wilayas,
@@ -59,10 +60,13 @@ import {
 import type { AppDb } from "../db/client";
 import type { Author } from "../events/actor";
 import { recordEvent } from "../events/record";
+import { assignedOnCreate, assignmentOnCreate } from "../team/assign";
 import { orderSnapshot } from "../events/snapshots";
 import { deriveDescriptionPlain } from "./products";
 import { resolveDeliveryFee } from "./shipping-resolution";
 import { normalizeOrderLines } from "./cart";
+import { capturedAttributionRow } from "../attribution/resolve";
+import type { CapturedTouches } from "../attribution/model";
 import { resolvePublicTracking } from "./tracking-config";
 import { chunkIds } from "./d1-limits";
 import type { MediaDelivery } from "../media/delivery";
@@ -131,6 +135,10 @@ export interface StoreOrderData {
   customFieldAnswers?: CustomFieldAnswer[];
   fbc?: string;
   fbp?: string;
+  /** The visit's touches, already read by `parseCapturedTouches`: the order's `order_attribution` row comes from them. */
+  attribution?: CapturedTouches | null;
+  /** When the shopper submitted the order, for one placed later (a Rescue): the ad credit window counts from it. Never from the wire. */
+  submittedAt?: string;
   ipAddress?: string;
   userAgent?: string;
   /** The checkout attempt's key: an order already placed with it is never placed again (migration 0062). */
@@ -896,6 +904,13 @@ export async function getDeliveryFee(
   });
 }
 
+/**
+ * The default profile's price per wilaya, for a page that lists delivery
+ * prices. Never a product's or an order's price: a product may have its own
+ * profile and a commune its own price, so a theme prices from the quote
+ * (`resolveDeliveryFee` behind /store/cart/validate). A wilaya the default
+ * profile does not deliver to is left out.
+ */
 export async function getShippingRates(db: AppDb) {
   const profile = await db
     .select()
@@ -911,7 +926,9 @@ export async function getShippingRates(db: AppDb) {
     .all();
 
   return Object.fromEntries(
-    rules.map((r) => [r.wilayaId, { home: r.homePrice, stopDesk: r.stopDeskPrice }]),
+    rules
+      .filter((r) => r.homeEnabled || r.stopDeskEnabled)
+      .map((r) => [r.wilayaId, { home: r.homePrice, stopDesk: r.stopDeskPrice }]),
   );
 }
 
@@ -1066,6 +1083,7 @@ export async function createStoreOrder(
   }));
 
   const finalDeliveryFee = delivery.fee;
+  const attribution = capturedAttributionRow(id, data.attribution ?? null, { now, orderedAt: data.submittedAt });
 
   // ── Reward lines ───────────────────────────────────────────────────────────
   //
@@ -1168,6 +1186,7 @@ export async function createStoreOrder(
         checkoutKey: data.checkoutKey ?? null,
         locale: data.locale,
         customFieldsJson: serializeCustomFieldAnswers(data.customFieldAnswers ?? []),
+        ...assignmentOnCreate(CHECKOUT, now),
       }),
     ];
 
@@ -1179,7 +1198,10 @@ export async function createStoreOrder(
       statements.push(...buildDeductStatements(db, input));
     }
 
+    if (attribution) statements.push(db.insert(orderAttribution).values(attribution));
+
     statements.push(recordEvent(db, { type: "order.created", subjectId: id, orderId: id, occurredAt: now, ...CHECKOUT, data: { order: orderSnapshot(id) } }));
+    statements.push(assignedOnCreate(db, id, now, CHECKOUT));
 
     try {
       await db.batch(statements as [BatchStatement, ...BatchStatement[]]);

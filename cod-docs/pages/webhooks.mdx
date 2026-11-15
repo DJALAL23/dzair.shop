@@ -141,7 +141,13 @@ The body is the Business Event, exactly as the [Event Log API](/api) returns it:
           "type": "select",
           "value": "M"
         }
-      ]
+      ],
+      "unansweredCalls": 0,
+      "callbackAt": null,
+      "assignee": {
+        "id": "7b9d1f3a-5c7e-4a9b-8d1f-3a5c7e9b1d3f",
+        "name": "Karim"
+      }
     },
     "previousStatus": "new"
   }
@@ -153,14 +159,16 @@ The body is the Business Event, exactly as the [Event Log API](/api) returns it:
 | `id` | The event's unique id. Recognise an event you already handled by it. |
 | `sequence` | Its position in the store's Event Log: a later event has a higher number. |
 | `type`, `version` | The Event Type and the version of its `data`. |
-| `subject` | What the event is about: an order or a shipment. |
+| `subject` | What the event is about: an order, a shipment or a review. |
 | `orderId` | The order it concerns. |
 | `occurredAt` | When it happened: a carrier may report a delivery hours later. |
 | `recordedAt` | When the store recorded it. |
 | `actor`, `origin` | Who caused it (staff, AI agent, shopper, carrier, system) and through what (dashboard, API, storefront, carrier webhook…). |
-| `data` | The order, and the shipment for a delivery event, as they were when it happened. |
+| `data` | The order, with the shipment for a delivery event and the review for a review event, as they were when it happened. |
 
 Money is a decimal string with its currency: `{ "amount": "9000.00", "currency": "DZD" }`. An event never exceeds 64 KB.
+
+Every order also says where its confirmation stands: `unansweredCalls` (calls to the customer without an answer, so an order on no answer is at Call 1, Call 2…), `callbackAt` (when to call the customer back, or `null`) and `assignee` (the confirmation team member who has it, or `null`). An event recorded before these fields existed does not carry them, so read each one as optional.
 
 ## Verify the signature
 
@@ -318,12 +326,17 @@ An event delivered again keeps its id, so your endpoint recognises it.
 | `order.created` | An order was placed: on the store, in the dashboard, through the API or by an AI agent. |
 | `order.updated` | An order's customer, destination or notes were edited. |
 | `order.confirmed` | The customer confirmed the order, usually on the phone. |
-| `order.unreachable` | The customer could not be reached to confirm the order. |
+| `order.unreachable` | A call to confirm the order had no answer; it is sent again for each further call without an answer, and the order's unansweredCalls says which call it was. |
 | `order.preparing` | The order is being prepared. |
 | `order.ready` | The order is packed and ready to hand to delivery. |
 | `order.cancelled` | The order was cancelled. |
 | `order.line_returned` | Units of an order line were refused at the door and came back. |
 | `order.deleted` | The order was deleted; the event carries it as it was. |
+| `order.assigned` | The order was given to a member of the confirmation team: by the store's rule, by a manager, or taken back from a member who did not act on it in time. |
+| `order.unassigned` | A manager took the order back from its team member; it is with nobody now. |
+| `order.callback_scheduled` | A time was set to call the customer back, or the time set was moved. |
+| `order.callback_cleared` | The time set to call the customer back was removed. Confirming or cancelling the order removes it too, without this event. |
+| `order.callback_due` | The time set to call the customer back has come and the order still waits; sent once for each time set. |
 | `shipment.handed_off` | The order was handed to a carrier or to one of the store's drivers. |
 | `shipment.out_for_delivery` | The parcel left for the customer. |
 | `shipment.delivery_failed` | An attempt to deliver the parcel failed. |
@@ -332,6 +345,7 @@ An event delivered again keeps its id, so your endpoint recognises it.
 | `shipment.returned` | The parcel is back with the store. |
 | `shipment.cancelled` | The shipment was cancelled before it was delivered. |
 | `shipment.voided` | The handoff was undone: the order is no longer with delivery. |
+| `review.submitted` | A customer reviewed a product of their delivered order: published at once, or waiting for approval, as the store's review settings say. |
 
 Each type's full schema is in the [API reference](/api) under Webhooks.
 

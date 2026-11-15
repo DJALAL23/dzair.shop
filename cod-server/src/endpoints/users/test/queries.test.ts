@@ -11,7 +11,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { createUser } from "../queries";
 
-vi.mock("@/rbac/permissions", () => ({ clearScopeCache: vi.fn() }));
 vi.mock("@/db", () => ({ getDb: vi.fn(() => ({})) }));
 
 import { users, userScopes, accounts } from "@/db/schema";

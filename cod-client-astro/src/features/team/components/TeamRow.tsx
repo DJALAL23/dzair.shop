@@ -1,4 +1,4 @@
-import { Activity, KeyRound, MoreHorizontal, Shield } from "lucide-react";
+import { Activity, KeyRound, MoreHorizontal, Power, PowerOff, Shield } from "lucide-react";
 import {
   Badge,
   DropdownItem,
@@ -25,14 +25,18 @@ function StatusBadge({ status }: { status: TeamMember["status"] }) {
 
 function MemberActionsMenu({
   member,
+  meId,
   onView,
   onManageScopes,
   onRotateApiKey,
+  onAccess,
 }: {
   member: TeamMember;
+  meId?: string;
   onView: (member: TeamMember) => void;
   onManageScopes: (member: TeamMember) => void;
   onRotateApiKey: (member: TeamMember) => void;
+  onAccess: (member: TeamMember, status: TeamMember["status"]) => void;
 }) {
   const t = useT("team");
   const common = useT("common");
@@ -45,23 +49,39 @@ function MemberActionsMenu({
         <Activity size={15} />
         {t("view_activity")}
       </DropdownItem>
-      <DropdownItem onClick={() => onManageScopes(member)}>
-        <Shield size={15} />
-        {t("manage_permissions")}
-      </DropdownItem>
+      {member.role !== "admin" && (
+        <DropdownItem onClick={() => onManageScopes(member)}>
+          <Shield size={15} />
+          {t("manage_permissions")}
+        </DropdownItem>
+      )}
       <DropdownItem onClick={() => onRotateApiKey(member)}>
         <KeyRound size={15} />
         {t("rotate_api_key")}
       </DropdownItem>
+      {member.id !== meId &&
+        (member.status === "active" ? (
+          <DropdownItem danger onClick={() => onAccess(member, "inactive")}>
+            <PowerOff size={15} />
+            {t("member.deactivate")}
+          </DropdownItem>
+        ) : (
+          <DropdownItem onClick={() => onAccess(member, "active")}>
+            <Power size={15} />
+            {t("member.reactivate")}
+          </DropdownItem>
+        ))}
     </DropdownMenu>
   );
 }
 
 interface TeamRowProps {
   member: TeamMember;
+  meId?: string;
   onView: (member: TeamMember) => void;
   onManageScopes: (member: TeamMember) => void;
   onRotateApiKey: (member: TeamMember) => void;
+  onAccess: (member: TeamMember, status: TeamMember["status"]) => void;
 }
 
 function memberHref(member: TeamMember) {

@@ -23,6 +23,13 @@ export interface MessageLanguage {
     refused: string;
     home: string;
     stopDesk: string;
+    /** The confirmation team member who has the order. */
+    assignee: string;
+    /** Before the time a removed call back was set for. */
+    callbackWas: string;
+    voiceNote: string;
+    reviewPublished: string;
+    reviewPending: string;
   };
   fields: Record<OrderField, string>;
   /** What the bot says once a chat is connected. */

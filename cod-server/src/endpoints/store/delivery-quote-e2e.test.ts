@@ -408,3 +408,68 @@ describe("POST /store/cart/validate — a product form's quote is what its order
     expect((await orderForm(form, HOME)).status).toBe(400);
   });
 });
+
+// ─── A product on its own shipping profile ──────────────────────────────────
+//
+// A merchant keeps a second profile with a carrier's prices (ZR Express, say)
+// and sets it on a product. That product is quoted and charged the profile's
+// prices — from its own page, in a basket, home and stop desk — and only where
+// that profile delivers, whatever the store's default profile says.
+
+describe("a product on its own shipping profile is quoted and charged that profile's prices", () => {
+  async function zrExpressProduct() {
+    const { profileId: defaultProfile } = await seedProfile(true, 600, 300);
+    await harness.db.insert(schema.shippingRules).values({ id: uid("rule"), profileId: defaultProfile, wilayaId: UNSERVED.wilayaId, homePrice: 700, stopDeskPrice: 400, homeEnabled: true, stopDeskEnabled: true, createdAt: NOW() });
+    const { profileId: zr } = await seedProfile(false, 950, 550);
+    return { zr, product: await seedProduct(2500, zr) };
+  }
+
+  it("from its own page, home and stop desk", async () => {
+    const { product } = await zrExpressProduct();
+    await expectFormQuoteIsCharged({ productId: product, productName: "Robe", quantity: 1 }, 2500, 950);
+    const quoted = await quoteForm({ productId: product, productName: "Robe" }, { ...HOME, deliveryType: "stop_desk" });
+    expect(quoted.json.data.delivery).toEqual({ available: true, fee: 550, total: 3050 });
+    const placed = await orderForm({ productId: product, productName: "Robe" }, { ...HOME, deliveryType: "stop_desk" });
+    expect(placed.json.data.deliveryFee).toBe(550);
+  });
+
+  it("in a basket", async () => {
+    const { product } = await zrExpressProduct();
+    await expectQuoteIsCharged([{ productId: product, quantity: 2 }], HOME, 950);
+  });
+
+  it("only where its profile delivers, even where the default profile does", async () => {
+    const { product } = await zrExpressProduct();
+    const other = await seedProduct(2500);
+    const there: Destination = { ...UNSERVED, deliveryType: "home" };
+    expect((await quote([{ productId: other, quantity: 1 }], there)).json.data.delivery).toEqual({ available: true, fee: 700, total: 3200 });
+    expect((await quote([{ productId: product, quantity: 1 }], there)).json.data.delivery).toEqual({ available: false, fee: null, total: null });
+    const placed = await orderForm({ productId: product, productName: "Robe" }, there);
+    expect(placed.status).toBe(422);
+    expect(placed.json.code).toBe("DELIVERY_NOT_AVAILABLE");
+  });
+
+  it("back at the default prices once the product leaves the profile, or the profile is deleted", async () => {
+    const { zr, product } = await zrExpressProduct();
+    await harness.db.update(schema.products).set({ shippingProfileId: null }).where(eq(schema.products.id, product)).run();
+    expect((await quoteForm({ productId: product, productName: "Robe" }, HOME)).json.data.delivery.fee).toBe(600);
+    await harness.db.update(schema.products).set({ shippingProfileId: zr }).where(eq(schema.products.id, product)).run();
+    expect((await quoteForm({ productId: product, productName: "Robe" }, HOME)).json.data.delivery.fee).toBe(950);
+    await harness.db.delete(schema.shippingRules).where(eq(schema.shippingRules.profileId, zr)).run();
+    await harness.db.delete(schema.shippingProfiles).where(eq(schema.shippingProfiles.id, zr)).run();
+    expect((await quoteForm({ productId: product, productName: "Robe" }, HOME)).json.data.delivery.fee).toBe(600);
+  });
+});
+
+describe("GET /store/shipping-rates — the default profile's list of prices", () => {
+  it("leaves out a wilaya the default profile does not deliver to, and lists the others with their prices", async () => {
+    const { profileId } = await seedProfile(true, 600, 300);
+    await harness.db.insert(schema.shippingRules).values([
+      { id: uid("rule"), profileId, wilayaId: 31, homePrice: 700, stopDeskPrice: 400, homeEnabled: false, stopDeskEnabled: false, createdAt: NOW() },
+      { id: uid("rule"), profileId, wilayaId: 9, homePrice: 500, stopDeskPrice: 350, homeEnabled: false, stopDeskEnabled: true, createdAt: NOW() },
+    ]);
+    const res = await app.request("/store/shipping-rates");
+    expect(res.status).toBe(200);
+    expect(((await res.json()) as any).data).toEqual({ "9": { home: 500, stopDesk: 350 }, "16": { home: 600, stopDesk: 300 } });
+  });
+});

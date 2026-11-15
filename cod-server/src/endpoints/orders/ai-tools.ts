@@ -15,7 +15,11 @@ import {
   ORDER_STATUSES,
 } from "./validation";
 import type { AppDb } from "@/db";
-import { agentAuthorOf, type McpProps } from "@/mcp/props";
+import { actorOf, agentAuthorOf, type McpProps } from "@/mcp/props";
+import { ownOrdersOnly } from "@/lib/order-visibility";
+import { SCOPES } from "../../../../cod-shared/rbac/scopes";
+import { hasPermission } from "../../../../cod-shared/rbac/utils";
+import { orderVisibility } from "../../../../cod-shared/team/visibility";
 import { toolOutput, timestampSchema } from "@/lib/tool-output-schema";
 import { toolId } from "@/lib/tool-input";
 import { LAST_WILAYA_ID } from "../../../../cod-shared/places";
@@ -158,7 +162,7 @@ export const ORDER_TOOL_OUTPUT_SCHEMAS: Record<string, z.ZodType> = {
  * ─── Status lifecycle (cod-shared/orders/lifecycle.ts) ──────────────────────
  *   new → confirmed | unreachable | cancelled
  *   confirmed → preparing | ready | unreachable | cancelled
- *   unreachable → confirmed | cancelled
+ *   unreachable → confirmed | unreachable | cancelled (each call without an answer is one more)
  *   preparing → ready | cancelled
  *   ready → cancelled
  *   cancelled: terminal
@@ -188,7 +192,9 @@ export const ORDER_TOOL_OUTPUT_SCHEMAS: Record<string, z.ZodType> = {
  * - Layer 1 (LLM-level): Permissive input schema accepts any object to prevent SDK crashes
  * - Layer 2 (App-level): Strict validation inside execute() with graceful error handling
  */
-export const getOrderTools = (db: AppDb, props: McpProps) => ({
+export const getOrderTools = (db: AppDb, props: McpProps) => ownOrdersOnly(orderTools(db, props), db, orderVisibility(actorOf(props)));
+
+const orderTools = (db: AppDb, props: McpProps) => ({
 
   listOrders: tool({
     description:
@@ -214,7 +220,8 @@ export const getOrderTools = (db: AppDb, props: McpProps) => ({
         };
       }
       try {
-        const orders = await queries.getAllOrders(db, parsed.data);
+        const own = orderVisibility(actorOf(props));
+        const orders = await queries.getAllOrders(db, own.kind === "assigned" ? { ...parsed.data, assigneeId: own.userId } : parsed.data);
         return {
           success: true,
           count: orders.length,
@@ -271,7 +278,7 @@ export const getOrderTools = (db: AppDb, props: McpProps) => ({
         };
       }
       try {
-        const order = await loadOrderDetail(db, parsed.data.orderId);
+        const order = await loadOrderDetail(db, parsed.data.orderId, { withCosts: hasPermission(actorOf(props).scopes, SCOPES.FINANCE_READ) });
         if (!order) {
           return { success: false, error: `Order not found with ID: ${parsed.data.orderId}` };
         }
@@ -408,7 +415,8 @@ export const getOrderTools = (db: AppDb, props: McpProps) => ({
       "Updates an order's processing status. Required: orderId (ID), status. " +
       "Statuses: new, confirmed, unreachable, preparing, ready, cancelled. " +
       "Transitions: new → confirmed|unreachable|cancelled; confirmed → preparing|ready|unreachable|cancelled; " +
-      "unreachable → confirmed|cancelled; preparing → ready|cancelled; ready → cancelled; cancelled is terminal. " +
+      "unreachable → confirmed|unreachable|cancelled; preparing → ready|cancelled; ready → cancelled; cancelled is terminal. " +
+      "Each move to unreachable is one more call without an answer (the order's unansweredCalls: Call 1, Call 2, Call 3); nothing cancels the order on its own. " +
       "Refused once the order has a shipment — delivery is the shipment's. " +
       "Cancelling restores inventory for tracked products and rolls back the customer's spend.",
     inputSchema: z.object({}).passthrough(), // Layer 1: Permissive input

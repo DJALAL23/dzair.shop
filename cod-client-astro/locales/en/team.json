@@ -55,7 +55,7 @@
   "api_key_revoked": "API key revoked successfully",
   "api_key_revoke_failed": "Failed to revoke API key",
   "invite_dialog": {
-    "title": "Invite new user",
+    "title": "Invite a team member",
     "name": "Name",
     "name_placeholder": "Enter user name",
     "email": "Email",
@@ -64,10 +64,10 @@
     "cancel": "Cancel",
     "send_invite": "Send invite",
     "sending": "Sending...",
-    "success": "Invite sent successfully",
+    "success": "Invite sent",
     "error": "Failed to send invite",
     "validation_error": "Please fill in all required fields",
-    "description": "Onboard new team member",
+    "description": "Add someone to your team and choose what they can do.",
     "role_help": "Admins can do everything. Staff get only the permissions you tick below.",
     "language_help": "The language of the invitation email. It does not change the dashboard language."
   },
@@ -132,7 +132,21 @@
       "event_consumer.updated": "Edited a webhook",
       "event_consumer.deleted": "Deleted a webhook",
       "event_consumer.secret_rotated": "Changed a webhook's signing secret",
-      "event_consumer.tested": "Sent a test event to a webhook"
+      "event_consumer.tested": "Sent a test event to a webhook",
+      "order.callback_set": "Set when to call a customer back",
+      "team.member_added": "Added someone to the confirmation team",
+      "team.member_removed": "Took someone off the confirmation team",
+      "team.receiving_changed": "Turned a member's new orders on or off",
+      "team.settings_updated": "Changed how new orders are shared",
+      "team.pay_set": "Set a member's pay",
+      "team.pay_removed": "Removed a pay rate",
+      "user.deactivated": "Deactivated a member",
+      "user.reactivated": "Reactivated a member",
+      "finance.cost_added": "Added a cost",
+      "finance.cost_changed": "Changed a cost",
+      "finance.cost_removed": "Deleted a cost",
+      "finance.rate_set": "Set an exchange rate",
+      "finance.rate_removed": "Removed an exchange rate"
     },
     "table": {
       "action": "Action",
@@ -148,12 +162,14 @@
     "cancel": "Cancel",
     "save_changes": "Save changes",
     "saving": "Saving...",
-    "success": "Permissions updated successfully",
+    "success": "Permissions saved",
     "error": "Failed to update permissions",
-    "will_grant": "Will grant",
-    "will_revoke": "Will revoke",
-    "security_warning": "Granting broad scopes may affect system security",
-    "admin_full_access": "Admin users have all permissions by default"
+    "will_grant": "Will add",
+    "will_revoke": "Will remove",
+    "security_warning": "Give each person only what their work needs.",
+    "admin_full_access": "Admins can do everything in the store, so there is nothing to choose.",
+    "select_all": "Select all",
+    "clear_all": "Clear"
   },
   "scope_categories": {
     "dashboard": "Dashboard",
@@ -177,6 +193,8 @@
     "mcp": "AI agents (MCP)",
     "apps": "Apps",
     "integrations": "Integrations",
+    "team": "Confirmation team",
+    "finance": "Finance",
     "settings": "Settings"
   },
   "scope_actions": {
@@ -188,13 +206,14 @@
     "assign": "Assign",
     "manage": "Manage",
     "dispatch": "Dispatch",
-    "team": "Team"
+    "team": "Team",
+    "read_assigned": "Only their own"
   },
   "invite_dialog_extra": {
     "permissions_label": "Permissions",
     "n_selected_one": "{count} selected",
     "n_selected_other": "{count} selected",
-    "admin_full_access": "Admins have full access to all features — no scope selection needed.",
+    "admin_full_access": "Admins can do everything in the store, so there is nothing to choose.",
     "api_key_label": "API key",
     "temp_password_label": "Temporary password",
     "api_key_warning": "This API key will not be shown again. Copy it now and share it securely with the team member.",
@@ -212,5 +231,21 @@
   "error_generic": "Something went wrong. Please try again.",
   "count_one": "{count} member",
   "count_other": "{count} members",
-  "scope_app": "{app} · {action}"
+  "scope_app": "{app} · {action}",
+  "member": {
+    "admin_everything": "Admins can do everything in the store.",
+    "no_permissions": "No permissions yet. They can sign in, but see nothing until you give them some.",
+    "access_title": "Access",
+    "access_on": "Can sign in, and their API key works.",
+    "access_off": "Can't sign in, and their API key is refused. Their orders, activity and pay are kept.",
+    "you": "This is your account.",
+    "deactivate": "Deactivate",
+    "reactivate": "Reactivate",
+    "deactivate_title": "Deactivate {name}?",
+    "deactivate_body": "They are signed out at once and can no longer sign in, and their API key stops working. Orders still with them go to the rest of your confirmation team, or wait for you to assign them. Their activity and pay are kept, and you can reactivate them at any time.",
+    "deactivated": "{name} is deactivated",
+    "reactivated": "{name} is active again"
+  },
+  "error_own_account": "You can't deactivate your own account or remove your own admin access.",
+  "error_last_admin": "Your store needs at least one active admin."
 }

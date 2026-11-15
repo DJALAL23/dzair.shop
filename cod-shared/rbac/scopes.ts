@@ -14,8 +14,10 @@ export const SCOPES = {
   DASHBOARD_VIEW: "dashboard:view",
   
   // Orders
-  /** View orders list and order details */
+  /** View every order: the list and each order's details */
   ORDERS_READ: "orders:read",
+  /** View only the orders assigned to you, and act only on them (a confirmation team member) */
+  ORDERS_READ_ASSIGNED: "orders:read_assigned",
   /** Create new orders */
   ORDERS_CREATE: "orders:create",
   /** Update order status and details */
@@ -87,6 +89,18 @@ export const SCOPES = {
   /** Adjust stock quantities */
   STOCK_MANAGE: "stock:manage",
 
+
+  // Confirmation team (cod-shared/team)
+  /** See the confirmation team: who takes orders, who is receiving them, and each member's results */
+  TEAM_READ: "team:read",
+  /** Choose who is on the team and how new orders are shared out, and assign or take back any order */
+  TEAM_MANAGE: "team:manage",
+
+  // Finance
+  /** See what sales cost and earn: product costs, the team's pay, and profit */
+  FINANCE_READ: "finance:read",
+  /** Set product costs on orders, the team's pay, the store's costs and exchange rates */
+  FINANCE_MANAGE: "finance:manage",
 
   // Settings
   /** View settings pages */
@@ -223,6 +237,7 @@ export const SCOPE_CATEGORIES = {
     label: "Orders",
     scopes: [
       SCOPES.ORDERS_READ,
+      SCOPES.ORDERS_READ_ASSIGNED,
       SCOPES.ORDERS_CREATE,
       SCOPES.ORDERS_UPDATE,
       SCOPES.ORDERS_DELETE,
@@ -338,6 +353,14 @@ export const SCOPE_CATEGORIES = {
   integrations: {
     label: "Integrations",
     scopes: [SCOPES.INTEGRATIONS_READ, SCOPES.INTEGRATIONS_MANAGE],
+  },
+  team: {
+    label: "Confirmation team",
+    scopes: [SCOPES.TEAM_READ, SCOPES.TEAM_MANAGE],
+  },
+  finance: {
+    label: "Finance",
+    scopes: [SCOPES.FINANCE_READ, SCOPES.FINANCE_MANAGE],
   },
   settings: {
     label: "Settings",

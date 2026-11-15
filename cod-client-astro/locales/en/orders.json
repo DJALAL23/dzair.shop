@@ -3,14 +3,13 @@
   "new_order_button": "New order",
   "load_error": "Could not load orders",
   "table": {
-    "order_number": "Order #",
     "customer": "Customer",
     "phone": "Phone",
     "status": "Status",
-    "delivery": "Delivery",
     "date": "Date",
     "total": "Total",
-    "stage": "Stage"
+    "stage": "Stage",
+    "order": "Order"
   },
   "actions": {
     "view": "View",
@@ -60,7 +59,12 @@
     "clear": "Clear filters",
     "protection": "Protection",
     "any_protection": "Any order",
-    "flagged": "Flagged"
+    "flagged": "Flagged",
+    "button": "Filters",
+    "button_on_one": "Filters, {count} on",
+    "button_on_other": "Filters, {count} on",
+    "title": "Filter orders",
+    "show": "Show orders"
   },
   "type": {
     "online": "Online",
@@ -213,6 +217,9 @@
     "delivered": "Delivered",
     "returns": "Returns",
     "cancelled": "Cancelled",
+    "callbacks": "Callbacks",
+    "callbacks_due_one": "{count} due",
+    "callbacks_due_other": "{count} due",
     "attention": "Needs attention",
     "attention_count_one": "{count} needs you",
     "attention_count_other": "{count} need you",
@@ -228,9 +235,10 @@
     "returns": "No returns — good news",
     "cancelled": "No cancelled order",
     "attention": "Nothing needs you right now",
+    "callbacks": "No customer to call back",
     "archived": "No archived orders"
   },
-  "search_placeholder": "Order number, customer, phone or tracking number…",
+  "search_placeholder": "Order, customer, phone or tracking…",
   "load_more": "Show more orders",
   "attention": {
     "label": "Needs your attention",
@@ -241,17 +249,20 @@
   },
   "move": {
     "confirmed": "Confirm order",
-    "unreachable": "No answer",
+    "confirmed_short": "Confirm",
     "preparing": "Start preparing",
     "ready": "Ready to ship",
     "cancelled": "Cancel order",
     "cancel_title": "Cancel order {order}?",
     "cancel_description": "Its products go back to stock and the customer's spend is reversed. A cancelled order cannot be reopened.",
     "done": "{order}: {status}",
-    "failed": "The order could not be updated"
+    "failed": "The order could not be updated",
+    "changed": "This order was updated meanwhile. Check where it stands, then try again."
   },
   "next": {
-    "title": "Next step"
+    "title": "Next step",
+    "more": "More actions",
+    "outcomes": "Result of the call"
   },
   "progress": {
     "title": "Order progress",
@@ -354,7 +365,6 @@
   },
   "bulk": {
     "select": "Select",
-    "select_hint": "Select orders to ship",
     "as_asked": "Each order travels as its customer asked (home or stop desk).",
     "no_carrier": "No delivery company can take all these parcels",
     "result_title": "Shipping done",
@@ -377,7 +387,9 @@
     "driver_desk_to_door_one": "{count} customer chose a stop desk; your driver brings that parcel to their address.",
     "driver_desk_to_door_other": "{count} customers chose a stop desk; your driver brings those parcels to their addresses.",
     "select_all": "Select every order ready to ship",
-    "limit": "One shipment takes at most {count} orders; the first {count} are selected."
+    "limit": "One shipment takes at most {count} orders; the first {count} are selected.",
+    "bar": "Selected orders",
+    "clear": "Clear selection"
   },
   "parcel": {
     "title": "Change the parcel",
@@ -443,6 +455,8 @@
     "of_other": "of {count}",
     "count_one": "{count} unit refused at the door",
     "count_other": "{count} units refused at the door",
+    "restocked_one": "{count} unit back in stock",
+    "restocked_other": "{count} units back in stock",
     "saved_one": "{count} unit of {product} back in stock",
     "saved_other": "{count} units of {product} back in stock",
     "error_not_delivered": "Refused units are recorded once the order is delivered.",
@@ -469,5 +483,116 @@
     "error_has_shipment": "This order has been handed to delivery, so it can no longer be deleted. Archive it once its delivery has ended.",
     "error_not_finished": "Only a finished order can be archived: cancel it, or wait until its delivery has ended.",
     "error_changed": "The order changed meanwhile. Reload it and try again."
+  },
+  "source": {
+    "title": "Source",
+    "column": "Source",
+    "unknown": "Source unknown",
+    "unknown_hint": "We have no record of how the shopper arrived. Usually their browser blocked or cleared it, or they used a private window. It can also be an order from before source tracking, or a theme that doesn't share it yet.",
+    "entered_note": "Entered by your team, so there is no shopper visit to show.",
+    "headline": {
+      "paid": "{network} ad",
+      "organic_social": "{network} (not an ad)",
+      "organic_search": "{network} search",
+      "email": "Email",
+      "referral": "Another website",
+      "tagged": "Tagged link",
+      "direct": "Direct visit",
+      "dashboard": "Added in the dashboard",
+      "api": "Added through the API",
+      "agent": "Added by an AI agent",
+      "ai_assistant": "AI assistant"
+    },
+    "network": {
+      "fb": "Facebook",
+      "ig": "Instagram",
+      "msg": "Messenger",
+      "an": "Audience Network",
+      "th": "Threads",
+      "wa": "WhatsApp",
+      "meta": "Facebook or Instagram",
+      "tiktok": "TikTok",
+      "google": "Google",
+      "bing": "Bing",
+      "other": "Other",
+      "snapchat": "Snapchat"
+    },
+    "direct_hint": "Typed the address, used a bookmark, or opened a link from an app that doesn't say where it came from (WhatsApp often doesn't).",
+    "fact": {
+      "campaign": "Campaign",
+      "ad": "Ad",
+      "placement": "Placement",
+      "landing": "Landing page",
+      "referrer": "Came from",
+      "clicked_at": "Clicked",
+      "arrived_at": "Arrived"
+    },
+    "android_app": "{app} app on Android",
+    "just_before": "just before ordering",
+    "minutes_before_one": "{count} minute before ordering",
+    "minutes_before_other": "{count} minutes before ordering",
+    "hours_before_one": "{count} hour before ordering",
+    "hours_before_other": "{count} hours before ordering",
+    "days_before_one": "{count} day before ordering",
+    "days_before_other": "{count} days before ordering",
+    "filter": {
+      "any": "Any source",
+      "ads": "Ads",
+      "social": "Social, not ads",
+      "search": "Search engines",
+      "direct": "Direct visit",
+      "other": "Other websites and links",
+      "team": "Added by the team",
+      "unknown": "Source unknown",
+      "ai": "AI assistants"
+    },
+    "first_title": "First visit",
+    "page": {
+      "home": "Home page",
+      "catalog": "All products",
+      "category": "Category · {name}",
+      "collection": "Collection · {name}",
+      "product": "Product · {name}",
+      "page": "Page · {name}",
+      "landing": "Landing page · {name}",
+      "checkout": "Checkout",
+      "thankYou": "Thank-you page",
+      "trackOrder": "Order tracking",
+      "search": "Search",
+      "contact": "Contact page",
+      "other": "{name}"
+    },
+    "journey": "How the shopper got here",
+    "credited": "Credited",
+    "ordered": "Ordered",
+    "details": "View details",
+    "details_title": "Where this order came from",
+    "how_title": "How the source is decided",
+    "why_ad": "The shopper clicked this ad {when}, so it gets the credit.",
+    "why_ad_same_visit": "The shopper clicked this ad and ordered in the same visit, so it gets the credit.",
+    "why_earlier": "This is where the shopper came from, {when}. They came back directly to order, and coming back directly never takes the credit away.",
+    "why_visit": "This brought the shopper to the store on the visit they ordered in.",
+    "why_direct": "No recent ad or other site brought the shopper: they came straight to the store.",
+    "how_intro": "The source is the first of these that applies:",
+    "how_ad_one": "The last ad the shopper clicked, if it was at most {count} day before ordering.",
+    "how_ad_other": "The last ad the shopper clicked, if it was at most {count} days before ordering.",
+    "how_visit": "Otherwise, the site or app that brought them on the visit they ordered in.",
+    "how_earlier_one": "If they came back directly, the last site or app that brought them, at most {count} day before.",
+    "how_earlier_other": "If they came back directly, the last site or app that brought them, at most {count} days before.",
+    "how_direct": "If nothing brought them, a direct visit."
+  },
+  "calls": {
+    "no_answer": "No answer · Call {call}",
+    "filter": "Filter by call",
+    "all": "All",
+    "call": "Call {call}",
+    "call_or_more": "Call {call}+",
+    "empty": "No order at this step",
+    "count_one": "{count} call without an answer",
+    "count_other": "{count} calls without an answer"
+  },
+  "status_card": {
+    "no_answer_cancel_one": "After {count} call without an answer",
+    "no_answer_cancel_other": "After {count} calls without an answer"
   }
 }

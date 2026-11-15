@@ -41,6 +41,8 @@ export interface ProductVariant {
   currency: string;
   price: number;
   compareAtPrice?: number | null;
+  /** What one unit costs the merchant; null uses the product's cost. */
+  costPrice?: number | null;
   sku?: string | null;
   barcode?: string | null;
   inventory: number;

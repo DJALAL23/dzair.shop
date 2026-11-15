@@ -10,6 +10,7 @@ import { OpenAPIHono, z } from "@hono/zod-openapi";
 import type { AppContext } from "@/types";
 import { defineRoute } from "@/lib/route-builder";
 import * as handlers from "./handlers";
+import { ALL_SCOPES, type Scope } from "../../../../cod-shared/rbac/scopes";
 import {
   UserSchema,
   SuccessResponseSchema,
@@ -20,6 +21,8 @@ import {
 const jsonContent = <T extends z.ZodType>(schema: T) => ({
   "application/json": { schema },
 });
+
+const scopeSchema = z.enum(ALL_SCOPES as [Scope, ...Scope[]], { message: "Unknown permission" }).openapi({ description: "A permission the platform defines", example: "orders:read" });
 
 const idParams = z.object({
   id: z.string().openapi({ description: "User ID", example: "a1b2c3d4e5f6a7b8a1b2c3d4e5f6a7b8" }),
@@ -41,7 +44,7 @@ const createBodySchema = z.object({
   role: z.enum(["admin", "staff"]).default("staff").openapi({
     description: "Defaults to `staff`.",
   }),
-  scopes: z.array(z.string()).default([]).openapi({
+  scopes: z.array(scopeSchema).default([]).openapi({
     description: "Initial permission scopes. Ignored if role is `admin`.",
     example: ["orders:read", "customers:read"],
   }),
@@ -63,7 +66,13 @@ const updateRoleBodySchema = z.object({
 });
 
 const grantScopeBodySchema = z.object({
-  scope: z.string().min(1, "Scope is required").openapi({ example: "customers:read" }),
+  scope: scopeSchema,
+});
+const setScopesBodySchema = z.object({
+  scopes: z.array(scopeSchema).openapi({
+    description: "Every permission the member should have. The ones not listed are taken away.",
+    example: ["orders:read_assigned", "orders:update"],
+  }),
 });
 
 const revokeScopeParams = z.object({
@@ -177,7 +186,7 @@ const updateUserRoute = defineRoute({
   tags: ["Users"],
   summary: "Update user",
   description:
-    "Partial update — only include fields you want to change. To change scopes, use `POST /{id}/scopes` and `DELETE /{id}/scopes/{scope}`. To change role only, prefer `PATCH /{id}/role`.",
+    "Partial update — only include fields you want to change. Setting `status` to `inactive` turns the user's access off: they can no longer sign in, and their sessions and API key stop working at once. An admin cannot turn off or demote their own account, and the store always keeps one active admin. To change permissions, use `PUT /{id}/scopes`. To change role only, prefer `PATCH /{id}/role`.",
   operationId: "updateUser",
   params: idParams,
   body: updateBodySchema,
@@ -186,6 +195,7 @@ const updateUserRoute = defineRoute({
       description: "User updated",
       content: jsonContent(SuccessWithMessageSchema(UserSchema)),
     },
+    422: { description: "The change is refused (code: OWN_ACCOUNT for your own account, LAST_ADMIN when no other active admin would remain)" },
   },
   handler: handlers.updateUser,
 });
@@ -197,7 +207,7 @@ const updateUserRoleRoute = defineRoute({
   tags: ["Users"],
   summary: "Update user role",
   description:
-    'Dedicated endpoint for role-only changes. Changing to `admin` effectively grants `["*"]` scope.',
+    'Dedicated endpoint for role-only changes. Changing to `admin` effectively grants `["*"]` scope. An admin cannot demote themselves, and the store always keeps one active admin.',
   operationId: "updateUserRole",
   params: idParams,
   body: updateRoleBodySchema,
@@ -206,6 +216,7 @@ const updateUserRoleRoute = defineRoute({
       description: "Role updated",
       content: jsonContent(SuccessWithMessageSchema(UserSchema)),
     },
+    422: { description: "The change is refused (code: OWN_ACCOUNT for your own account, LAST_ADMIN when no other active admin would remain)" },
   },
   handler: handlers.updateUserRole,
 });
@@ -228,6 +239,26 @@ const grantScopeRoute = defineRoute({
     409: { description: "Scope already granted to user (code: DUPLICATE_ENTITY)" },
   },
   handler: handlers.grantScope,
+});
+
+const setScopesRoute = defineRoute({
+  method: "put",
+  path: "/{id}/scopes",
+  auth: "admin",
+  tags: ["Users"],
+  summary: "Set a user's permissions",
+  description:
+    "Gives the user exactly the listed permissions, all at once: the ones not listed are taken away. Each change is recorded in the activity log. Returns the full updated user record.",
+  operationId: "setScopes",
+  params: idParams,
+  body: setScopesBodySchema,
+  responses: {
+    200: {
+      description: "Permissions saved",
+      content: jsonContent(SuccessWithMessageSchema(UserSchema)),
+    },
+  },
+  handler: handlers.setScopes,
 });
 
 const revokeScopeRoute = defineRoute({
@@ -289,6 +320,7 @@ router.openapi(getUserRoute.route, getUserRoute.handler);
 router.openapi(updateUserRoute.route, updateUserRoute.handler);
 router.openapi(updateUserRoleRoute.route, updateUserRoleRoute.handler);
 router.openapi(grantScopeRoute.route, grantScopeRoute.handler);
+router.openapi(setScopesRoute.route, setScopesRoute.handler);
 router.openapi(revokeScopeRoute.route, revokeScopeRoute.handler);
 router.openapi(rotateApiKeyRoute.route, rotateApiKeyRoute.handler);
 

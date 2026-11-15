@@ -10,13 +10,10 @@
 
 import { vi } from "vitest";
 import {
-  parseShippingRates,
-  rateFor,
   currentDeliveryType,
   selectedWilayaId,
   toggleAddressFields,
   bindDeliveryFields,
-  watchShippingRates,
 } from "../delivery-fields";
 
 const COPY = {
@@ -88,45 +85,6 @@ afterEach(() => {
   Reflect.deleteProperty(window, "__selectSetLoading");
   Reflect.deleteProperty(window, "__selectSetDisabled");
   document.body.innerHTML = "";
-});
-
-describe("parseShippingRates", () => {
-  it("reads the bridge the server rendered", () => {
-    expect(parseShippingRates('{"16":{"home":400,"stopDesk":250}}')).toEqual({
-      16: { home: 400, stopDesk: 250 },
-    });
-  });
-
-  it("treats anything unusable as no rates rather than throwing", () => {
-    // A broken bridge shows "to be calculated"; it never takes the page down.
-    expect(parseShippingRates("not json")).toEqual({});
-    expect(parseShippingRates("[1,2]")).toEqual({});
-    expect(parseShippingRates(null)).toEqual({});
-    expect(parseShippingRates(undefined)).toEqual({});
-  });
-});
-
-describe("rateFor", () => {
-  const rates = { "16": { home: 400, stopDesk: 250 }, "31": { home: 600, stopDesk: 350 } };
-
-  it("charges the home rate for home delivery", () => {
-    expect(rateFor(rates, "16", "home")).toBe(400);
-  });
-
-  it("charges the stop-desk rate for a stop desk", () => {
-    expect(rateFor(rates, "16", "stop_desk")).toBe(250);
-  });
-
-  it("reports an unknown wilaya as not yet known, not as free", () => {
-    // Returning 0 here would quietly show free delivery for a wilaya the
-    // merchant never priced.
-    expect(rateFor(rates, "99", "home")).toBeNaN();
-    expect(rateFor(rates, "", "home")).toBeNaN();
-  });
-
-  it("reports a malformed rate as not yet known", () => {
-    expect(rateFor({ "16": { home: null, stopDesk: 250 } } as never, "16", "home")).toBeNaN();
-  });
 });
 
 describe("delivery type", () => {
@@ -314,66 +272,6 @@ describe("communes", () => {
     pick("stop_desk");
 
     expect(onChange).not.toHaveBeenCalled();
-  });
-});
-
-describe("watchShippingRates", () => {
-  it("reads rates already on the page", async () => {
-    document.body.insertAdjacentHTML(
-      "beforeend",
-      `<div id="shipping-rates-data" data-rates='{"16":{"home":400,"stopDesk":250}}'></div>`,
-    );
-    const onRates = vi.fn();
-
-    dispose = watchShippingRates(onRates);
-
-    await vi.waitFor(() =>
-      expect(onRates).toHaveBeenCalledWith({ 16: { home: 400, stopDesk: 250 } }),
-    );
-  });
-
-  it("never delivers synchronously — the caller may still be initializing", () => {
-    // The bridge is present, but the first delivery is a microtask: a caller
-    // mid-initialization (its later `const` bindings still in the temporal
-    // dead zone) must never be re-entered during the watch call itself.
-    document.body.insertAdjacentHTML(
-      "beforeend",
-      `<div id="shipping-rates-data" data-rates='{"16":{"home":400,"stopDesk":250}}'></div>`,
-    );
-    const onRates = vi.fn();
-
-    dispose = watchShippingRates(onRates);
-
-    expect(onRates).not.toHaveBeenCalled();
-  });
-
-  it("a disposed watcher never delivers", async () => {
-    document.body.insertAdjacentHTML(
-      "beforeend",
-      `<div id="shipping-rates-data" data-rates='{"16":{"home":400,"stopDesk":250}}'></div>`,
-    );
-    const onRates = vi.fn();
-
-    const off = watchShippingRates(onRates);
-    off();
-
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(onRates).not.toHaveBeenCalled();
-  });
-
-  it("waits for a server island that lands later", async () => {
-    const onRates = vi.fn();
-    dispose = watchShippingRates(onRates);
-    expect(onRates).not.toHaveBeenCalled();
-
-    document.body.insertAdjacentHTML(
-      "beforeend",
-      `<div id="shipping-rates-data" data-rates='{"31":{"home":600,"stopDesk":350}}'></div>`,
-    );
-
-    await vi.waitFor(() =>
-      expect(onRates).toHaveBeenCalledWith({ 31: { home: 600, stopDesk: 350 } }),
-    );
   });
 });
 

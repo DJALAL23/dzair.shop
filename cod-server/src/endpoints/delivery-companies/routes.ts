@@ -318,9 +318,10 @@ const syncPlacesRoute = defineRoute({
   path: "/{id}/sync-places",
   auth: { scope: SCOPES.DELIVERY_MANAGE },
   tags: ["Delivery Companies"],
-  summary: "Read the carrier's places",
+  summary: "Read the carrier's places and desks",
   description:
-    "Read the carrier's own list of places again into the company's map — where it delivers, under its own ids and spellings. " +
+    "Read the carrier's own list of places again into the company's map — where it delivers, under its own ids and spellings, with its prices — " +
+    "then its stop desks, placed through that map (a desk list that cannot be read leaves the desks as they were). " +
     "Connecting a company and an hourly job already do this. A parcel is addressed from this map alone: an order to a commune " +
     "the map lacks is refused with PLACE_NOT_SERVED, and every order is refused with CARRIER_PLACES_NOT_READ while the list has never been read.",
   params: idParams,

@@ -8,8 +8,11 @@ import { REVIEW_AUTO_PUBLISH, REVIEW_MEDIA_KINDS, REVIEW_SOURCES, REVIEW_STATUSE
 import { MEDIA_HOSTS, MEDIA_KINDS, MEDIA_STATUSES } from "../media/model";
 import { sql } from "drizzle-orm";
 import { STORE_LOCALES } from "../i18n/locales";
+import { COST_CATEGORIES, COST_CHARGES, CURRENCIES, FOREIGN_CURRENCIES } from "../finance/model";
+import { DISTRIBUTIONS, PAY_KINDS } from "../team/model";
 import { THEME_DRAFT_PART_KINDS } from "../themes/drafts";
 import { ORDER_STATUSES } from "../orders/lifecycle";
+import { ATTRIBUTION_METHODS, ATTRIBUTION_PLATFORMS, CLICK_ID_TYPES, ORDER_CHANNELS } from "../attribution/model";
 import { RULE_ACTIONS, RULE_MODES } from "../order-screening/conditions";
 import { BLOCK_LIST_KINDS, ORDER_ATTEMPT_OUTCOMES } from "../order-screening/signals";
 import type { ActorKind, Origin } from "../events/actor";
@@ -534,6 +537,24 @@ export const orders = sqliteTable("orders", {
   locale: text("locale", { enum: STORE_LOCALES }),
   /** A fresh random token per status change: the claim that makes its effects apply once (migration 0075). */
   revision: text("revision"),
+  // ── Confirmation team (appended by migration 0086 — keep last) ───────────
+  /** The team member the order is with now; null while it is with nobody. */
+  assigneeId: text("assignee_id").references((): AnySQLiteColumn => users.id, { onDelete: "set null" }),
+  /** When it was given to that member. */
+  assignedAt: text("assigned_at"),
+  /** How many times it was taken back from a member who did not act on it in time. */
+  takeBacks: integer("take_backs").notNull().default(0),
+  /** When the customer asked to be called back; cleared once the order is confirmed or cancelled. */
+  callbackAt: text("callback_at"),
+  /** Its first move away from `new`, and the member who made it (null for the system). Kept on the order: the Event Log is pruned. */
+  decidedAt: text("decided_at"),
+  decidedBy: text("decided_by"),
+  /** Its first confirmation, and the member credited with it. */
+  confirmedAt: text("confirmed_at"),
+  confirmedBy: text("confirmed_by"),
+  // ── Calls without an answer (appended by migration 0088 — keep last) ─────
+  /** How many calls had no answer — Call 1, Call 2, Call 3 while it waits — kept once it is confirmed or cancelled. Kept on the order: the Event Log is pruned. */
+  unansweredCalls: integer("unanswered_calls").notNull().default(0),
 }, (t) => ({
   checkoutKeyUnique: uniqueIndex("orders_checkout_key").on(t.checkoutKey).where(sql`checkout_key IS NOT NULL`),
 }));
@@ -624,6 +645,8 @@ export const productVariants = sqliteTable("product_variants", {
   position: integer("position").notNull().default(1),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
+  /** What one unit costs the merchant (DZD); null falls back to the product's cost (migration 0085). */
+  costPrice: integer("cost_price"),
 });
 
 export const productImages = sqliteTable("product_images", {
@@ -661,12 +684,18 @@ export const orderProducts = sqliteTable("order_products", {
    * Per-line fulfilment outcome — supports Algerian box-opening returns.
    *   fulfilled           — customer kept all units (returnedQuantity = 0)
    *   partially_returned  — customer kept some, returned some (0 < returnedQuantity < quantity)
-   *   returned            — customer refused the whole line (returnedQuantity = quantity)
+   *   returned            — every unit went back to stock: refused at the door, or
+   *                         put back when the order was cancelled or its parcel came back
+   *                         (returnedQuantity = quantity)
    */
   status: text("status", { enum: ["fulfilled", "partially_returned", "returned"] })
     .notNull()
     .default("fulfilled"),
-  /** Units the customer refused at the door. 0 when status = fulfilled. */
+  /**
+   * Units back in stock: refused at the door on a delivered order, or every
+   * unit once the order is cancelled or its parcel comes back (for a product
+   * that tracks stock). 0 when status = fulfilled.
+   */
   returnedQuantity: integer("returned_quantity").notNull().default(0),
   createdAt: text("created_at").notNull(),
   /**
@@ -681,7 +710,90 @@ export const orderProducts = sqliteTable("order_products", {
   discount: integer("discount").notNull().default(0),
   /** The name `offerId` had when the order was placed — kept when the offer is renamed or deleted (migration 0053). */
   offerName: text("offer_name"),
+  /**
+   * What one unit cost the merchant (DZD), frozen when the line was written:
+   * the variant's cost, else the product's (a trigger, migration 0085). Null
+   * when it is not known; a later catalog change never rewrites it.
+   */
+  unitCost: integer("unit_cost"),
+  /** Where `unitCost` came from: the catalog when the line was written, or the merchant's correction. */
+  unitCostSource: text("unit_cost_source", { enum: ["catalog", "manual"] }),
 });
+
+/**
+ * An order line whose product was deleted, and the product it was of: kept
+ * by a trigger when the product goes (the line's `productId` becomes null),
+ * so what a product's per-order costs counted still counts (migration 0087).
+ */
+export const removedProductLines = sqliteTable("removed_product_lines", {
+  orderProductId: text("order_product_id")
+    .primaryKey()
+    .references(() => orderProducts.id, { onDelete: "cascade" }),
+  productId: text("product_id").notNull(),
+}, (t) => ({
+  product: index("removed_product_lines_product").on(t.productId),
+}));
+
+// ─── Order attribution (migration 0083) ──────────────────────────────────────
+
+/**
+ * Where an order came from (ADR 0026, attribution v2): captured from the
+ * shopper's visit (`captured`), or the staff surface that entered it
+ * (`entered`). `merchant` rows were chosen by hand before v2 and are only
+ * read. Written in the order's own batch, never after it; no row means
+ * nothing is known (an order before tracking, a theme on an older SDK).
+ *
+ * The touch columns describe the credited ad (the last ad click at most seven
+ * days before the order), else this visit; `captured_at` is that touch's
+ * time. The `visit_*` columns always describe this visit. The values
+ * are kept as the storefront sent them, already validated
+ * (`cod-shared/attribution`); an id that is not digits never becomes `ad_id`
+ * and stays readable in `utm_content`. No CHECK on `platform` or `method`: a
+ * new ad platform is a new value, not a table rebuild.
+ */
+export const orderAttribution = sqliteTable("order_attribution", {
+  orderId: text("order_id")
+    .primaryKey()
+    .references(() => orders.id, { onDelete: "cascade" }),
+  method: text("method", { enum: ATTRIBUTION_METHODS }).notNull(),
+  /** Where the order came from: the credited ad's channel, else this visit's, else the staff surface that entered it. Null when nothing is known (rows before v2). */
+  channel: text("channel", { enum: ORDER_CHANNELS }),
+  capturedAt: text("captured_at"),
+  platform: text("platform", { enum: ATTRIBUTION_PLATFORMS }).notNull(),
+  clickId: text("click_id"),
+  clickIdType: text("click_id_type", { enum: CLICK_ID_TYPES }),
+  campaignId: text("campaign_id"),
+  adsetId: text("adset_id"),
+  adId: text("ad_id"),
+  placement: text("placement"),
+  siteSource: text("site_source"),
+  utmSource: text("utm_source"),
+  utmMedium: text("utm_medium"),
+  utmCampaign: text("utm_campaign"),
+  utmTerm: text("utm_term"),
+  utmContent: text("utm_content"),
+  /** The readable names the ad URL carried (`wc_cn`, `wc_an`), shown until a sync names the ids. */
+  namesJson: text("names_json"),
+  landingPath: text("landing_path"),
+  landingPageType: text("landing_page_type"),
+  referrerHost: text("referrer_host"),
+  firstTouchAt: text("first_touch_at"),
+  /** The first touch as captured, kept whole for other attribution models. */
+  firstTouchJson: text("first_touch_json"),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+  /** This visit: the latest arrival before the order, an ad or not, direct included. */
+  visitAt: text("visit_at"),
+  visitChannel: text("visit_channel", { enum: ORDER_CHANNELS }),
+  visitPlatform: text("visit_platform", { enum: ATTRIBUTION_PLATFORMS }),
+  visitSiteSource: text("visit_site_source"),
+  visitReferrerHost: text("visit_referrer_host"),
+  visitLandingPath: text("visit_landing_path"),
+  visitLandingPageType: text("visit_landing_page_type"),
+  visitUtmSource: text("visit_utm_source"),
+  visitUtmMedium: text("visit_utm_medium"),
+  visitUtmCampaign: text("visit_utm_campaign"),
+}, (table) => [index("order_attribution_channel_idx").on(table.channel)]);
 
 // ─── Delivery Provider Integration ───────────────────────────────────────────
 
@@ -2120,6 +2232,9 @@ export const abandonedOrders = sqliteTable("abandoned_orders", {
 
   createdAt:             text("created_at").notNull(),
   updatedAt:             text("updated_at").notNull(),
+
+  /** The visit's touches as captured (`cod-shared/attribution`), for the order a recovery creates (migration 0083). */
+  attributionJson:       text("attribution_json"),
 }, (t) => ({
   statusIdx:    index("abandoned_orders_status_idx").on(t.status),
   phoneIdx:     index("abandoned_orders_phone_idx").on(t.phone),
@@ -2243,6 +2358,53 @@ export const storeTelegramConfig = sqliteTable("store_telegram_config", {
 
 // ─── Order Protection (cod-shared/order-screening; migration 0080) ────────────
 
+/** A member of the confirmation team: takes orders, and receives new ones automatically while `receiving` (migration 0086). */
+export const teamAgents = sqliteTable("team_agents", {
+  userId: text("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  receiving: integer("receiving", { mode: "boolean" }).notNull().default(false),
+  /** Their place in turn: grows each time any member gets an order, so the lowest (or none) is next. Kept by a trigger. */
+  turn: integer("turn"),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+/** Each time someone is on the confirmation team, joined to left; kept by triggers on team_agents (migration 0086). */
+export const teamMemberships = sqliteTable("team_memberships", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  joinedAt: text("joined_at").notNull(),
+  /** Null while they are on the team. */
+  leftAt: text("left_at"),
+});
+
+/** A member's pay, each rate from a date: a past month keeps the rates it had (migration 0086). */
+export const teamPay = sqliteTable("team_pay", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  kind: text("kind", { enum: PAY_KINDS }).notNull(),
+  /** In DZD: a month's salary, or the amount per order. */
+  amount: integer("amount").notNull(),
+  /** YYYY-MM-DD; a salary from the first of a month. */
+  validFrom: text("valid_from").notNull(),
+  createdAt: text("created_at").notNull(),
+  createdBy: text("created_by"),
+}, (t) => ({
+  from: uniqueIndex("team_pay_from").on(t.userId, t.kind, t.validFrom),
+}));
+
+/** How the store shares its orders out; no row is `DEFAULT_TEAM_CONFIG` (migration 0086). */
+export const storeTeamConfig = sqliteTable("store_team_config", {
+  id: text("id").primaryKey(),
+  storeId: text("store_id").notNull().unique().references(() => stores.id, { onDelete: "cascade" }),
+  distribution: text("distribution", { enum: DISTRIBUTIONS }).notNull().default("manual"),
+  /** Minutes a member has to act on a new order before it moves on; null = never. */
+  takeBackMinutes: integer("take_back_minutes"),
+  /** How many times an order moves on before it waits for a manager. */
+  takeBackLimit: integer("take_back_limit").notNull().default(2),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
 export const storeOrderProtectionConfig = sqliteTable("store_order_protection_config", {
   id: text("id").primaryKey(),
   storeId: text("store_id")
@@ -2300,4 +2462,46 @@ export const orderAttempts = sqliteTable("order_attempts", {
   order: index("order_attempts_order").on(t.orderId).where(sql`order_id IS NOT NULL`),
   spamNumber: uniqueIndex("order_attempts_spam_number").on(t.orderNumber).where(sql`outcome = 'spam'`),
   spamCheckout: uniqueIndex("order_attempts_spam_checkout").on(t.checkoutKey).where(sql`outcome = 'spam' AND checkout_key IS NOT NULL`),
+}));
+
+/**
+ * The store's own costs (migration 0087): one row per version; the versions
+ * of one cost share `series_id`, each running from `valid_from` to
+ * `valid_to` (store days, both included; null while it runs). See
+ * finance/model.ts for the charges and how each one counts.
+ */
+export const costs = sqliteTable("costs", {
+  id: text("id").primaryKey(),
+  seriesId: text("series_id").notNull(),
+  name: text("name").notNull(),
+  category: text("category", { enum: COST_CATEGORIES }).notNull(),
+  charge: text("charge", { enum: COST_CHARGES }).notNull(),
+  /** In the currency's minor unit (centimes, cents). */
+  amountMinor: integer("amount_minor").notNull(),
+  currency: text("currency", { enum: CURRENCIES }).notNull(),
+  validFrom: text("valid_from").notNull(),
+  validTo: text("valid_to"),
+  /** The product it is for; null for the whole store. Not a foreign key: it stays when the product is deleted, so its orders still count. */
+  productId: text("product_id"),
+  /** Set only for a product's cost: the product's name, set to its last one when the product is deleted. */
+  productName: text("product_name"),
+  createdBy: text("created_by"),
+  /** A fresh random token per write, the same on every version of the cost: the guard that keeps two changes at once from both applying. */
+  revision: text("revision").notNull(),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+}, (t) => ({
+  series: uniqueIndex("costs_series").on(t.seriesId, t.validFrom),
+}));
+
+/** What one dollar or euro costs the merchant in dinar centimes, from a store day on (migration 0087). */
+export const exchangeRates = sqliteTable("exchange_rates", {
+  id: text("id").primaryKey(),
+  currency: text("currency", { enum: FOREIGN_CURRENCIES }).notNull(),
+  centimesPerUnit: integer("centimes_per_unit").notNull(),
+  validFrom: text("valid_from").notNull(),
+  createdBy: text("created_by"),
+  createdAt: text("created_at").notNull(),
+}, (t) => ({
+  from: uniqueIndex("exchange_rates_from").on(t.currency, t.validFrom),
 }));

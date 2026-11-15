@@ -1,3 +1,4 @@
+import type { OrderAttributionView, OrderSourceSummary } from "../../../../cod-shared/attribution/view";
 import type { RuleMatch } from "../../../../cod-shared/order-screening/rules";
 import type { OrderStatus } from "../../../../cod-shared/orders/lifecycle";
 import type { OrderStage } from "../../../../cod-shared/orders/stage";
@@ -82,6 +83,18 @@ export interface OrderBase {
   needsAttention: boolean;
   createdAt: string;
   updatedAt: string;
+  /** The confirmation team member the order is with now; null while with nobody. */
+  assigneeId?: string | null;
+  assigneeName?: string | null;
+  assignedAt?: string | null;
+  /** Times it moved on from a member who did not act in time; at the store's limit it waits for a manager. */
+  takeBacks?: number;
+  /** When the customer asked to be called back. */
+  callbackAt?: string | null;
+  confirmedAt?: string | null;
+  confirmedBy?: string | null;
+  /** Calls without an answer: an order on no answer is at Call 1, Call 2, Call 3… */
+  unansweredCalls: number;
 }
 
 export interface OrderListItem extends OrderBase {
@@ -93,6 +106,8 @@ export interface OrderListItem extends OrderBase {
   shipmentKind: ShipmentKind | null;
   carrierName: string | null;
   trackingNumber: string | null;
+  /** Where the order came from, in short; null when it is not known. */
+  source?: OrderSourceSummary | null;
 }
 
 export interface ShipmentEvent {
@@ -154,6 +169,8 @@ export interface Shipment {
 }
 
 export interface OrderDetail extends OrderBase {
+  /** Where the order came from (ADR 0026); null when nothing is known. */
+  attribution?: OrderAttributionView | null;
   /** The code the order was placed with; null without one. */
   couponCode: string | null;
   /** What the coupon took off, carried by the lines; `price` is already net of it. */
@@ -165,6 +182,22 @@ export interface OrderDetail extends OrderBase {
   products: OrderProduct[];
   statusHistory: StatusHistoryItem[];
   shipment: Shipment | null;
+  decidedAt?: string | null;
+  decidedByName?: string | null;
+  confirmedByName?: string | null;
+  /** Who the order was given to, newest first. */
+  assignmentHistory?: AssignmentStep[];
+}
+
+/** One handover of an order to a team member, or back to nobody. */
+export interface AssignmentStep {
+  id: string;
+  at: string;
+  to: { id: string; name: string } | null;
+  from: { id: string; name: string } | null;
+  /** By the store's rule, by a manager, or taken back from a member who did not act in time. */
+  way: "automatic" | "manual" | "take_back";
+  byName: string | null;
 }
 
 /** A note between the merchant and the carrier's courier. */
@@ -182,6 +215,12 @@ export interface OrderStageCounts {
   stages: Array<{ stage: OrderStage; count: number }>;
   needsAttention: number;
   archived: number;
+  /** Orders still waiting whose customer asked to be called back. */
+  callbacks: number;
+  /** Of those, the ones whose callback time has come. */
+  callbacksDue: number;
+  /** Orders on no answer by their call: Call 1, Call 2, and Call 3 with every later call. */
+  noAnswer: { call1: number; call2: number; call3OrMore: number };
   /** Of the parcels whose delivery ended, the share delivered, a whole percent; null before any ended. */
   deliveryRate: number | null;
 }

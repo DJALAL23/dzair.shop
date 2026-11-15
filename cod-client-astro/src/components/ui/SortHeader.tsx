@@ -1,5 +1,7 @@
+import type { ReactNode } from "react";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { TableHead } from "./table";
+import { InfoTip } from "./tooltip";
 
 /**
  * Clickable, sort-aware table header. `sortKey` is generic so any list
@@ -13,6 +15,8 @@ export function SortHeader({
   direction,
   onSort,
   align = "start",
+  help,
+  wrap = false,
 }: {
   label: string;
   sortKey: string;
@@ -20,6 +24,10 @@ export function SortHeader({
   direction: "asc" | "desc";
   onSort: (key: string) => void;
   align?: "start" | "end";
+  /** What the column means, behind an ⓘ beside its label. */
+  help?: ReactNode;
+  /** A long label goes on two lines, so a table of many columns still fits. */
+  wrap?: boolean;
 }) {
   const isSorted = activeKey === sortKey;
   const Icon = !isSorted
@@ -37,6 +45,7 @@ export function SortHeader({
           : "none"
       }
       numeric={align === "end"}
+      wrap={wrap}
     >
       <button
         type="button"
@@ -45,7 +54,7 @@ export function SortHeader({
           isSorted ? "text-foreground" : "text-muted-foreground"
         } ${align === "end" ? "flex-row-reverse" : ""}`}
       >
-        <span>{label}</span>
+        <span className={wrap ? "max-w-24 text-balance" : undefined}>{label}</span>
         <Icon
           size={12}
           strokeWidth={2}
@@ -57,6 +66,11 @@ export function SortHeader({
           aria-hidden="true"
         />
       </button>
+      {help && (
+        <span className="ms-1 inline-flex align-middle">
+          <InfoTip>{help}</InfoTip>
+        </span>
+      )}
     </TableHead>
   );
 }

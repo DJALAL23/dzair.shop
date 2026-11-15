@@ -9,12 +9,13 @@ import type { AppContext } from "@/types";
 import { getDb } from "@/db";
 import * as queries from "./queries";
 import * as validation from "./validation";
-import { logActivity, ACTIONS } from "@/lib/activity";
-import { NotFoundError, ConflictError, SystemError } from "@/lib/errors/classes";
+import { logActivity, logActivities, ACTIONS } from "@/lib/activity";
+import { BusinessLogicError, NotFoundError, ConflictError, SystemError } from "@/lib/errors/classes";
 import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
 import { scryptAsync } from "@noble/hashes/scrypt.js";
 import { bytesToHex, randomBytes } from "@noble/hashes/utils.js";
 import { sendInviteEmail } from "./invite-email";
+import { shareOutWaiting } from "../../../../cod-shared/team/assign";
 
 /**
  * GET /users
@@ -148,25 +149,44 @@ export async function createUser(c: Context<AppContext>) {
   }, 201);
 }
 
+type UserChange = { email?: string; name?: string; role?: "admin" | "staff"; status?: "active" | "inactive" };
+
+/**
+ * Applies a change to a member and records what it did. An admin cannot
+ * turn off or demote their own account, and a change that would leave the
+ * store without an active admin is refused.
+ */
+async function changeUser(c: Context<AppContext>, id: string, change: UserChange) {
+  const db = getDb(c.env.DB);
+  const actor = c.get("user");
+  const before = await queries.getUserById(db, id);
+  if (!before) throw new NotFoundError("User", id);
+  if (actor.id === id && (change.status === "inactive" || change.role === "staff")) {
+    throw new BusinessLogicError("You cannot turn off your own account or take away your own admin access", ERROR_CODES.OWN_ACCOUNT, { userId: id });
+  }
+  const user = await queries.updateUser(db, id, change);
+  if (!user) throw new BusinessLogicError("The store must keep at least one active admin", ERROR_CODES.LAST_ADMIN, { userId: id });
+
+  const entity = { type: "user", id, label: user.name ?? undefined };
+  if (change.status && change.status !== before.status) {
+    await logActivity(db, actor, change.status === "inactive" ? ACTIONS.USER_DEACTIVATED : ACTIONS.USER_REACTIVATED, entity);
+    if (change.status === "inactive") await shareOutWaiting(db, new Date(), { actor: { kind: "system", id: null, name: null }, origin: c.get("author").origin });
+  }
+  if (change.role && change.role !== before.role) await logActivity(db, actor, ACTIONS.USER_ROLE_CHANGED, entity, { role: change.role });
+  if ((change.name !== undefined && change.name !== before.name) || (change.email !== undefined && change.email !== before.email)) {
+    await logActivity(db, actor, ACTIONS.USER_UPDATED, entity);
+  }
+  return user;
+}
+
 /**
  * PATCH /users/:id
  * Update user information.
  */
 export async function updateUser(c: Context<AppContext>) {
-  const db = getDb(c.env.DB);
-  const id = c.req.param("id")!;
   const jsonBody: any = (c.req as any).valid?.("json");
   const validated = jsonBody ?? validation.updateUserSchema.parse(await c.req.json());
-  const user = await queries.updateUser(db, id, validated);
-  
-  if (!user) {
-    throw new NotFoundError("User", id);
-  }
-  
-  const actor = c.get("user");
-  await logActivity(db, actor, ACTIONS.USER_UPDATED, {
-    type: "user", id, label: user.name ?? undefined,
-  });
+  const user = await changeUser(c, c.req.param("id")!, validated);
   return c.json({ success: true, data: user, message: "User updated successfully" }, 200);
 }
 
@@ -175,22 +195,30 @@ export async function updateUser(c: Context<AppContext>) {
  * Update user role.
  */
 export async function updateUserRole(c: Context<AppContext>) {
+  const jsonBody: any = (c.req as any).valid?.("json");
+  const { role } = jsonBody ?? validation.updateUserRoleSchema.parse(await c.req.json());
+  const user = await changeUser(c, c.req.param("id")!, { role });
+  return c.json({ success: true, data: user, message: "User role updated successfully" }, 200);
+}
+
+/**
+ * PUT /users/:id/scopes
+ * Give a member exactly these permissions.
+ */
+export async function setScopes(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
   const id = c.req.param("id")!;
   const jsonBody: any = (c.req as any).valid?.("json");
-  const body = jsonBody ?? validation.updateUserRoleSchema.parse(await c.req.json());
-  const { role } = body;
-  const user = await queries.updateUser(db, id, { role });
-  
-  if (!user) {
-    throw new NotFoundError("User", id);
-  }
-  
+  const { scopes } = jsonBody ?? validation.setScopesSchema.parse(await c.req.json());
   const actor = c.get("user");
-  await logActivity(db, actor, ACTIONS.USER_ROLE_CHANGED, {
-    type: "user", id, label: user.name ?? undefined,
-  }, { role });
-  return c.json({ success: true, data: user, message: "User role updated successfully" }, 200);
+  const before = await queries.getUserById(db, id);
+  if (!before) throw new NotFoundError("User", id);
+
+  const { granted, revoked } = await queries.setScopes(db, id, scopes, actor.id);
+  const entity = { type: "user", id, label: before.name };
+  await logActivities(db, actor, ACTIONS.USER_SCOPE_GRANTED, granted.map((scope) => ({ entity, metadata: { scope } })));
+  await logActivities(db, actor, ACTIONS.USER_SCOPE_REVOKED, revoked.map((scope) => ({ entity, metadata: { scope } })));
+  return c.json({ success: true, data: await queries.getUserById(db, id), message: "Permissions saved" }, 200);
 }
 
 /**

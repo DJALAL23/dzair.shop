@@ -95,6 +95,11 @@ cd cod-astro/theme-00 && npm run dev -- --port 4322   # storefront on http://loc
 The dashboard and the storefront both default to port 4321, so one of them
 takes another port.
 
+From the repository root, `npm run dev:server` and `npm run dev:dashboard`
+start the API and the dashboard the same way, and `npm run db:setup:local` and
+`npm run seed:admin` do step 4. They pass no extra options through: to choose a
+port, use the package's own command as above.
+
 Sign in to the dashboard with the account from step 4. The API reference
 is served by the server at `http://localhost:8787/api/docs`.
 
@@ -123,9 +128,11 @@ Each of these is off until you configure it, and the store works without it:
 ## Run the tests
 
 ```bash
-cd cod-server && npm run typecheck && npm test
-cd cod-client-astro && npm run typecheck && npm test
+npm run typecheck && npm test                   # from the root: the API, then the dashboard
 (cd cod-astro/theme-00 && npm ci && npm test)   # the storefront theme
 ```
+
+To check one package, run the same commands inside `cod-server` or
+`cod-client-astro`.
 
 The tests need no network and no credentials.

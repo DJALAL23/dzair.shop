@@ -1,14 +1,15 @@
 import { useState } from "react";
-import { Archive, ArchiveRestore, ArrowRight, Eye, MoreHorizontal, Send, Trash2, XCircle } from "lucide-react";
+import { Archive, ArchiveRestore, Eye, MoreHorizontal, Send, Trash2 } from "lucide-react";
 import { canScope, useIdentity } from "@/features/auth/components/RequireAuth";
 import { useT } from "@/i18n/react";
 import { notify } from "@/lib/notify";
 import { archiveOrder, deleteOrder, getOrderRemoval, unarchiveOrder } from "@/features/orders/api";
-import { canHandOff, handoffKinds, orderDeletionConsequences, orderRemovalError, statusMoves } from "@/features/orders/model";
+import { canHandOff, handoffKinds, moveLabel, orderDeletionConsequences, orderRemovalError, statusMoves } from "@/features/orders/model";
 import { isFinishedStage } from "../../../../../cod-shared/orders/stage";
 import type { DeliveryCompany, Driver, OrderListItem } from "@/features/orders/types";
 import { DropdownItem, DropdownLink, DropdownMenu, useConfirmDialog } from "@/components/ui";
 import { HandoffDialog } from "@/features/orders/components/HandoffDialog";
+import { MoveIcon } from "@/features/orders/components/StageBadge";
 import { useStatusMove } from "@/features/orders/components/useStatusMove";
 
 /** A row's menu: open the order, take its next step, ship it, delete it before handoff, or archive it once finished. */
@@ -108,8 +109,8 @@ export function OrderRowActions({
         )}
         {moves.map((next) => (
           <DropdownItem key={next.status} disabled={busy} danger={next.emphasis === "danger"} onClick={() => void run(next.status)}>
-            {next.emphasis === "danger" ? <XCircle size={14} /> : <ArrowRight size={14} className="rtl:rotate-180" />}
-            {t(`move.${next.status}`)}
+            <MoveIcon status={next.status} size={14} />
+            {moveLabel(t, next.status, order.unansweredCalls)}
           </DropdownItem>
         ))}
         {showArchive && (

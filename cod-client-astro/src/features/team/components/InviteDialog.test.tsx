@@ -5,6 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const api = vi.hoisted(() => ({ createTeamMember: vi.fn() }));
 vi.mock("@/features/team/api", () => api);
+const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
+vi.mock("@/lib/notify", () => ({ notify: toast }));
 
 import { InviteDialog } from "./InviteDialog";
 
@@ -19,6 +21,7 @@ beforeEach(() => {
   document.body.appendChild(host);
   root = createRoot(host);
   api.createTeamMember.mockReset();
+  toast.success.mockReset();
 });
 
 afterEach(() => {
@@ -42,25 +45,24 @@ function type(input: HTMLInputElement, value: string) {
   });
 }
 
-describe("the invite dialog uses the shared dialog layout", () => {
-  it("shows the icon, title and description in the dialog's own header", () => {
+describe("the invite dialog looks like Manage permissions", () => {
+  it("shows its icon, title and what it is for in the header", () => {
     mount();
     const header = dialog().querySelector("h2")!;
-    expect(header.textContent).toBe("Invite new user");
-    expect(dialog().querySelector("#" + CSS.escape(header.id) + " ~ p")?.textContent).toBe("Onboard new team member");
-    expect(header.closest("div")!.parentElement!.querySelector("span svg")).not.toBeNull();
+    expect(header.textContent).toBe("Invite a team member");
+    expect(header.querySelector("svg")).not.toBeNull();
+    expect(dialog().querySelector("#" + CSS.escape(header.id) + " ~ p")?.textContent).toBe("Add someone to your team and choose what they can do.");
   });
 
-  it("keeps Cancel and Send in the footer, outside the form, and Send submits the form", () => {
+  it("keeps Cancel and Send together in the footer, and Send submits the form", () => {
     mount();
     const form = dialog().querySelector("form")!;
     const cancel = buttonLabelled(/^Cancel$/);
     const send = buttonLabelled(/Send invite/);
-    expect(form.contains(cancel)).toBe(false);
-    expect(form.contains(send)).toBe(false);
     expect(send.type).toBe("submit");
-    expect(send.getAttribute("form")).toBe(form.id);
+    expect(form.contains(send)).toBe(true);
     expect(cancel.parentElement).toBe(send.parentElement);
+    expect(dialog().textContent).toContain("Give each person only what their work needs.");
   });
 
   it("puts the cursor in the name field", () => {
@@ -74,11 +76,17 @@ describe("the invite dialog uses the shared dialog layout", () => {
     expect(dialog().textContent).not.toContain("Admins can do everything");
   });
 
-  it("offers a staff member the permission groups, collapsed", () => {
+  it("offers every permission as a card, by the part of the store it opens, and a part ticked at once", () => {
     mount();
-    expect(dialog().textContent).toContain("Permissions");
+    expect(dialog().querySelectorAll("form input[type='checkbox']")).toHaveLength(73);
     expect(dialog().textContent).toContain("0 selected");
-    expect(dialog().querySelectorAll("form input[type='checkbox']").length).toBeGreaterThan(0);
+    const orders = Array.from(dialog().querySelectorAll("section")).find((section) => section.querySelector("h3")?.textContent === "Orders")!;
+    act(() => Array.from(orders.querySelectorAll("button")).find((b) => b.textContent === "Select all")!.click());
+    const ticked = orders.querySelectorAll("input[type='checkbox']:checked").length;
+    expect(ticked).toBe(orders.querySelectorAll("input[type='checkbox']").length);
+    expect(dialog().textContent).toContain(`${ticked} selected`);
+    act(() => Array.from(orders.querySelectorAll("button")).find((b) => b.textContent === "Clear")!.click());
+    expect(dialog().textContent).toContain("0 selected");
   });
 });
 
@@ -87,7 +95,7 @@ describe.each(["ar", "fr"])("in %s", (locale) => {
     window.localStorage.setItem("locale", locale);
     mount();
     expect(dialog().textContent).not.toMatch(/invite_dialog|scope_categories|roles\./);
-    expect(dialog().querySelector("h2")!.textContent).not.toBe("Invite new user");
+    expect(dialog().querySelector("h2")!.textContent).not.toBe("Invite a team member");
   });
 });
 
@@ -113,12 +121,15 @@ describe("inviting a member", () => {
     const [name, email] = Array.from(dialog().querySelectorAll<HTMLInputElement>("form input"));
     type(name, "Sara");
     type(email, "sara@example.com");
+    const ownOrders = Array.from(dialog().querySelectorAll("label")).find((label) => label.textContent?.includes("orders:read_assigned"))!;
+    act(() => ownOrders.querySelector("input")!.click());
     await act(async () => {
       dialog().querySelector("form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
     });
 
-    expect(api.createTeamMember).toHaveBeenCalledWith(expect.objectContaining({ name: "Sara", email: "sara@example.com", role: "staff" }));
-    expect(dialog().querySelector("h2")!.textContent).toBe("Member added");
+    expect(api.createTeamMember).toHaveBeenCalledWith(expect.objectContaining({ name: "Sara", email: "sara@example.com", role: "staff", scopes: ["orders:read_assigned"] }));
+    expect(toast.success).toHaveBeenCalledWith("Member added");
+    expect(dialog().querySelector("h2")!.textContent).toBe("Member addedSara");
     expect(Array.from(dialog().querySelectorAll<HTMLInputElement>("input")).map((i) => i.value)).toEqual(["cod_key_123", "Temp-Pass-9"]);
     expect(dialog().textContent).toContain("Share the temporary password with the member manually.");
     expect(dialog().querySelector("form")).toBeNull();
@@ -146,5 +157,6 @@ describe("inviting a member", () => {
     });
     expect(onClose).not.toHaveBeenCalled();
     await act(async () => finish({ apiKey: "k", tempPassword: "p", user: { name: "Sara" }, emailSent: true, emailError: null }));
+    expect(toast.success).toHaveBeenCalledWith("Invite sent");
   });
 });

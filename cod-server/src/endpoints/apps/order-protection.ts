@@ -8,6 +8,7 @@ import type { Context } from "hono";
 import type { AppContext } from "@/types";
 import { defineRoute } from "@/lib/route-builder";
 import { MessageResponseSchema } from "@/openapi/schemas";
+import { OrderSourceSchema } from "@/openapi/schemas/orders";
 import { BusinessLogicError, ConflictError, NotFoundError, ValidationError } from "@/lib/errors/classes";
 import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
 import { SCOPES } from "../../../../cod-shared/rbac/scopes";
@@ -183,6 +184,7 @@ const AttemptSchema = z.object({
   ipBlocked: z.boolean(),
   matches: z.array(RuleMatchSchema),
   signals: z.object({ fillSeconds: z.number().optional(), visitSource: z.enum(VISIT_SOURCES).optional(), appSource: z.enum(APP_SOURCES).optional(), networkCountry: z.string().optional() }),
+  source: OrderSourceSchema.nullable().openapi({ description: "Where the attempt came from, read as its order reads it: the order's own source once there is one, else the touches it was submitted with; null when not known" }),
 });
 
 async function listAttempts(c: Context<AppContext>) {
@@ -213,7 +215,7 @@ async function placeRescued(db: Parameters<typeof protection.claimSpamOrder>[0],
   const snapshot = await storeQueries.loadCatalogSnapshot(db, lines, now);
   assertOrderable(snapshot, lines);
   const quote = await quoteOrder(db, { storeId, now, snapshot, lines, data });
-  const order = await commitOrder(db, { data, customFieldAnswers, rate: quote.delivery.rate, coupon: quote.coupon, snapshot, locale, ipAddress, userAgent, orderNumber: claim.orderNumber });
+  const order = await commitOrder(db, { data, submittedAt: claim.submittedAt, customFieldAnswers, rate: quote.delivery.rate, coupon: quote.coupon, snapshot, locale, ipAddress, userAgent, orderNumber: claim.orderNumber });
   if (!("replay" in order)) return order;
   if (!order.replay) throw new Error("The checkout's order was removed before it could be read");
   return order.replay;

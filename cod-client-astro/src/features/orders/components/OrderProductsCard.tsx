@@ -4,7 +4,7 @@ import { Button, Card, Input } from "@/components/ui";
 import { useT } from "@/i18n/react";
 import { notify } from "@/lib/notify";
 import { setLineReturn } from "@/features/orders/api";
-import { deliveryLabel, formatMoney, lineBeforeCoupon, lineReturnError, offerLineLabel, orderTotal, subtotalBeforeCoupon } from "@/features/orders/model";
+import { deliveryLabel, formatMoney, lineBeforeCoupon, lineReturnError, lineReturnNote, offerLineLabel, orderTotal, subtotalBeforeCoupon } from "@/features/orders/model";
 import type { OrderDetail, OrderProduct } from "@/features/orders/types";
 import type { Locale } from "@/i18n/config";
 
@@ -51,14 +51,14 @@ function RefusedUnits({ orderId, line, onChanged }: { orderId: string; line: Ord
   );
 }
 
-/** What the customer ordered — and, once delivered, what they kept back at the door. */
+/** What the customer ordered — and, once delivered, what they kept back at the door; once cancelled or back, what went back to stock. */
 export function OrderProductsCard({
   order,
   locale,
   canRecordRefused,
   onChanged,
 }: {
-  order: Pick<OrderDetail, "id" | "products" | "price" | "deliveryFee" | "couponCode" | "couponDiscount" | "deliveryOfferId" | "deliveryOfferName">;
+  order: Pick<OrderDetail, "id" | "stage" | "products" | "price" | "deliveryFee" | "couponCode" | "couponDiscount" | "deliveryOfferId" | "deliveryOfferName">;
   locale: Locale;
   canRecordRefused: boolean;
   onChanged: () => void | Promise<void>;
@@ -72,6 +72,7 @@ export function OrderProductsCard({
           const free = product.reward;
           const offered = lineBeforeCoupon(product);
           const offerLabel = offerLineLabel(product, t);
+          const returned = lineReturnNote(order.stage, product, t);
           return (
             <div key={product.id} className="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
               <Package size={17} className="mt-0.5 text-muted-foreground" />
@@ -85,8 +86,8 @@ export function OrderProductsCard({
                 <p className="mt-1 text-xs text-muted-foreground">
                   {product.quantity} × {free ? t("form.free") : formatMoney(offered.unit, locale)}
                 </p>
-                {product.returnedQuantity > 0 && (
-                  <p className="mt-1 text-xs font-semibold text-[var(--tone-critical-text)]">{t("refused.count", { count: product.returnedQuantity })}</p>
+                {returned && (
+                  <p className={`mt-1 text-xs ${returned.refused ? "font-semibold text-[var(--tone-critical-text)]" : "text-muted-foreground"}`}>{returned.text}</p>
                 )}
                 {canRecordRefused && <RefusedUnits orderId={order.id} line={product} onChanged={onChanged} />}
               </div>

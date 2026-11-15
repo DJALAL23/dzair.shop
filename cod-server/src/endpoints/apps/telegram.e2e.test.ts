@@ -113,7 +113,7 @@ describe("saving a bot", () => {
     expect(calls[1]!.body).toEqual({ url: `https://api.acme.dz/webhooks/telegram/${config.consumerId}`, secret_token: config.webhookSecret, allowed_updates: ["message", "my_chat_member"], drop_pending_updates: true });
     expect(config.webhookSecret).toMatch(/^[A-Za-z0-9_-]{40,256}$/);
     expect(config).toMatchObject({ botToken: TOKEN, botId: 987654321, botUsername: "acme_orders_bot", chatId: null });
-    expect(await consumerRow()).toMatchObject({ kind: "telegram", enabled: false, disabledReason: "not_connected", subscription: '["order.created","shipment.delivered","shipment.delivery_failed"]' });
+    expect(await consumerRow()).toMatchObject({ kind: "telegram", enabled: false, disabledReason: "not_connected", subscription: '["order.created","order.callback_due","shipment.delivered","shipment.delivery_failed"]' });
     expect(data).toMatchObject({ enabled: false, disabledReason: "not_connected", bot: { username: "acme_orders_bot", tokenMasked: "••••Q9xZ" }, chat: null, language: null, writesIn: "fr" });
   });
 

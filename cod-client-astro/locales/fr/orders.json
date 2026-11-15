@@ -3,14 +3,13 @@
   "new_order_button": "Nouvelle commande",
   "load_error": "Impossible de charger les commandes",
   "table": {
-    "order_number": "Commande #",
     "customer": "Client",
     "phone": "Tél.",
     "status": "Statut",
-    "delivery": "Livraison",
     "date": "Date",
     "total": "Total",
-    "stage": "Étape"
+    "stage": "Étape",
+    "order": "Commande"
   },
   "actions": {
     "view": "Voir",
@@ -60,7 +59,13 @@
     "clear": "Effacer les filtres",
     "protection": "Protection",
     "any_protection": "Toutes les commandes",
-    "flagged": "Signalées"
+    "flagged": "Signalées",
+    "button": "Filtres",
+    "button_on_one": "Filtres, {count} actif",
+    "button_on_many": "Filtres, {count} actifs",
+    "button_on_other": "Filtres, {count} actifs",
+    "title": "Filtrer les commandes",
+    "show": "Voir les commandes"
   },
   "type": {
     "online": "En ligne",
@@ -214,6 +219,10 @@
     "delivered": "Livrées",
     "returns": "Retours",
     "cancelled": "Annulées",
+    "callbacks": "Rappels",
+    "callbacks_due_one": "{count} à appeler",
+    "callbacks_due_many": "{count} à appeler",
+    "callbacks_due_other": "{count} à appeler",
     "attention": "À traiter",
     "attention_count_one": "{count} à traiter",
     "attention_count_many": "{count} à traiter",
@@ -230,9 +239,10 @@
     "returns": "Aucun retour — bonne nouvelle",
     "cancelled": "Aucune commande annulée",
     "attention": "Rien à traiter pour le moment",
+    "callbacks": "Aucun client à rappeler",
     "archived": "Aucune commande archivée"
   },
-  "search_placeholder": "N° de commande, client, téléphone ou n° de suivi…",
+  "search_placeholder": "Commande, client, téléphone, suivi…",
   "load_more": "Afficher plus de commandes",
   "attention": {
     "label": "Demande votre attention",
@@ -243,17 +253,20 @@
   },
   "move": {
     "confirmed": "Confirmer la commande",
-    "unreachable": "Injoignable",
+    "confirmed_short": "Confirmer",
     "preparing": "Commencer la préparation",
     "ready": "Prête à expédier",
     "cancelled": "Annuler la commande",
     "cancel_title": "Annuler la commande {order} ?",
     "cancel_description": "Ses produits reviennent en stock et la dépense du client est annulée. Une commande annulée ne peut pas être rouverte.",
     "done": "{order} : {status}",
-    "failed": "La commande n'a pas pu être mise à jour"
+    "failed": "La commande n'a pas pu être mise à jour",
+    "changed": "Cette commande a été modifiée entre-temps. Vérifiez où elle en est, puis réessayez."
   },
   "next": {
-    "title": "Prochaine étape"
+    "title": "Prochaine étape",
+    "more": "Plus d'actions",
+    "outcomes": "Résultat de l'appel"
   },
   "progress": {
     "title": "Suivi de la commande",
@@ -356,7 +369,6 @@
   },
   "bulk": {
     "select": "Sélectionner",
-    "select_hint": "Sélectionnez des commandes à expédier",
     "as_asked": "Chaque commande part comme son client l'a demandé (domicile ou point relais).",
     "no_carrier": "Aucune société ne peut prendre tous ces colis",
     "result_title": "Expédition terminée",
@@ -387,7 +399,9 @@
     "driver_desk_to_door_many": "{count} clients ont choisi un point relais ; votre livreur apporte ces colis à leur adresse.",
     "driver_desk_to_door_other": "{count} clients ont choisi un point relais ; votre livreur apporte ces colis à leur adresse.",
     "select_all": "Sélectionner toutes les commandes prêtes à expédier",
-    "limit": "Un envoi prend au plus {count} commandes ; les {count} premières sont sélectionnées."
+    "limit": "Un envoi prend au plus {count} commandes ; les {count} premières sont sélectionnées.",
+    "bar": "Commandes sélectionnées",
+    "clear": "Annuler la sélection"
   },
   "parcel": {
     "title": "Modifier le colis",
@@ -455,6 +469,9 @@
     "count_one": "{count} unité refusée à la porte",
     "count_many": "{count} d'unités refusées à la porte",
     "count_other": "{count} unités refusées à la porte",
+    "restocked_one": "{count} unité remise en stock",
+    "restocked_many": "{count} d'unités remises en stock",
+    "restocked_other": "{count} unités remises en stock",
     "saved_one": "{count} unité de {product} remise en stock",
     "saved_many": "{count} d'unités de {product} remises en stock",
     "saved_other": "{count} unités de {product} remises en stock",
@@ -485,5 +502,123 @@
     "error_has_shipment": "Cette commande a été remise à la livraison et ne peut plus être supprimée. Archivez-la une fois sa livraison terminée.",
     "error_not_finished": "Seule une commande terminée peut être archivée : annulez-la, ou attendez la fin de sa livraison.",
     "error_changed": "La commande a changé entre-temps. Rechargez-la et réessayez."
+  },
+  "source": {
+    "title": "Source",
+    "column": "Source",
+    "unknown": "Source inconnue",
+    "unknown_hint": "Nous n'avons aucune trace de l'arrivée du client. Le plus souvent, son navigateur l'a bloquée ou effacée, ou il était en navigation privée. Il peut aussi s'agir d'une commande antérieure au suivi des sources, ou d'un thème qui ne la transmet pas encore.",
+    "entered_note": "Saisie par votre équipe : il n'y a pas de visite du client à afficher.",
+    "headline": {
+      "paid": "Pub {network}",
+      "organic_social": "{network} (hors pub)",
+      "organic_search": "Recherche {network}",
+      "email": "E-mail",
+      "referral": "Un autre site",
+      "tagged": "Lien suivi",
+      "direct": "Visite directe",
+      "dashboard": "Ajoutée dans le tableau de bord",
+      "api": "Ajoutée par l'API",
+      "agent": "Ajoutée par un agent IA",
+      "ai_assistant": "Assistant IA"
+    },
+    "network": {
+      "fb": "Facebook",
+      "ig": "Instagram",
+      "msg": "Messenger",
+      "an": "Audience Network",
+      "th": "Threads",
+      "wa": "WhatsApp",
+      "meta": "Facebook ou Instagram",
+      "tiktok": "TikTok",
+      "google": "Google",
+      "bing": "Bing",
+      "other": "Autre",
+      "snapchat": "Snapchat"
+    },
+    "direct_hint": "Adresse tapée, favori, ou lien ouvert depuis une appli qui n'indique pas sa provenance (souvent WhatsApp).",
+    "fact": {
+      "campaign": "Campagne",
+      "ad": "Pub",
+      "placement": "Emplacement",
+      "landing": "Page d'arrivée",
+      "referrer": "Venu de",
+      "clicked_at": "Cliquée",
+      "arrived_at": "Arrivé"
+    },
+    "android_app": "Appli {app} sur Android",
+    "just_before": "juste avant la commande",
+    "minutes_before_one": "{count} minute avant la commande",
+    "minutes_before_many": "{count} de minutes avant la commande",
+    "minutes_before_other": "{count} minutes avant la commande",
+    "hours_before_one": "{count} heure avant la commande",
+    "hours_before_many": "{count} d'heures avant la commande",
+    "hours_before_other": "{count} heures avant la commande",
+    "days_before_one": "{count} jour avant la commande",
+    "days_before_many": "{count} de jours avant la commande",
+    "days_before_other": "{count} jours avant la commande",
+    "filter": {
+      "any": "Toutes les sources",
+      "ads": "Pubs",
+      "social": "Réseaux, hors pub",
+      "search": "Moteurs de recherche",
+      "direct": "Visite directe",
+      "other": "Autres sites et liens",
+      "team": "Ajoutées par l'équipe",
+      "unknown": "Source inconnue",
+      "ai": "Assistants IA"
+    },
+    "first_title": "Première visite",
+    "page": {
+      "home": "Page d'accueil",
+      "catalog": "Tous les produits",
+      "category": "Catégorie · {name}",
+      "collection": "Collection · {name}",
+      "product": "Produit · {name}",
+      "page": "Page · {name}",
+      "landing": "Page de vente · {name}",
+      "checkout": "Paiement",
+      "thankYou": "Page de remerciement",
+      "trackOrder": "Suivi de commande",
+      "search": "Recherche",
+      "contact": "Page contact",
+      "other": "{name}"
+    },
+    "journey": "Le parcours du client",
+    "credited": "Créditée",
+    "ordered": "Commande",
+    "details": "Voir les détails",
+    "details_title": "D’où vient cette commande",
+    "how_title": "Comment la source est choisie",
+    "why_ad": "Le client a cliqué sur cette publicité {when}, elle reçoit donc le crédit.",
+    "why_ad_same_visit": "Le client a cliqué sur cette publicité et a commandé lors de la même visite, elle reçoit donc le crédit.",
+    "why_earlier": "C'est d'ici que venait le client, {when}. Il est revenu directement pour commander, et un retour direct ne retire jamais le crédit.",
+    "why_visit": "C'est ce qui a amené le client sur la boutique lors de la visite où il a commandé.",
+    "why_direct": "Aucune publicité ni aucun autre site récent n'a amené le client : il est venu directement sur la boutique.",
+    "how_intro": "La source est la première de ces règles qui s'applique :",
+    "how_ad_one": "La dernière publicité cliquée par le client, si c'était au plus {count} jour avant la commande.",
+    "how_ad_many": "La dernière publicité cliquée par le client, si c'était au plus {count} de jours avant la commande.",
+    "how_ad_other": "La dernière publicité cliquée par le client, si c'était au plus {count} jours avant la commande.",
+    "how_visit": "Sinon, le site ou l'application qui l'a amené lors de la visite où il a commandé.",
+    "how_earlier_one": "S'il est revenu directement, le dernier site ou la dernière application qui l'a amené, au plus {count} jour avant.",
+    "how_earlier_many": "S'il est revenu directement, le dernier site ou la dernière application qui l'a amené, au plus {count} de jours avant.",
+    "how_earlier_other": "S'il est revenu directement, le dernier site ou la dernière application qui l'a amené, au plus {count} jours avant.",
+    "how_direct": "Si rien ne l'a amené, une visite directe."
+  },
+  "calls": {
+    "no_answer": "Injoignable · Appel {call}",
+    "filter": "Filtrer par appel",
+    "all": "Toutes",
+    "call": "Appel {call}",
+    "call_or_more": "Appel {call}+",
+    "empty": "Aucune commande à cette étape",
+    "count_one": "{count} appel sans réponse",
+    "count_many": "{count} appels sans réponse",
+    "count_other": "{count} appels sans réponse"
+  },
+  "status_card": {
+    "no_answer_cancel_one": "Après {count} appel sans réponse",
+    "no_answer_cancel_many": "Après {count} d'appels sans réponse",
+    "no_answer_cancel_other": "Après {count} appels sans réponse"
   }
 }

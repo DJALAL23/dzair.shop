@@ -1,5 +1,6 @@
 import { apiFetch } from "@/lib/api";
 import type { InboxResult } from "../../../../cod-shared/inbound/results";
+import type { CarrierCopyPreview } from "../../../../cod-shared/queries/profile-from-carrier";
 import type { Driver, DriverCompensation, DriverPayment, PendingSettlement, DriverPaymentType, DriverStatus, VehicleType, CarrierPlacesSummary, DeliveryCompany, StopDesk, ShippingProfile, ShippingProfileWithRules, CommuneOverride, WilayaRates } from "./types";
 
 interface ListEnvelope<T> {
@@ -299,4 +300,23 @@ export interface CommuneOverrideDraft {
   stopDeskEnabled?: boolean | null;
   homePrice?: number | null;
   stopDeskPrice?: number | null;
+}
+
+// ─── Copying a delivery company's rates into a profile ───────────────────────
+
+/** How a carrier's price becomes the customer's: an amount added, then rounded up. */
+export interface CarrierPricingDraft {
+  companyId: string;
+  add: number;
+  roundTo: 0 | 10 | 50 | 100;
+}
+
+/** What copying the company's rates would make of each wilaya. Writes nothing. */
+export async function previewCarrierCopy(profileId: string, body: CarrierPricingDraft) {
+  return (await apiFetch<DataEnvelope<CarrierCopyPreview>>(`/api/shipping-profiles/${encodeURIComponent(profileId)}/carrier-rates/preview`, json({ method: "POST", body: JSON.stringify(body) }))).data;
+}
+
+/** Copy the company's rates into the profile, replacing its prices. */
+export async function copyCarrierRates(profileId: string, body: CarrierPricingDraft) {
+  return (await apiFetch<DataEnvelope<ShippingProfileWithRules>>(`/api/shipping-profiles/${encodeURIComponent(profileId)}/carrier-rates`, json({ method: "PUT", body: JSON.stringify(body) }))).data;
 }

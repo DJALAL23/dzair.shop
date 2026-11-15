@@ -13,40 +13,40 @@ function sourceFiles(dir: string): string[] {
   });
 }
 
-const seam = vi.hoisted(() => ({ getMyStore: vi.fn(), updateMyStore: vi.fn() }));
+const seam = vi.hoisted(() => ({ getStoreSummary: vi.fn(), updateMyStore: vi.fn() }));
 vi.mock("./api", () => seam);
 
 const store = { id: "s1", name: "Maysa", domain: "maysashop.online", logo: null, lang: "ar" };
 
 beforeEach(() => {
   vi.resetModules();
-  seam.getMyStore.mockReset();
+  seam.getStoreSummary.mockReset();
   seam.updateMyStore.mockReset();
   sessionStorage.clear();
 });
 
 describe("the store summary", () => {
   it("is read once a visit, shared by every caller at once, with only what the frame shows", async () => {
-    seam.getMyStore.mockResolvedValue(store);
+    seam.getStoreSummary.mockResolvedValue(store);
     const { readStoreSummary } = await import("./store-summary");
     const [first, second] = await Promise.all([readStoreSummary(), readStoreSummary()]);
     await readStoreSummary();
 
-    expect(seam.getMyStore).toHaveBeenCalledTimes(1);
+    expect(seam.getStoreSummary).toHaveBeenCalledTimes(1);
     expect(first).toEqual({ name: "Maysa", domain: "maysashop.online", logo: null });
     expect(second).toEqual(first);
   });
 
   it("does not keep a read that failed", async () => {
-    seam.getMyStore.mockRejectedValueOnce(new Error("offline")).mockResolvedValue(store);
+    seam.getStoreSummary.mockRejectedValueOnce(new Error("offline")).mockResolvedValue(store);
     const { readStoreSummary } = await import("./store-summary");
     await expect(readStoreSummary()).rejects.toThrow("offline");
     await expect(readStoreSummary()).resolves.toMatchObject({ name: "Maysa" });
-    expect(seam.getMyStore).toHaveBeenCalledTimes(2);
+    expect(seam.getStoreSummary).toHaveBeenCalledTimes(2);
   });
 
   it("takes a saved store at once, tells every watcher, and is kept for the next page of the tab", async () => {
-    seam.getMyStore.mockResolvedValue(store);
+    seam.getStoreSummary.mockResolvedValue(store);
     const { readStoreSummary, storeSummaryChanged, watchStoreSummary, cachedStoreSummary } = await import("./store-summary");
     await readStoreSummary();
     const seen: string[] = [];
@@ -56,7 +56,7 @@ describe("the store summary", () => {
     expect(seen).toEqual(["Maysa Shop"]);
     await expect(readStoreSummary()).resolves.toMatchObject({ name: "Maysa Shop" });
     expect(cachedStoreSummary()).toEqual({ name: "Maysa Shop", domain: "maysashop.online", logo: null });
-    expect(seam.getMyStore).toHaveBeenCalledTimes(1);
+    expect(seam.getStoreSummary).toHaveBeenCalledTimes(1);
 
     stop();
     storeSummaryChanged({ ...store, name: "Later" });

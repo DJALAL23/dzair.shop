@@ -1,7 +1,6 @@
 import {
   Lock,
   MapPin,
-  RefreshCw,
   ShieldAlert,
   ShieldCheck,
   Truck,
@@ -21,8 +20,6 @@ export function CompanySettingsSection({
   autoValidate,
   savingAutoValidate,
   onToggleAutoValidate,
-  syncingDesks,
-  onSyncDesks,
   syncingShipments,
   onSyncShipments,
 }: {
@@ -33,8 +30,6 @@ export function CompanySettingsSection({
   autoValidate: boolean;
   savingAutoValidate: boolean;
   onToggleAutoValidate: () => void;
-  syncingDesks: boolean;
-  onSyncDesks: () => void;
   syncingShipments: boolean;
   onSyncShipments: () => void;
 }) {
@@ -162,16 +157,6 @@ export function CompanySettingsSection({
             {!isConnected && <Lock size={11} className="text-muted-foreground/30" aria-hidden="true" />}
           </div>
           <div className="flex flex-col gap-2">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={onSyncDesks}
-              disabled={syncingDesks || !isConnected}
-              className="justify-start"
-            >
-              <RefreshCw size={14} className={cn(syncingDesks && "animate-spin")} />
-              {t("sync_desks")}
-            </Button>
             {company?.capabilities?.history && canManage && (
               <Button
                 type="button"

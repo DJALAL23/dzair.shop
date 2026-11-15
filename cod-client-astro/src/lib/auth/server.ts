@@ -1,8 +1,9 @@
 import { betterAuth } from "better-auth";
 import { withCloudflare } from "better-auth-cloudflare";
+import { APIError } from "better-auth/api";
 import { customSession, jwt } from "better-auth/plugins";
 import { getDb } from "../../../../cod-shared/db/client";
-import { userScopes } from "../../../../cod-shared/db/schema";
+import { users, userScopes } from "../../../../cod-shared/db/schema";
 import { getStore } from "../../../../cod-shared/queries/stores";
 import { renderPasswordResetEmail } from "../../../../cod-shared/lib/email-templates";
 import { sendTransactionalEmail } from "../../../../cod-shared/lib/transactional-email";
@@ -90,6 +91,16 @@ export function createAuth(env: AuthEnv, cloudflare?: AuthCloudflareContext) {
             .filter(Boolean),
         ],
         disabledPaths: ["/token"],
+        databaseHooks: {
+          session: {
+            create: {
+              before: async (session) => {
+                const account = await db.select({ status: users.status }).from(users).where(eq(users.id, session.userId)).get();
+                if (account?.status !== "active") throw APIError.from("FORBIDDEN", { message: "This account is turned off", code: "USER_INACTIVE" });
+              },
+            },
+          },
+        },
         session: {
           storeSessionInDatabase: true,
           cookieCache: {
@@ -175,21 +186,24 @@ export function createAuth(env: AuthEnv, cloudflare?: AuthCloudflareContext) {
           // Attaches real scopes (user_scopes join) to every session response so
           // the Identity contract is truthful end-to-end. Not added to the JWT
           // payload — scopes stay server-resolved per request.
-          customSession(async ({ user, session }) => {
-            const rows = await db
-              .select({ scope: userScopes.scope })
-              .from(userScopes)
-              .where(eq(userScopes.userId, user.id));
-            
+          customSession(async ({ user, session }, ctx) => {
+            const [account, rows] = await db.batch([
+              db.select({ role: users.role, status: users.status }).from(users).where(eq(users.id, user.id)),
+              db.select({ scope: userScopes.scope }).from(userScopes).where(eq(userScopes.userId, user.id)),
+            ]);
+            const current = account[0];
+            if (current?.status !== "active") {
+              await ctx.context.internalAdapter.deleteUserSessions(user.id);
+              throw APIError.from("UNAUTHORIZED", { message: "This account is turned off", code: "USER_INACTIVE" });
+            }
+
             // Strip sensitive fields from user object before sending to browser
             const { apiKey, ...safeUser } = user as typeof user & { apiKey?: string };
-            
+
             return {
-              user: safeUser,
+              user: { ...safeUser, role: current.role, status: current.status },
               session,
-              scopes: (user as { role?: string }).role === "admin"
-                ? ["*"]
-                : rows.map((r) => r.scope),
+              scopes: current.role === "admin" ? ["*"] : rows.map((r) => r.scope),
             };
           }),
           jwt({

@@ -60,6 +60,7 @@ const englishOnlyGroups: Group[] = [
       },
       { slug: "/features/bot-protection", en: "Bot protection", fr: "Protection anti-bots", ar: "الحماية من الروبوتات" },
       { slug: "/features/meta", en: "Meta Pixel and Conversions API", fr: "Meta Pixel et API Conversions", ar: "Meta Pixel وواجهة التحويلات" },
+      { slug: "/features/order-source", en: "Where an order comes from", fr: "Origine d'une commande", ar: "مصدر الطلب" },
       { slug: "/features/legal-pages", en: "Legal pages", fr: "Pages légales", ar: "الصفحات القانونية" },
       { slug: "/features/email", en: "Email", fr: "E-mail", ar: "البريد الإلكتروني" },
     ],

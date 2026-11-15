@@ -2,7 +2,10 @@ import { sql } from "drizzle-orm";
 import type { AppDb } from "../db/client";
 import { sourceOf, windowCountKey, type Condition, type ConditionKey, type Facts, type FactSource, type WindowValue } from "./conditions";
 import type { Rule } from "./rules";
-import { appSourceOf, ipKey, readCheckoutSignals, readNetworkSignals } from "./signals";
+import { appSourceOf, ipKey, readCheckoutSignals, readNetworkSignals, type VisitSource } from "./signals";
+import { classifyTouch } from "../attribution/channel";
+import { landingTouch } from "../attribution/resolve";
+import type { CapturedTouches } from "../attribution/model";
 
 /** What Screening is told about a submission. */
 export interface OrderSubmission {
@@ -18,17 +21,32 @@ export interface OrderSubmission {
   checkoutContext?: string;
   visitorNetwork?: string;
   userAgent?: string;
+  /** The touches the storefront captured (attribution v2): they name where the visit came from, over the browser's own guess. */
+  attribution?: CapturedTouches | null;
+}
+
+const VISIT_PLATFORMS: ReadonlySet<string> = new Set(["meta", "tiktok", "google"]);
+
+/** Where the visit came from, as the order's attribution names it: its credited ad, else this visit. */
+function attributedVisitSource(touches: CapturedTouches | null | undefined, now: string): VisitSource | undefined {
+  if (!touches?.visit && !touches?.last) return undefined;
+  const touch = landingTouch(touches, now);
+  if (!touch) return undefined;
+  const { platform } = classifyTouch(touch);
+  return VISIT_PLATFORMS.has(platform) ? (platform as VisitSource) : "other";
 }
 
 export interface ScreeningPorts {
   limiter?: { limit(options: { key: string }): Promise<{ success: boolean }> };
 }
 
-export function submissionFacts(submission: OrderSubmission): Facts {
+export function submissionFacts(submission: OrderSubmission, now: string = new Date().toISOString()): Facts {
   const key = submission.ip ? ipKey(submission.ip) : null;
   const appSource = appSourceOf(submission.userAgent);
+  const visitSource = attributedVisitSource(submission.attribution, now);
   return {
     ...readCheckoutSignals(submission.checkoutContext),
+    ...(visitSource ? { visitSource } : {}),
     ...readNetworkSignals(submission.visitorNetwork),
     ...(appSource ? { appSource } : {}),
     phone: submission.phone,
@@ -119,7 +137,7 @@ async function burst(ports: ScreeningPorts, storeId: string, facts: Facts): Prom
 
 /** Loads the Block List, which always applies, and each source the rules need, once; a source no rule reads is never touched. */
 export async function loadFacts(db: AppDb, rules: readonly Rule[], submission: OrderSubmission, ports: ScreeningPorts, now: string): Promise<Facts> {
-  const facts = submissionFacts(submission);
+  const facts = submissionFacts(submission, now);
   const conditions = rules.flatMap((rule) => rule.conditions);
   const needed = new Set<FactSource>(conditions.map(sourceOf));
   const [counts, past, onList, burstFact] = await Promise.all([

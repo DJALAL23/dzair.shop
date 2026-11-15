@@ -42,6 +42,8 @@ const tagDescriptions = {
   Stock: "Stock levels, adjustments and movements.",
   Analytics: "Merchant analytics, reports and dashboards.",
   "Abandoned Orders": "Recover abandoned checkouts and baskets.",
+  "Confirmation team": "The team that confirms orders: who receives them, their results and their pay.",
+  Finance: "The store's own costs (ads, packaging, calls, rent), what they come to over a period, and the exchange rates foreign costs are counted at.",
 };
 
 const tagGroups = [
@@ -82,7 +84,7 @@ const tagGroups = [
   },
   {
     name: "Operations",
-    tags: ["Users", "Activity Logs", "Analytics", "Abandoned Orders"],
+    tags: ["Users", "Confirmation team", "Finance", "Activity Logs", "Analytics", "Abandoned Orders"],
   },
 ];
 

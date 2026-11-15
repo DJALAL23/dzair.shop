@@ -10,8 +10,7 @@ import type { Env } from "@/types/env";
 import { getDb } from "@/db";
 import { deliveryCompanies } from "@/db/schema";
 import { buildCarrier } from "@/carriers/registry";
-import { storeStopDesks } from "@/endpoints/delivery-companies/stop-desks";
-import { syncCarrierPlaces } from "../../../cod-shared/carriers/places";
+import { readCarrierLists } from "@/endpoints/delivery-companies/carrier-lists";
 
 export const PLACES_STALE_AFTER_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -37,9 +36,7 @@ export async function refreshCarrierPlaces(env: Env, now = new Date()): Promise<
     .all();
   for (const company of due) {
     try {
-      const carrier = buildCarrier(company);
-      const places = await syncCarrierPlaces(db, company.id, await carrier.places(), now);
-      const desks = carrier.capabilities.stopDeskList ? await storeStopDesks(db, company.id, await carrier.stopDesks!(), now) : null;
+      const { places, desks } = await readCarrierLists(db, company.id, buildCarrier(company), now);
       console.info(`[places] company=${company.id} code=${company.code} communes=${places.communes} unmatched=${places.unmatched.length}${desks ? ` desks=${desks.total} unplaced=${desks.unplaced}` : ""}`);
     } catch (error) {
       console.error(`[places] company=${company.id} code=${company.code}: list not read`, error instanceof Error ? error.message : error);

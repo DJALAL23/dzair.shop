@@ -6,10 +6,10 @@
  * have no relationship to these profiles.
  *
  * updateProfile and setProfileRules stay in cod-server — they raise
- * BusinessLogicError / ValidationError.
+ * BusinessLogicError / ValidationError — and write through `writeProfileRules`.
  */
 
-import { eq, and } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import {
   shippingProfiles,
   shippingRules,
@@ -416,4 +416,88 @@ export async function deleteCommuneOverride(
     .run();
 
   return true;
+}
+
+// ─── Writing a profile's rules ───────────────────────────────────────────────
+
+/** One wilaya's rule as it is written. */
+export interface ProfileRuleInput {
+  wilayaId: number;
+  homePrice: number;
+  stopDeskPrice: number;
+  homeEnabled: boolean;
+  stopDeskEnabled: boolean;
+}
+
+/** One commune's override as it is written; a null field inherits the wilaya rule. */
+export interface ProfileCommuneInput {
+  communeId: string;
+  homePrice: number | null;
+  stopDeskPrice: number | null;
+  homeEnabled: boolean | null;
+  stopDeskEnabled: boolean | null;
+}
+
+type BatchStatement = Parameters<AppDb["batch"]>[0][number];
+
+/** Rows per INSERT, under D1's 100 bound parameters: eight columns a rule, seven an override. */
+const RULES_PER_INSERT = 12;
+const OVERRIDES_PER_INSERT = 14;
+
+/**
+ * Make a profile's rules exactly `rules`, in one batch (a D1 batch is one
+ * transaction, and one query against the Free plan's 50 per request).
+ *
+ * A wilaya that stays keeps its rule, and so its Commune Overrides: only its
+ * prices and switches change. A wilaya that goes takes its overrides with it.
+ * `communes`, when it names a wilaya, replaces that wilaya's overrides with
+ * the ones given (an empty list clears them); a wilaya it does not name keeps
+ * the overrides it has.
+ */
+export async function writeProfileRules(
+  db: AppDb,
+  profileId: string,
+  rules: readonly ProfileRuleInput[],
+  communes: ReadonlyMap<number, readonly ProfileCommuneInput[]> = new Map(),
+  at: string = now(),
+): Promise<void> {
+  const current = await db
+    .select({ id: shippingRules.id, wilayaId: shippingRules.wilayaId })
+    .from(shippingRules)
+    .where(eq(shippingRules.profileId, profileId))
+    .all();
+  const ruleOf = new Map(current.map((rule) => [rule.wilayaId, rule.id]));
+  const kept = new Set(rules.map((rule) => rule.wilayaId));
+
+  const statements: BatchStatement[] = [];
+  const gone = current.filter((rule) => !kept.has(rule.wilayaId)).map((rule) => rule.id);
+  for (let i = 0; i < gone.length; i += 90) statements.push(db.delete(shippingRules).where(inArray(shippingRules.id, gone.slice(i, i + 90))));
+
+  const added: (typeof shippingRules.$inferInsert)[] = [];
+  const idOf = new Map<number, string>();
+  for (const rule of rules) {
+    const values = { homePrice: rule.homePrice, stopDeskPrice: rule.stopDeskPrice, homeEnabled: rule.homeEnabled, stopDeskEnabled: rule.stopDeskEnabled };
+    const id = ruleOf.get(rule.wilayaId);
+    if (id) {
+      statements.push(db.update(shippingRules).set(values).where(eq(shippingRules.id, id)));
+      idOf.set(rule.wilayaId, id);
+    } else {
+      const newId = newProfileId();
+      added.push({ id: newId, profileId, wilayaId: rule.wilayaId, ...values, createdAt: at });
+      idOf.set(rule.wilayaId, newId);
+    }
+  }
+  for (let i = 0; i < added.length; i += RULES_PER_INSERT) statements.push(db.insert(shippingRules).values(added.slice(i, i + RULES_PER_INSERT)));
+
+  const overrides: (typeof shippingRuleCommunes.$inferInsert)[] = [];
+  for (const [wilayaId, list] of communes) {
+    const ruleId = idOf.get(wilayaId);
+    if (!ruleId) continue;
+    if (ruleOf.has(wilayaId)) statements.push(db.delete(shippingRuleCommunes).where(eq(shippingRuleCommunes.ruleId, ruleId)));
+    for (const commune of list) overrides.push({ id: newProfileId(), ruleId, ...commune });
+  }
+  for (let i = 0; i < overrides.length; i += OVERRIDES_PER_INSERT) statements.push(db.insert(shippingRuleCommunes).values(overrides.slice(i, i + OVERRIDES_PER_INSERT)));
+
+  statements.push(db.update(shippingProfiles).set({ updatedAt: at }).where(eq(shippingProfiles.id, profileId)));
+  await db.batch(statements as [BatchStatement, ...BatchStatement[]]);
 }
