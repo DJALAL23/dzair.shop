@@ -580,18 +580,32 @@ describe("Orders routes (OpenAPIHono)", () => {
       );
     });
 
-    it("applies it only to the order as its author saw it, when they say how many calls had no answer", async () => {
+    it("applies it only to the order as its author saw it, when they say what they saw", async () => {
       vi.mocked(queries.getOrderById).mockResolvedValue(orderRow({ status: "unreachable", unansweredCalls: 2 }) as any);
       vi.mocked(queries.updateOrderStatus).mockResolvedValue({ ok: true });
 
       const res = await app.request("/api/orders/ord_1/status", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "unreachable", unansweredCalls: 2 }),
+        body: JSON.stringify({ status: "unreachable", seen: { status: "unreachable", unansweredCalls: 2 } }),
       });
 
       expect(res.status).toBe(200);
-      expect(queries.updateOrderStatus).toHaveBeenCalledWith(mockDb, "ord_1", "unreachable", ADMIN_AUTHOR, { unansweredCalls: 2 });
+      expect(queries.updateOrderStatus).toHaveBeenCalledWith(mockDb, "ord_1", "unreachable", ADMIN_AUTHOR, { status: "unreachable", unansweredCalls: 2 });
+    });
+
+    it("refuses a move on an order whose status moved on since its author saw it, before asking whether the move is allowed", async () => {
+      vi.mocked(queries.getOrderById).mockResolvedValue(orderRow({ status: "cancelled", unansweredCalls: 3 }) as any);
+
+      const res = await app.request("/api/orders/ord_1/status", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "unreachable", seen: { status: "unreachable", unansweredCalls: 3 } }),
+      });
+
+      expect(res.status).toBe(409);
+      expect(((await res.json()) as { code: string }).code).toBe("ORDER_CHANGED");
+      expect(queries.updateOrderStatus).not.toHaveBeenCalled();
     });
 
     it("blocks an invalid backward transition with 400 INVALID_STATUS_TRANSITION", async () => {

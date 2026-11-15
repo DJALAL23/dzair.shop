@@ -189,17 +189,17 @@ describe("an order on no answer", () => {
     expect(host.querySelector("h1")!.parentElement!.textContent).toBe(`${ORDER.orderNumber}No answer · Call 2`);
     expect(Array.from(card("Next step").querySelectorAll("button")).map((b) => b.textContent?.trim())).toEqual(["Confirm order", "No answer · Call 3", "Cancel order"]);
     await act(async () => button("No answer · Call 3")!.click());
-    expect(api.updateOrderStatus).toHaveBeenCalledWith("o1", "unreachable", 2);
+    expect(api.updateOrderStatus).toHaveBeenCalledWith("o1", "unreachable", { status: "unreachable", unansweredCalls: 2 });
     expect(toast.success).toHaveBeenCalledWith(`${ORDER.orderNumber}: No answer · Call 3`);
     expect(api.getOrder).toHaveBeenCalledTimes(2);
   });
 
-  it("sends the count with every move, so a decision on an order that moved on is refused too", async () => {
+  it("sends the order as it showed it with every move, so a decision on an order someone else changed is refused too", async () => {
     api.getOrder.mockResolvedValue(CALLED_TWICE);
     api.updateOrderStatus.mockResolvedValue({ success: true, data: null });
     await open();
     await act(async () => button("Confirm order")!.click());
-    expect(api.updateOrderStatus).toHaveBeenCalledWith("o1", "confirmed", 2);
+    expect(api.updateOrderStatus).toHaveBeenCalledWith("o1", "confirmed", { status: "unreachable", unansweredCalls: 2 });
   });
 
   it("reads the order again and says why when someone recorded that call first", async () => {

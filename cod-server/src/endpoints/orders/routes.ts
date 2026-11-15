@@ -272,7 +272,9 @@ const updateStatusRoute = defineRoute({
 
 Any other move returns \`400 INVALID_STATUS_TRANSITION\` with the allowed next statuses.
 
-**Calls without an answer:** each move to \`unreachable\` adds one to the order's \`unansweredCalls\` (Call 1, Call 2, Call 3…); nothing else changes it, and nothing cancels the order for you. Send \`unansweredCalls\` as you read it to have the change applied only to the order as you saw it: otherwise \`409 ORDER_CHANGED\`, and nothing is written.
+**Calls without an answer:** each move to \`unreachable\` adds one to the order's \`unansweredCalls\` (Call 1, Call 2, Call 3…); nothing else changes it, and nothing cancels the order for you.
+
+**The order as you saw it:** send \`seen\` (its \`status\` and \`unansweredCalls\` as you read them) and the move applies only while the order still is so: otherwise \`409 ORDER_CHANGED\`, nothing is written, and you read the order again. One press on No answer then counts one call, and a move on an order someone else confirmed or cancelled meanwhile is refused rather than applied.
 
 **Side effects:** \`confirmed\` starts the Meta CAPI confirmed stage (when the store tracks it); \`cancelled\` restores inventory for products with \`trackInventory\` and rolls back the customer's spend. Delivery and return are the shipment's milestones, with their own effects.
 

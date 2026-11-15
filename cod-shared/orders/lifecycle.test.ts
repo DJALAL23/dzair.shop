@@ -6,6 +6,7 @@ import {
   checkHandoff,
   checkTransition,
   isOrderStatus,
+  statusMovedOn,
   type OrderStatus,
 } from "./lifecycle";
 
@@ -117,5 +118,17 @@ describe("isOrderStatus", () => {
     for (const legacy of ["assigned", "dispatched", "out_for_delivery", "delivered", "returned", "", null, 3]) {
       expect(isOrderStatus(legacy)).toBe(false);
     }
+  });
+});
+
+describe("a move made on the order as its author saw it", () => {
+  it("is stale once the order's status moved on, whatever its calls", () => {
+    expect(statusMovedOn({ status: "confirmed" }, { status: "unreachable", unansweredCalls: 1 })).toBe(true);
+    expect(statusMovedOn({ status: "cancelled" }, { status: "new", unansweredCalls: 0 })).toBe(true);
+  });
+
+  it("is not stale while the status is as seen, nor when the author said nothing of what they saw", () => {
+    expect(statusMovedOn({ status: "unreachable" }, { status: "unreachable", unansweredCalls: 2 })).toBe(false);
+    expect(statusMovedOn({ status: "unreachable" }, undefined)).toBe(false);
   });
 });

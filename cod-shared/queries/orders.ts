@@ -22,7 +22,7 @@ import {
   stores,
   orderAttribution,
 } from "../db/schema";
-import type { OrderStatus } from "../orders/lifecycle";
+import { statusMovedOn, type OrderStatus, type SeenOrder } from "../orders/lifecycle";
 import type { StoreLocale } from "../i18n/locales";
 import {
   eq,
@@ -528,12 +528,6 @@ function handlingOf(newStatus: OrderStatus, author: Author, now: string) {
   };
 }
 
-/** What the author saw of the order: a change made to a later state of it is refused (`changed`). */
-export interface SeenOrder {
-  /** Its calls without an answer, as read: a second click on the same "No answer" counts no second call. */
-  unansweredCalls: number;
-}
-
 /**
  * Move an order to a new status, with its effects: its Business Event, and on cancel the
  * goods restocked. (Delivery and return
@@ -546,7 +540,8 @@ export interface SeenOrder {
  * while that revision stands. Two cancels at once apply their effects once;
  * a cancel racing a handoff loses to it (an order with a shipment has no
  * status change). With `seen`, it applies only while the order still is as
- * its author saw it, so a call without an answer is counted once.
+ * its author saw it: a call without an answer is counted once, and a move on
+ * an order someone else confirmed or cancelled meanwhile is refused.
  */
 export async function updateOrderStatus(
   db: AppDb,
@@ -560,6 +555,7 @@ export async function updateOrderStatus(
 
   const order = await db.select().from(orders).where(eq(orders.id, orderId)).get();
   if (!order) return { ok: false, reason: "not_found" };
+  if (statusMovedOn(order, seen)) return { ok: false, reason: "changed" };
 
   const revision = crypto.randomUUID();
   const claimed = sql`exists (select 1 from ${orders} where ${orders.id} = ${orderId} and ${orders.revision} = ${revision})`;

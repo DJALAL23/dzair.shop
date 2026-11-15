@@ -9,16 +9,17 @@ import type { OrderStatus } from "@/features/orders/types";
 /**
  * Moving an order's processing on: cancelling asks first (stock comes back
  * and the customer's spend is rolled back); the rest happen at once. The
- * order's calls without an answer go along as shown, so a second "No answer"
- * on what someone else just recorded counts no call twice: it is refused and
- * the order is read again. Resolves true when the move was made.
+ * order goes along as shown — its status and its calls without an answer —
+ * so a move on an order someone else confirmed, cancelled or called
+ * meanwhile is refused and the order is read again, never applied to what
+ * it became. Resolves true when the move was made.
  */
 export function useStatusMove(onDone: () => void | Promise<void>, onError: (message: string) => void) {
   const t = useT("orders");
   const common = useT("common");
   const confirm = useConfirmDialog();
 
-  return async function move(order: { id: string; orderNumber: string; unansweredCalls: number }, status: OrderStatus): Promise<boolean> {
+  return async function move(order: { id: string; orderNumber: string; status: OrderStatus; unansweredCalls: number }, status: OrderStatus): Promise<boolean> {
     if (status === "cancelled") {
       const accepted = await confirm({
         title: t("move.cancel_title", { order: order.orderNumber }),
@@ -30,7 +31,7 @@ export function useStatusMove(onDone: () => void | Promise<void>, onError: (mess
       if (!accepted) return false;
     }
     try {
-      await updateOrderStatus(order.id, status, order.unansweredCalls);
+      await updateOrderStatus(order.id, status, { status: order.status, unansweredCalls: order.unansweredCalls });
     } catch (cause) {
       notify.error(t("move.failed"));
       if (cause instanceof ApiError && cause.code === "ORDER_CHANGED") {

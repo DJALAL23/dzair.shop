@@ -62,12 +62,15 @@ export { ORDER_STATUSES, type OrderStatus } from "../../../../cod-shared/orders/
 
 export const updateOrderStatusSchema = z.object({
   status: z.enum(ORDER_STATUSES),
-  unansweredCalls: z
-    .number()
-    .int()
-    .min(0)
+  seen: z
+    .object({
+      status: z.enum(ORDER_STATUSES),
+      unansweredCalls: z.number().int().min(0),
+    })
     .optional()
-    .describe("The order's `unansweredCalls` as you read it: the change applies only while it still is (409 ORDER_CHANGED otherwise), so one click on No answer counts one call, never two"),
+    .describe(
+      "The order as you read it, its `status` and `unansweredCalls`: the move applies only while the order still is so (409 ORDER_CHANGED otherwise, and nothing is written). One press on No answer then counts one call, and a move on an order someone else confirmed or cancelled meanwhile is refused",
+    ),
 });
 
 /**

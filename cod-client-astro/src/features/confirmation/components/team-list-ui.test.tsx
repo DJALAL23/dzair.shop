@@ -10,6 +10,7 @@ const api = vi.hoisted(() => ({
   getOrderStageCounts: vi.fn(),
   listDeliveryCompanies: vi.fn(),
   listDrivers: vi.fn(),
+  updateOrderStatus: vi.fn(),
 }));
 const team = vi.hoisted(() => ({ getTeam: vi.fn(), getTeamSettings: vi.fn(), assignOrders: vi.fn() }));
 const identity = vi.hoisted(() => ({ scopes: [] as string[] }));
@@ -280,5 +281,18 @@ describe("the orders to confirm, call by call", () => {
     await act(async () => chip("Call 3+").click());
     await settle();
     expect(host.textContent).toContain("No order at this step");
+  });
+
+  it("records the next call from a row's menu, sending the order as the row showed it", async () => {
+    identity.scopes = [...MANAGER, "orders:update"];
+    api.getOrderStageCounts.mockResolvedValue(ON_NO_ANSWER);
+    api.listOrders.mockResolvedValue({ orders: [order("a", { status: "unreachable", stage: "unreachable", unansweredCalls: 2 })], nextCursor: null });
+    api.updateOrderStatus.mockResolvedValue({ success: true, data: null });
+    await render();
+    await act(async () => host.querySelector<HTMLButtonElement>('tbody button[aria-label$="ORD-a"]')!.click());
+    const item = Array.from(document.querySelectorAll<HTMLElement>('[role="menuitem"]')).find((entry) => entry.textContent?.trim() === "No answer · Call 3")!;
+    await act(async () => item.click());
+    await settle();
+    expect(api.updateOrderStatus).toHaveBeenCalledWith("a", "unreachable", { status: "unreachable", unansweredCalls: 2 });
   });
 });

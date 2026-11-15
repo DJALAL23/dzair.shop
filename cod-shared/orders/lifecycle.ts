@@ -91,3 +91,19 @@ export function checkDeliveryDetailsEdit(order: OrderFacts): LifecycleVerdict {
   if (order.hasShipment) return { ok: false, code: ERROR_CODES.ORDER_HAS_SHIPMENT };
   return { ok: true };
 }
+
+/**
+ * What a member saw of the order when they moved it: its status and its
+ * calls without an answer. A move made on it applies only while the order
+ * still is so — someone else may have confirmed it, cancelled it or
+ * recorded the same call meanwhile.
+ */
+export interface SeenOrder {
+  status: OrderStatus;
+  unansweredCalls: number;
+}
+
+/** Whether the order's status moved on since its author saw it: their move is refused then, whatever the lifecycle allows from where it is now. */
+export function statusMovedOn(order: Pick<OrderFacts, "status">, seen: SeenOrder | undefined): boolean {
+  return seen !== undefined && seen.status !== order.status;
+}

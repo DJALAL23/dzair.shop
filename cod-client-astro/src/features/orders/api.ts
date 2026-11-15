@@ -24,6 +24,7 @@ import type {
 } from "./types";
 import type { MerchantReport } from "../../../../cod-shared/shipments/merchant-reports";
 import type { CallList } from "../../../../cod-shared/orders/calls";
+import type { SeenOrder } from "../../../../cod-shared/orders/lifecycle";
 
 interface ListEnvelope<T> {
   success: boolean;
@@ -101,9 +102,9 @@ export async function getOrder(id: string) {
   return (await apiFetch<DataEnvelope<OrderDetail>>(`/api/orders/${encodeURIComponent(id)}`)).data;
 }
 
-/** `unansweredCalls`: the order's calls without an answer as shown; a change to an order that moved on since is refused (ORDER_CHANGED). */
-export function updateOrderStatus(id: string, status: OrderStatus, unansweredCalls?: number) {
-  return apiFetch<DataEnvelope<null>>(`/api/orders/${encodeURIComponent(id)}/status`, json({ method: "PATCH", body: JSON.stringify({ status, unansweredCalls }) }));
+/** `seen`: the order as shown, its status and calls without an answer; a move on an order that changed since is refused (ORDER_CHANGED). */
+export function updateOrderStatus(id: string, status: OrderStatus, seen?: SeenOrder) {
+  return apiFetch<DataEnvelope<null>>(`/api/orders/${encodeURIComponent(id)}/status`, json({ method: "PATCH", body: JSON.stringify({ status, seen }) }));
 }
 
 export async function updateOrder(id: string, body: Record<string, unknown>) {
