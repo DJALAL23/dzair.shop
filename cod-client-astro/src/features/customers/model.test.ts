@@ -32,6 +32,7 @@ const order = (stage: CustomerOrderSummary["stage"]): CustomerOrderSummary => ({
   orderNumber: "ORD-001",
   status: "ready",
   stage,
+  unansweredCalls: 0,
   price: 9000,
   createdAt: "2026-08-26T00:00:00.000Z",
   wilayaId: 16,

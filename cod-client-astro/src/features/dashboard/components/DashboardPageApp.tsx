@@ -347,12 +347,12 @@ function DashboardOverview() {
                       <span className="block truncate text-xs text-muted-foreground">{order.customerName}</span>
                     </span>
                     <span className="hidden sm:block">
-                      <StageBadge stage={order.stage} needsAttention={order.needsAttention} />
+                      <StageBadge stage={order.stage} needsAttention={order.needsAttention} calls={order.unansweredCalls} />
                     </span>
                     <span className="flex shrink-0 flex-col items-end gap-1 sm:w-24">
                       <span className="text-sm tabular-nums text-foreground">{formatMoney(orderTotal(order), locale)}</span>
                       <span className="sm:hidden">
-                        <StageBadge stage={order.stage} needsAttention={order.needsAttention} />
+                        <StageBadge stage={order.stage} needsAttention={order.needsAttention} calls={order.unansweredCalls} />
                       </span>
                     </span>
                   </a>

@@ -84,6 +84,7 @@ export const CustomerOrderSummarySchema = z
       example: "بئر مراد رايس",
     }),
     stage: z.enum(ORDER_STAGES).openapi({ description: "Where the order stands overall — delivered, returned… (the same stage as GET /api/orders)" }),
+    unansweredCalls: z.number().int().min(0).openapi({ description: "Calls to the customer without an answer: an order on no answer is at Call 1, Call 2, Call 3… Kept once the order is decided.", example: 0 }),
   })
   .openapi("CustomerOrderSummary", {
     description: "Order summary returned by GET /api/customers/{id}/orders",

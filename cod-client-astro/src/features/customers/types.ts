@@ -24,6 +24,8 @@ export interface CustomerOrderSummary {
   status: OrderStatus;
   /** Where the order stands overall — delivered, returned… */
   stage: OrderStage;
+  /** Calls without an answer: an order on no answer is at Call 1, Call 2, Call 3… */
+  unansweredCalls: number;
   price: number;
   createdAt: string;
   wilayaId: number | null;

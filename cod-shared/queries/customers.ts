@@ -307,6 +307,7 @@ export async function getOrdersByCustomerId(db: AppDb, customerId: string, assig
       wilayaName: wilayas.nameAr,
       communeName: communes.nameAr,
       stage: orderStageSql(),
+      unansweredCalls: orders.unansweredCalls,
     })
     .from(orders)
     .leftJoin(wilayas, eq(orders.wilayaId, wilayas.id))

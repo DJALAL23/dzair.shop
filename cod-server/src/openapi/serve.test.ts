@@ -390,6 +390,8 @@ describe("GET /api/openapi.json (merged spec)", () => {
     expect(spec.components.schemas.Customer).toBeDefined();
     expect(spec.components.schemas.Customer.properties.recentOrders).toBeDefined();
     expect(spec.components.schemas.CustomerOrderSummary).toBeDefined();
+    expect(spec.components.schemas.CustomerOrderSummary.properties.unansweredCalls).toMatchObject({ type: "integer", minimum: 0 });
+    expect(spec.components.schemas.CustomerOrderSummary.required).toContain("unansweredCalls");
     expect(spec.components.schemas.CustomerGroupMembership).toBeDefined();
     expect(spec.components.schemas.CustomerTagMembership).toBeDefined();
   });

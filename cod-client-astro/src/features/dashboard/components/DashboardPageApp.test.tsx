@@ -56,3 +56,17 @@ describe("home for someone who may not see it", () => {
     expect(host.textContent).toContain("You do not have permission to access this page.");
   });
 });
+
+describe("home's recent orders", () => {
+  it("says which call a customer who does not answer is at, as the orders list does", async () => {
+    api.getOrderStageCounts.mockResolvedValue({ stages: [{ stage: "unreachable", count: 1 }], needsAttention: 0, archived: 0, callbacks: 0, callbacksDue: 0, noAnswer: { call1: 0, call2: 0, call3OrMore: 1 }, deliveryRate: null });
+    api.getOrderActivity.mockResolvedValue({ from: "2026-10-17", to: "2026-11-15", days: [], previous: { orders: 0, orderValue: 0 } });
+    api.listOrders.mockResolvedValue({
+      orders: [{ id: "o1", orderNumber: "ORD-1", customerName: "Amel", status: "unreachable", stage: "unreachable", needsAttention: false, unansweredCalls: 3, price: 3000, deliveryFee: 400, products: [], createdAt: "2026-11-14T08:00:00.000Z" }],
+      nextCursor: null,
+    });
+    await open(["dashboard:view", "orders:read"]);
+    for (let i = 0; i < 3; i++) await act(async () => {});
+    expect(host.textContent).toContain("No answer · Call 3");
+  });
+});
