@@ -96,3 +96,25 @@ describe("the thank-you page", () => {
     expect(thankYou).not.toMatch(/Purchase|eventID|conversionEvent/);
   });
 });
+
+describe("the landing page of the visit is credited to the order placed after it", () => {
+  const orderForm = read("theme/components/order/OrderForm.astro");
+  const checkoutMain = read("theme/components/checkout/CheckoutMain.astro");
+  const productScript = read("theme/scripts/product.ts");
+  const checkoutScript = read("theme/scripts/checkout.ts");
+
+  it("is remembered by a live landing page, never by the editor's preview", () => {
+    expect(landingSurface).toContain("{!preview && <span hidden data-landing-visit={landing.slug}></span>}");
+    expect(landingSurface).toMatch(/bindEach<HTMLElement>\("\[data-landing-visit\]", \(marker\) => rememberLanding\(marker\.dataset\.landingVisit \?\? ""\)\)/);
+  });
+
+  it("has a field on every order form: a landing page's own, the product page's and the basket's", () => {
+    expect(orderForm).toContain('<input type="hidden" name="landingPageSlug" value={landingPageSlug ?? ""} />');
+    expect(checkoutMain).toContain('<input type="hidden" name="landingPageSlug" value="" />');
+  });
+
+  it("is filled as each form is sent", () => {
+    expect(productScript).toMatch(/form\?\.addEventListener\("submit", \(\) => \{[^}]*creditLandingOfThisVisit\(form\);/);
+    expect(checkoutScript).toMatch(/"submit",\s*\(\) => \{[\s\S]{0,200}creditLandingOfThisVisit\(form\);/);
+  });
+});

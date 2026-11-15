@@ -106,6 +106,8 @@ const turnstileEnabled = config.turnstileEnabled === true && Boolean(config.turn
         <input type="hidden" name="items" value="" id="cart-items-input" />
         {/* WhatsApp OTP proof — set by the OTP step script after verification */}
         <input type="hidden" name="otpToken" id="otp-token-input" value="" />
+        {/* The landing page of the visit, filled at submit (scripts/landing-visit.ts). */}
+        <input type="hidden" name="landingPageSlug" value="" />
 
         <div
           class="rounded-[var(--radius-card)] border px-4 py-5 sm:px-5"

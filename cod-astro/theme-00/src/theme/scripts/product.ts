@@ -14,6 +14,7 @@ import { STOREFRONT_API_PATHS } from "@wocart/storefront";
 import { initCouponField } from "./coupon-field";
 import { storefrontTracking } from "@wocart/storefront";
 import { initCustomFields } from "./custom-fields";
+import { creditLandingOfThisVisit } from "./landing-visit";
 import { initRequiredSelects } from "./select-required";
 // One money formatter for the whole theme — see utils/money.ts.
 import { formatAmount, formatCurrency } from "../utils/money";
@@ -679,6 +680,7 @@ export function initProductPage(): () => void {
   const form = document.querySelector<HTMLFormElement>("form[method='POST']");
   form?.addEventListener("submit", () => {
     if (submitBtn) submitBtn.disabled = true;
+    creditLandingOfThisVisit(form);
   });
 
   // The merchant's own questions, serialised into the one hidden JSON input the

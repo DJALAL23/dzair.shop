@@ -75,8 +75,9 @@ const comparePrice = getProductView(product).comparePrice;
         the shopper is reading matches what gets submitted. */}
     {/* WhatsApp OTP proof — set by the OTP step script after verification */}
     <input type="hidden" name="otpToken" id="otp-token-input" value="" />
-    {/* Landing page attribution — present only on landing pages */}
-    {landingPageSlug && <input type="hidden" name="landingPageSlug" value={landingPageSlug} />}
+    {/* Landing page attribution: this page's own on a landing page, otherwise
+        the visit's, filled at submit (scripts/landing-visit.ts). */}
+    <input type="hidden" name="landingPageSlug" value={landingPageSlug ?? ""} />
 
     <div class="order-choices">
       {/* Standalone variant selector only when no offers — otherwise it lives inside the tier cards */}

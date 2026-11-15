@@ -49,6 +49,12 @@ async function render(gates: { otpEnabled?: boolean; turnstileEnabled?: boolean;
 const scriptTags = (html: string, component: string) =>
   [...html.matchAll(/<script\b[^>]*>/g)].filter((tag) => tag[0].includes(`${component}.astro?astro&type=script`));
 
+describe("OrderForm — the landing page of the visit", () => {
+  it("has an empty landing page field off a landing page, for the visit's to fill at submit", async () => {
+    expect(await render({})).toMatch(/<input type="hidden" name="landingPageSlug" value(="")?[ >]/);
+  });
+});
+
 describe("OrderForm — the OTP step and the bot gate", () => {
   it("loads neither script for a store that has both switched off", async () => {
     const html = await render({});
