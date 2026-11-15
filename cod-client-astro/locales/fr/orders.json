@@ -248,14 +248,14 @@
   },
   "move": {
     "confirmed": "Confirmer la commande",
-    "unreachable": "Injoignable",
     "preparing": "Commencer la préparation",
     "ready": "Prête à expédier",
     "cancelled": "Annuler la commande",
     "cancel_title": "Annuler la commande {order} ?",
     "cancel_description": "Ses produits reviennent en stock et la dépense du client est annulée. Une commande annulée ne peut pas être rouverte.",
     "done": "{order} : {status}",
-    "failed": "La commande n'a pas pu être mise à jour"
+    "failed": "La commande n'a pas pu être mise à jour",
+    "changed": "Cette commande a été modifiée entre-temps. Vérifiez où elle en est, puis réessayez."
   },
   "next": {
     "title": "Prochaine étape"
@@ -592,5 +592,16 @@
     "how_earlier_many": "S'il est revenu directement, le dernier site ou la dernière application qui l'a amené, au plus {count} de jours avant.",
     "how_earlier_other": "S'il est revenu directement, le dernier site ou la dernière application qui l'a amené, au plus {count} jours avant.",
     "how_direct": "Si rien ne l'a amené, une visite directe."
+  },
+  "calls": {
+    "no_answer": "Injoignable · Appel {call}",
+    "filter": "Filtrer par appel",
+    "all": "Toutes",
+    "call": "Appel {call}",
+    "call_or_more": "Appel {call}+",
+    "empty": "Aucune commande à cette étape",
+    "count_one": "{count} appel sans réponse",
+    "count_many": "{count} appels sans réponse",
+    "count_other": "{count} appels sans réponse"
   }
 }

@@ -147,7 +147,8 @@
       "cancelled": "Annulées",
       "confirmationRate": "Taux de confirmation",
       "deliveryRate": "Taux de livraison",
-      "minutesToDecide": "Temps de réponse"
+      "minutesToDecide": "Temps de réponse",
+      "callsBeforeCancel": "Appels avant annulation"
     },
     "cancelled_count_one": "{count} annulée",
     "cancelled_count_many": "{count} annulées",
@@ -157,7 +158,12 @@
     "orders_count_one": "{count} commande",
     "orders_count_many": "{count} commandes",
     "orders_count_other": "{count} commandes",
-    "waiting": "À appeler"
+    "waiting": "À appeler",
+    "calls_before_cancel": "Appels avant annulation",
+    "calls_before_cancel_help": "Pour les commandes annulées faute de réponse du client : combien d'appels ont été passés avant, en moyenne.",
+    "no_answer_cancels_one": "{count} commande annulée faute de réponse",
+    "no_answer_cancels_many": "{count} commandes annulées faute de réponse",
+    "no_answer_cancels_other": "{count} commandes annulées faute de réponse"
   },
   "pay": {
     "salary": "Salaire",
@@ -251,12 +257,15 @@
       "tomorrow_morning": "Demain, 10:00",
       "tomorrow_afternoon": "Demain, 15:00"
     },
-    "history": "Historique d'attribution",
+    "history": "Historique",
     "changed": "Cette commande a été réattribuée entre-temps. Rechargez pour voir qui l'a.",
     "decided": "Cette commande est déjà confirmée ou annulée : elle reste à la personne qui l'a traitée.",
     "error": "Impossible d'enregistrer. Réessayez.",
     "today_at": "aujourd'hui à {time}",
-    "tomorrow_at": "demain à {time}"
+    "tomorrow_at": "demain à {time}",
+    "history_title": "Historique de la confirmation",
+    "history_subtitle": "Qui avait la commande, chaque appel sans réponse et la décision. Le plus récent en premier.",
+    "placed": "Commande passée"
   },
   "list": {
     "filter": "Attribuée à",

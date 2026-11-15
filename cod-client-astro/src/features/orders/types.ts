@@ -93,6 +93,8 @@ export interface OrderBase {
   callbackAt?: string | null;
   confirmedAt?: string | null;
   confirmedBy?: string | null;
+  /** Calls without an answer: an order on no answer is at Call 1, Call 2, Call 3… */
+  unansweredCalls: number;
 }
 
 export interface OrderListItem extends OrderBase {
@@ -217,6 +219,8 @@ export interface OrderStageCounts {
   callbacks: number;
   /** Of those, the ones whose callback time has come. */
   callbacksDue: number;
+  /** Orders on no answer by their call: Call 1, Call 2, and Call 3 with every later call. */
+  noAnswer: { call1: number; call2: number; call3OrMore: number };
   /** Of the parcels whose delivery ended, the share delivered, a whole percent; null before any ended. */
   deliveryRate: number | null;
 }

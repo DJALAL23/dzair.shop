@@ -576,8 +576,22 @@ describe("Orders routes (OpenAPIHono)", () => {
 
       expect(res.status).toBe(200);
       expect(queries.updateOrderStatus).toHaveBeenCalledWith(
-        mockDb, "ord_1", "preparing", ADMIN_AUTHOR
+        mockDb, "ord_1", "preparing", ADMIN_AUTHOR, undefined
       );
+    });
+
+    it("applies it only to the order as its author saw it, when they say how many calls had no answer", async () => {
+      vi.mocked(queries.getOrderById).mockResolvedValue(orderRow({ status: "unreachable", unansweredCalls: 2 }) as any);
+      vi.mocked(queries.updateOrderStatus).mockResolvedValue({ ok: true });
+
+      const res = await app.request("/api/orders/ord_1/status", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "unreachable", unansweredCalls: 2 }),
+      });
+
+      expect(res.status).toBe(200);
+      expect(queries.updateOrderStatus).toHaveBeenCalledWith(mockDb, "ord_1", "unreachable", ADMIN_AUTHOR, { unansweredCalls: 2 });
     });
 
     it("blocks an invalid backward transition with 400 INVALID_STATUS_TRANSITION", async () => {

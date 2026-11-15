@@ -54,6 +54,10 @@ export interface MemberResults {
   confirmationRate: number | null;
   deliveryRate: number | null;
   minutesToDecide: number | null;
+  /** Of the cancelled, those cancelled after at least one call without an answer. */
+  cancelledAfterNoAnswer: number;
+  /** The calls without an answer those orders had. */
+  noAnswerCallsBeforeCancel: number;
 }
 
 export interface PayRate {

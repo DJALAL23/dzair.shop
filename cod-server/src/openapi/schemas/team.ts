@@ -64,6 +64,8 @@ export const MemberResultsSchema = z
     confirmationRate: z.number().int().nullable().openapi({ description: "Confirmed out of those confirmed or cancelled, a whole percent; orders still waiting are left out. Null before any" }),
     deliveryRate: z.number().int().nullable().openapi({ description: "Delivered out of those delivered or come back, a whole percent. Null before any" }),
     minutesToDecide: z.number().int().nullable().openapi({ description: "On average, minutes from getting an order to their first decision on it" }),
+    cancelledAfterNoAnswer: z.number().int().openapi({ description: "Of the cancelled (never confirmed), those cancelled after at least one call without an answer" }),
+    noAnswerCallsBeforeCancel: z.number().int().openapi({ description: "The calls without an answer those orders had. Divided by `cancelledAfterNoAnswer`: how many times, on average, they were called before being cancelled" }),
   })
   .openapi("MemberResults");
 

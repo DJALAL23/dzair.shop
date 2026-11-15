@@ -176,6 +176,7 @@ const OrderBaseSchema = z.object({
   decidedBy: z.string().nullable().openapi({ description: "The member who made that first move; null when the system did" }),
   confirmedAt: z.string().nullable().openapi({ description: "When it was first confirmed" }),
   confirmedBy: z.string().nullable().openapi({ description: "The member credited with confirming it" }),
+  unansweredCalls: z.number().int().openapi({ description: "Calls without an answer: one more for each move to `unreachable`, so an order on no answer is at Call 1, Call 2, Call 3… Kept once it is confirmed or cancelled", example: 2 }),
 });
 
 export const OrderRemovalSchema = z

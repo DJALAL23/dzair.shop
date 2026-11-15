@@ -130,7 +130,7 @@ export function OrderDesktopRow({ order, selection, selectable = false, showAssi
       </TableCell>
       <TableCell>
         <span className="flex flex-wrap items-center gap-1.5">
-          <StageBadge stage={order.stage} needsAttention={order.needsAttention} />
+          <StageBadge stage={order.stage} needsAttention={order.needsAttention} calls={order.unansweredCalls} />
           <CallbackChip order={order} />
         </span>
       </TableCell>
@@ -174,7 +174,7 @@ export function OrderMobileCard({ order, selection, showAssignee = false }: Pick
           </span>
         </div>
         <div className="mt-2 flex min-w-0 items-center gap-3">
-          <StageBadge stage={order.stage} needsAttention={order.needsAttention} />
+          <StageBadge stage={order.stage} needsAttention={order.needsAttention} calls={order.unansweredCalls} />
           {order.shipmentKind && <OrderDelivery order={order} />}
           <span className="min-w-0 max-w-32">
             <OrderSource order={order} compact />

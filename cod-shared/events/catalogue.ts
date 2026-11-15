@@ -20,7 +20,7 @@ export const EVENT_CATALOGUE = {
   "order.created": { subject: "order", version: 1, summary: "An order was placed: on the store, in the dashboard, through the API or by an AI agent." },
   "order.updated": { subject: "order", version: 1, summary: "An order's customer, destination or notes were edited." },
   "order.confirmed": { subject: "order", version: 1, summary: "The customer confirmed the order, usually on the phone." },
-  "order.unreachable": { subject: "order", version: 1, summary: "The customer could not be reached to confirm the order." },
+  "order.unreachable": { subject: "order", version: 1, summary: "A call to confirm the order had no answer; it is sent again for each further call without an answer." },
   "order.preparing": { subject: "order", version: 1, summary: "The order is being prepared." },
   "order.ready": { subject: "order", version: 1, summary: "The order is packed and ready to hand to delivery." },
   "order.cancelled": { subject: "order", version: 1, summary: "The order was cancelled." },

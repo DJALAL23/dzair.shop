@@ -7,6 +7,7 @@ import { reportsAllowedFor, type MerchantReport } from "../../../../cod-shared/s
 import type { OrderAttributionView } from "../../../../cod-shared/attribution/view";
 import { PAID_CHANNELS, type OrderChannel } from "../../../../cod-shared/attribution/model";
 import { androidAppName } from "../../../../cod-shared/attribution/channel";
+import type { CallList } from "../../../../cod-shared/orders/calls";
 import type {
   AbandonedOrder,
   AbandonedOrderStatus,
@@ -22,6 +23,7 @@ import type {
   Shipment,
   ShipmentAction,
   ShipmentEvent,
+  StatusHistoryItem,
 } from "./types";
 
 /** Whether the person may act under a permission (the dashboard's `canScope` for the signed-in user). */
@@ -70,6 +72,55 @@ export function viewCounts(counts: OrderStageCounts): Record<OrderView, number> 
     ORDER_QUEUES.map((queue) => [queue.key, queue.stages.reduce((sum, stage) => sum + (byStage.get(stage) ?? 0), 0)]),
   ) as Record<QueueKey, number>;
   return { all: total, attention: counts.needsAttention, callbacks: counts.callbacks, archived: counts.archived, ...queues };
+}
+
+// ─── Calls without an answer ─────────────────────────────────────────────────
+
+/**
+ * The orders to confirm, step by step as a confirmation team works them: the
+ * new ones, then those on no answer after one call, two, three or more.
+ */
+export const CONFIRM_STEPS = ["new", "call1", "call2", "call3"] as const;
+export type ConfirmStep = (typeof CONFIRM_STEPS)[number];
+
+const STEP_CALLS: Record<Exclude<ConfirmStep, "new">, CallList> = { call1: 1, call2: 2, call3: 3 };
+
+/** The server query a step adds to the "To confirm" queue's. */
+export function confirmStepQuery(step: ConfirmStep): { stages?: readonly OrderStage[]; calls?: CallList } {
+  return step === "new" ? { stages: ["new"] } : { calls: STEP_CALLS[step] };
+}
+
+/** How many orders each step holds. */
+export function confirmStepCounts(counts: OrderStageCounts): Record<ConfirmStep, number> {
+  return {
+    new: counts.stages.find((entry) => entry.stage === "new")?.count ?? 0,
+    call1: counts.noAnswer.call1,
+    call2: counts.noAnswer.call2,
+    call3: counts.noAnswer.call3OrMore,
+  };
+}
+
+/** The step a URL opens, only within the "To confirm" queue. */
+export function confirmStepFrom(search: string, view: OrderView): ConfirmStep | null {
+  const step = new URLSearchParams(search).get("step");
+  return view === "to_confirm" && (CONFIRM_STEPS as readonly string[]).includes(step ?? "") ? (step as ConfirmStep) : null;
+}
+
+/**
+ * Which call each "No answer" in an order's timeline was, counted back from
+ * the order's own count: the newest is its last call. The Event Log is
+ * pruned, so counting forward from the oldest step left would misnumber.
+ */
+export function callNumbers(history: readonly StatusHistoryItem[], unansweredCalls: number): Map<string, number> {
+  const calls = history
+    .filter((step) => step.status === "unreachable")
+    .sort((left, right) => right.timestamp.localeCompare(left.timestamp) || right.id.localeCompare(left.id));
+  return new Map(calls.flatMap((step, index) => (unansweredCalls - index > 0 ? [[step.id, unansweredCalls - index] as const] : [])));
+}
+
+/** A status move in words: "No answer" says which call it records. */
+export function moveLabel(t: Translate, status: OrderStatus, unansweredCalls: number): string {
+  return status === "unreachable" ? t("calls.no_answer", { call: unansweredCalls + 1 }) : t(`move.${status}`);
 }
 
 // ─── What the stage looks like ───────────────────────────────────────────────

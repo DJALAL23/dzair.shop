@@ -4,7 +4,7 @@ import { canScope, useIdentity } from "@/features/auth/components/RequireAuth";
 import { useT } from "@/i18n/react";
 import { notify } from "@/lib/notify";
 import { archiveOrder, deleteOrder, getOrderRemoval, unarchiveOrder } from "@/features/orders/api";
-import { canHandOff, handoffKinds, orderDeletionConsequences, orderRemovalError, statusMoves } from "@/features/orders/model";
+import { canHandOff, handoffKinds, moveLabel, orderDeletionConsequences, orderRemovalError, statusMoves } from "@/features/orders/model";
 import { isFinishedStage } from "../../../../../cod-shared/orders/stage";
 import type { DeliveryCompany, Driver, OrderListItem } from "@/features/orders/types";
 import { DropdownItem, DropdownLink, DropdownMenu, useConfirmDialog } from "@/components/ui";
@@ -109,7 +109,7 @@ export function OrderRowActions({
         {moves.map((next) => (
           <DropdownItem key={next.status} disabled={busy} danger={next.emphasis === "danger"} onClick={() => void run(next.status)}>
             {next.emphasis === "danger" ? <XCircle size={14} /> : <ArrowRight size={14} className="rtl:rotate-180" />}
-            {t(`move.${next.status}`)}
+            {moveLabel(t, next.status, order.unansweredCalls)}
           </DropdownItem>
         ))}
         {showArchive && (

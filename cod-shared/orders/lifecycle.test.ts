@@ -20,6 +20,7 @@ const EXPECTED: ReadonlyArray<[OrderStatus, OrderStatus]> = [
   ["confirmed", "unreachable"],
   ["confirmed", "cancelled"],
   ["unreachable", "confirmed"],
+  ["unreachable", "unreachable"],
   ["unreachable", "cancelled"],
   ["preparing", "ready"],
   ["preparing", "cancelled"],

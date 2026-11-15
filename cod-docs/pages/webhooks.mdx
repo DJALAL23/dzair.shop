@@ -318,7 +318,7 @@ An event delivered again keeps its id, so your endpoint recognises it.
 | `order.created` | An order was placed: on the store, in the dashboard, through the API or by an AI agent. |
 | `order.updated` | An order's customer, destination or notes were edited. |
 | `order.confirmed` | The customer confirmed the order, usually on the phone. |
-| `order.unreachable` | The customer could not be reached to confirm the order. |
+| `order.unreachable` | A call to confirm the order had no answer; it is sent again for each further call without an answer. |
 | `order.preparing` | The order is being prepared. |
 | `order.ready` | The order is packed and ready to hand to delivery. |
 | `order.cancelled` | The order was cancelled. |

@@ -138,7 +138,8 @@
       "cancelled": "Cancelled",
       "confirmationRate": "Confirmation rate",
       "deliveryRate": "Delivery rate",
-      "minutesToDecide": "Response time"
+      "minutesToDecide": "Response time",
+      "callsBeforeCancel": "Calls before cancelling"
     },
     "cancelled_count_one": "{count} cancelled",
     "cancelled_count_other": "{count} cancelled",
@@ -146,7 +147,11 @@
     "delivery_counts": "{delivered} delivered, {returned} returned",
     "orders_count_one": "{count} order",
     "orders_count_other": "{count} orders",
-    "waiting": "To call"
+    "waiting": "To call",
+    "calls_before_cancel": "Calls before cancelling",
+    "calls_before_cancel_help": "For orders cancelled after the customer didn't answer: how many calls were made first, on average.",
+    "no_answer_cancels_one": "{count} order cancelled after no answer",
+    "no_answer_cancels_other": "{count} orders cancelled after no answer"
   },
   "pay": {
     "salary": "Salary",
@@ -235,12 +240,15 @@
       "tomorrow_morning": "Tomorrow, 10:00",
       "tomorrow_afternoon": "Tomorrow, 15:00"
     },
-    "history": "Assignment history",
+    "history": "History",
     "changed": "This order was reassigned in the meantime. Reload to see who has it.",
     "decided": "This order is already confirmed or cancelled, so it stays with whoever handled it.",
     "error": "Couldn't save. Try again.",
     "today_at": "today at {time}",
-    "tomorrow_at": "tomorrow at {time}"
+    "tomorrow_at": "tomorrow at {time}",
+    "history_title": "Confirmation history",
+    "history_subtitle": "Who had the order, each call without an answer, and the decision. Newest first.",
+    "placed": "Order placed"
   },
   "list": {
     "filter": "Assigned to",

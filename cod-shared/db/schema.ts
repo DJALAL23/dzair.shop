@@ -552,6 +552,9 @@ export const orders = sqliteTable("orders", {
   /** Its first confirmation, and the member credited with it. */
   confirmedAt: text("confirmed_at"),
   confirmedBy: text("confirmed_by"),
+  // ── Calls without an answer (appended by migration 0088 — keep last) ─────
+  /** How many calls had no answer — Call 1, Call 2, Call 3 while it waits — kept once it is confirmed or cancelled. Kept on the order: the Event Log is pruned. */
+  unansweredCalls: integer("unanswered_calls").notNull().default(0),
 }, (t) => ({
   checkoutKeyUnique: uniqueIndex("orders_checkout_key").on(t.checkoutKey).where(sql`checkout_key IS NOT NULL`),
 }));

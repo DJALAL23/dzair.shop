@@ -16,7 +16,7 @@ const run = (sql: string, ...binds: unknown[]) => d1.raw.prepare(sql).bind(...bi
 const plan = async (sql: string) => (await all<{ detail: string }>(`EXPLAIN QUERY PLAN ${sql}`)).map((row) => row.detail).join(" | ");
 let before: Array<Record<string, unknown>>;
 
-const NEW_COLUMNS = ["assignee_id", "assigned_at", "take_backs", "callback_at", "decided_at", "decided_by", "confirmed_at", "confirmed_by"];
+const NEW_COLUMNS = ["assignee_id", "assigned_at", "take_backs", "callback_at", "decided_at", "decided_by", "confirmed_at", "confirmed_by", "unanswered_calls"];
 const withoutNew = (row: Record<string, unknown>) => Object.fromEntries(Object.entries(row).filter(([key]) => !NEW_COLUMNS.includes(key)));
 
 const user = (id: string, role = "staff") =>

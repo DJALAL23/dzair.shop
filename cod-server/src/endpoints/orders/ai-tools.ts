@@ -162,7 +162,7 @@ export const ORDER_TOOL_OUTPUT_SCHEMAS: Record<string, z.ZodType> = {
  * ─── Status lifecycle (cod-shared/orders/lifecycle.ts) ──────────────────────
  *   new → confirmed | unreachable | cancelled
  *   confirmed → preparing | ready | unreachable | cancelled
- *   unreachable → confirmed | cancelled
+ *   unreachable → confirmed | unreachable | cancelled (each call without an answer is one more)
  *   preparing → ready | cancelled
  *   ready → cancelled
  *   cancelled: terminal
@@ -415,7 +415,8 @@ const orderTools = (db: AppDb, props: McpProps) => ({
       "Updates an order's processing status. Required: orderId (ID), status. " +
       "Statuses: new, confirmed, unreachable, preparing, ready, cancelled. " +
       "Transitions: new → confirmed|unreachable|cancelled; confirmed → preparing|ready|unreachable|cancelled; " +
-      "unreachable → confirmed|cancelled; preparing → ready|cancelled; ready → cancelled; cancelled is terminal. " +
+      "unreachable → confirmed|unreachable|cancelled; preparing → ready|cancelled; ready → cancelled; cancelled is terminal. " +
+      "Each move to unreachable is one more call without an answer (the order's unansweredCalls: Call 1, Call 2, Call 3); nothing cancels the order on its own. " +
       "Refused once the order has a shipment — delivery is the shipment's. " +
       "Cancelling restores inventory for tracked products and rolls back the customer's spend.",
     inputSchema: z.object({}).passthrough(), // Layer 1: Permissive input

@@ -42,6 +42,13 @@ const orderStagesRoute = defineRoute({
               archived: z.number().int().openapi({ description: "Archived orders", example: 40 }),
               callbacks: z.number().int().openapi({ description: "Orders still waiting (new, or the customer not reached) with a callback set; an agent who sees only their own orders counts only theirs", example: 4 }),
               callbacksDue: z.number().int().openapi({ description: "Of those, the ones whose callback time has come", example: 1 }),
+              noAnswer: z
+                .object({
+                  call1: z.number().int().openapi({ example: 6 }),
+                  call2: z.number().int().openapi({ example: 3 }),
+                  call3OrMore: z.number().int().openapi({ example: 2 }),
+                })
+                .openapi({ description: "Orders on no answer (unreachable) by their call: after one call without an answer, two, or three and more" }),
               deliveryRate: z.number().int().min(0).max(100).nullable().openapi({
                 description: "Of the parcels whose delivery ended — delivered or returned — the share delivered, a whole percent; null before any ended. A return under way and a parcel the carrier cancelled count for neither.",
                 example: 82,

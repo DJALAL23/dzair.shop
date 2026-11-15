@@ -2,13 +2,19 @@ import type { ReactNode } from "react";
 import { Check } from "lucide-react";
 import { useLocale, useT } from "@/i18n/react";
 import { Card } from "@/components/ui";
+import { callNumbers } from "@/features/orders/model";
 import type { StatusHistoryItem } from "@/features/orders/types";
 
-/** The order's processing as it happened: who confirmed, prepared or cancelled it, and when. */
-export function OrderProgressCard({ history, action }: { history: StatusHistoryItem[]; action?: ReactNode }) {
+/** The order's processing as it happened: who confirmed, prepared or cancelled it, and when — each call without an answer by its number. */
+export function OrderProgressCard({ history, calls, action }: { history: StatusHistoryItem[]; calls: number; action?: ReactNode }) {
   const t = useT("orders");
   const locale = useLocale();
   const steps = [...history].sort((left, right) => right.timestamp.localeCompare(left.timestamp));
+  const numbers = callNumbers(history, calls);
+  const label = (step: StatusHistoryItem) => {
+    const call = numbers.get(step.id);
+    return call === undefined ? t(`status.${step.status}`) : t("calls.no_answer", { call });
+  };
   return (
     <Card title={t("progress.title")} action={action}>
       {steps.length === 0 ? (
@@ -21,7 +27,7 @@ export function OrderProgressCard({ history, action }: { history: StatusHistoryI
                 <Check size={12} />
               </span>
               <div>
-                <p className="text-sm font-medium">{t(`status.${step.status}`)}</p>
+                <p className="text-sm font-medium">{label(step)}</p>
                 <p className="text-xs text-muted-foreground">
                   {new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(new Date(step.timestamp))}
                   {step.byName ? ` · ${step.byName}` : ""}

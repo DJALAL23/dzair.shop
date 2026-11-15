@@ -48,7 +48,7 @@ const member = (n: number, name = `Member ${String(n).padStart(2, "0")}`): TeamM
 });
 const overview = (members: TeamMember[]): TeamOverview => ({ members, unassigned: 0, needsManager: 0, withFormerMembers: 0 });
 const result = (name: string, fields: Partial<MemberResults>): MemberResults => ({
-  userId: name, name, assigned: 0, waiting: 0, confirmed: 0, cancelled: 0, delivered: 0, returned: 0, confirmationRate: null, deliveryRate: null, minutesToDecide: null, ...fields,
+  userId: name, name, assigned: 0, waiting: 0, confirmed: 0, cancelled: 0, delivered: 0, returned: 0, confirmationRate: null, deliveryRate: null, minutesToDecide: null, cancelledAfterNoAnswer: 0, noAnswerCallsBeforeCancel: 0, ...fields,
 });
 const line = (name: string, fields: Partial<PayrollLine> = {}): PayrollLine => ({
   userId: name, name, onTeam: true, joinedOn: null, leftOn: null, paySet: true, salary: null,
@@ -204,6 +204,31 @@ describe("the results view", () => {
     expect(header(section, "Confirmation rate").closest("th")!.getAttribute("aria-sort")).toBe("descending");
     await click(header(section, "Confirmation rate"));
     expect(tableRows(section)).toEqual(["Karim", "Samira", "Amel"]);
+  });
+
+  it("says how many calls each member made before cancelling an order nobody answered, and sorts by it", async () => {
+    team.getTeamResults.mockResolvedValue([
+      result("Samira", { assigned: 10, cancelled: 5, cancelledAfterNoAnswer: 4, noAnswerCallsBeforeCancel: 6 }),
+      result("Karim", { assigned: 8, cancelled: 3, cancelledAfterNoAnswer: 2, noAnswerCallsBeforeCancel: 6 }),
+      result("Amel", { assigned: 2, waiting: 2 }),
+    ]);
+    await open(MANAGER, "?tab=results");
+    const section = panel("Results")!;
+    const column = [...section.querySelectorAll("thead th")].findIndex((th) => th.textContent?.includes("Calls before cancelling"));
+    expect(column).toBeGreaterThan(0);
+    const calls = () => [...section.querySelectorAll("tbody tr")].map((row) => [spoken(row.querySelector("td")!), row.querySelectorAll("td")[column]!.textContent, row.querySelectorAll("td")[column]!.querySelector("[title]")?.getAttribute("title") ?? null]);
+    expect(calls()).toEqual([
+      ["Samira", "1.5", "4 orders cancelled after no answer"],
+      ["Karim", "3", "2 orders cancelled after no answer"],
+      ["Amel", "—", null],
+    ]);
+    await click(header(section, "Calls before cancelling"));
+    expect(tableRows(section)).toEqual(["Karim", "Samira", "Amel"]);
+    await click(header(section, "Calls before cancelling"));
+    expect(tableRows(section)).toEqual(["Samira", "Karim", "Amel"]);
+    const cards = [...section.querySelectorAll("ul li")].map((card) => card.textContent);
+    expect(cards.find((text) => text?.startsWith("S"))).toContain("Calls before cancelling1.5");
+    expect(cards.find((text) => text?.includes("Amel"))).toContain("2 orders · 2 still to call");
   });
 
   it("asks again for another period", async () => {

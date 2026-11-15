@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { findMembers, orderPayroll, pageOf, payrollTotals, sortResults, tabFrom, teamTotals } from "./views";
+import { callsBeforeCancel, findMembers, orderPayroll, pageOf, payrollTotals, sortResults, tabFrom, teamTotals } from "./views";
 import type { MemberResults, PayrollLine, TeamMember } from "./types";
 
 const member = (name: string, email: string): TeamMember => ({ userId: name, name, email, role: "staff", active: true, receiving: true, joinedAt: "2026-11-01T00:00:00.000Z", waiting: 0, callbacks: 0, reach: "own" });
 const result = (name: string, fields: Partial<MemberResults> = {}): MemberResults => ({
-  userId: name, name, assigned: 0, waiting: 0, confirmed: 0, cancelled: 0, delivered: 0, returned: 0, confirmationRate: null, deliveryRate: null, minutesToDecide: null, ...fields,
+  userId: name, name, assigned: 0, waiting: 0, confirmed: 0, cancelled: 0, delivered: 0, returned: 0, confirmationRate: null, deliveryRate: null, minutesToDecide: null, cancelledAfterNoAnswer: 0, noAnswerCallsBeforeCancel: 0, ...fields,
 });
 const line = (name: string, fields: Partial<PayrollLine> = {}): PayrollLine => ({
   userId: name, name, onTeam: true, joinedOn: null, leftOn: null, paySet: true, salary: null,
@@ -51,6 +51,28 @@ describe("sorting the results", () => {
     expect(sortResults(rows, "confirmationRate", "desc").map((r) => r.name)).toEqual(["Amina", "Samira", "Karim"]);
     expect(sortResults(rows, "confirmationRate", "asc").map((r) => r.name)).toEqual(["Samira", "Amina", "Karim"]);
     expect(sortResults(rows, "name", "asc").map((r) => r.name)).toEqual(["Amina", "Karim", "Samira"]);
+  });
+
+  it("by the calls before cancelling, a member who cancelled nothing after no answer last both ways", () => {
+    const calls = [
+      result("Samira", { cancelledAfterNoAnswer: 4, noAnswerCallsBeforeCancel: 6 }),
+      result("Karim", { cancelledAfterNoAnswer: 2, noAnswerCallsBeforeCancel: 6 }),
+      result("Amina"),
+      result("Yacine", { cancelledAfterNoAnswer: 1, noAnswerCallsBeforeCancel: 3 }),
+    ];
+    expect(sortResults(calls, "callsBeforeCancel", "desc").map((r) => r.name)).toEqual(["Karim", "Yacine", "Samira", "Amina"]);
+    expect(sortResults(calls, "callsBeforeCancel", "asc").map((r) => r.name)).toEqual(["Samira", "Karim", "Yacine", "Amina"]);
+  });
+});
+
+describe("the calls before cancelling", () => {
+  it("are the calls on the orders cancelled after no answer, on average", () => {
+    expect(callsBeforeCancel({ cancelledAfterNoAnswer: 4, noAnswerCallsBeforeCancel: 6 })).toBe(1.5);
+    expect(callsBeforeCancel({ cancelledAfterNoAnswer: 1, noAnswerCallsBeforeCancel: 3 })).toBe(3);
+  });
+
+  it("are not known before an order was cancelled after no answer", () => {
+    expect(callsBeforeCancel({ cancelledAfterNoAnswer: 0, noAnswerCallsBeforeCancel: 0 })).toBeNull();
   });
 });
 

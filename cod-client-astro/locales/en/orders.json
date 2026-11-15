@@ -245,14 +245,14 @@
   },
   "move": {
     "confirmed": "Confirm order",
-    "unreachable": "No answer",
     "preparing": "Start preparing",
     "ready": "Ready to ship",
     "cancelled": "Cancel order",
     "cancel_title": "Cancel order {order}?",
     "cancel_description": "Its products go back to stock and the customer's spend is reversed. A cancelled order cannot be reopened.",
     "done": "{order}: {status}",
-    "failed": "The order could not be updated"
+    "failed": "The order could not be updated",
+    "changed": "This order was updated meanwhile. Check where it stands, then try again."
   },
   "next": {
     "title": "Next step"
@@ -570,5 +570,15 @@
     "how_earlier_one": "If they came back directly, the last site or app that brought them, at most {count} day before.",
     "how_earlier_other": "If they came back directly, the last site or app that brought them, at most {count} days before.",
     "how_direct": "If nothing brought them, a direct visit."
+  },
+  "calls": {
+    "no_answer": "No answer · Call {call}",
+    "filter": "Filter by call",
+    "all": "All",
+    "call": "Call {call}",
+    "call_or_more": "Call {call}+",
+    "empty": "No order at this step",
+    "count_one": "{count} call without an answer",
+    "count_other": "{count} calls without an answer"
   }
 }

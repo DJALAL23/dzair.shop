@@ -46,15 +46,26 @@ export function findMembers(members: readonly TeamMember[], query: string): Team
   });
 }
 
-export const RESULT_SORTS = ["name", "assigned", "confirmed", "cancelled", "confirmationRate", "deliveryRate", "minutesToDecide"] as const;
+export const RESULT_SORTS = ["name", "assigned", "confirmed", "cancelled", "callsBeforeCancel", "confirmationRate", "deliveryRate", "minutesToDecide"] as const;
 export type ResultSort = (typeof RESULT_SORTS)[number];
 
-/** Results sorted by a column; a rate or speed not known yet always goes last; ties by name. */
+/**
+ * On the orders a member cancelled after the customer did not answer, how
+ * many calls came first, on average; null before any. A fact for the
+ * merchant to weigh, never a rule of how many calls are enough.
+ */
+export function callsBeforeCancel(row: Pick<MemberResults, "cancelledAfterNoAnswer" | "noAnswerCallsBeforeCancel">): number | null {
+  return row.cancelledAfterNoAnswer > 0 ? row.noAnswerCallsBeforeCancel / row.cancelledAfterNoAnswer : null;
+}
+
+const valueOf = (row: MemberResults, key: Exclude<ResultSort, "name">) => (key === "callsBeforeCancel" ? callsBeforeCancel(row) : row[key]);
+
+/** Results sorted by a column; a figure not known yet always goes last; ties by name. */
 export function sortResults(rows: readonly MemberResults[], key: ResultSort, direction: "asc" | "desc"): MemberResults[] {
   const sign = direction === "asc" ? 1 : -1;
   return [...rows].sort((a, b) => {
     if (key === "name") return sign * a.name.localeCompare(b.name);
-    const [x, y] = [a[key], b[key]];
+    const [x, y] = [valueOf(a, key), valueOf(b, key)];
     if (x === null && y === null) return a.name.localeCompare(b.name);
     if (x === null) return 1;
     if (y === null) return -1;

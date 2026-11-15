@@ -318,7 +318,7 @@ Un événement livré à nouveau garde son id, donc votre endpoint le reconnaît
 | `order.created` | Une commande a été passée : sur la boutique, dans le tableau de bord, par l'API ou par un agent IA. |
 | `order.updated` | Le client, la destination ou les notes d'une commande ont été modifiés. |
 | `order.confirmed` | Le client a confirmé la commande, le plus souvent au téléphone. |
-| `order.unreachable` | Le client n'a pas pu être joint pour confirmer la commande. |
+| `order.unreachable` | Un appel pour confirmer la commande est resté sans réponse ; l'événement est renvoyé à chaque nouvel appel sans réponse. |
 | `order.preparing` | La commande est en préparation. |
 | `order.ready` | La commande est emballée, prête à être remise à la livraison. |
 | `order.cancelled` | La commande a été annulée. |

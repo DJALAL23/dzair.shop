@@ -5,7 +5,22 @@ import { useLocale, useT } from "@/i18n/react";
 import { placeLabel } from "@/lib/places";
 import { getOrderStageCounts, listDeliveryCompanies, listDrivers, listOrders, type OrderQuery } from "@/features/orders/api";
 import { listWilayas } from "@/features/geography/api";
-import { BULK_HANDOFF_LIMIT, bulkSelection, handoffKinds, ORDER_QUEUES, viewCounts, viewQuery, SOURCE_FILTERS, type OrderView, type SourceFilter } from "@/features/orders/model";
+import {
+  BULK_HANDOFF_LIMIT,
+  bulkSelection,
+  CONFIRM_STEPS,
+  confirmStepCounts,
+  confirmStepFrom,
+  confirmStepQuery,
+  handoffKinds,
+  ORDER_QUEUES,
+  viewCounts,
+  viewQuery,
+  SOURCE_FILTERS,
+  type ConfirmStep,
+  type OrderView,
+  type SourceFilter,
+} from "@/features/orders/model";
 import type { DeliveryCompany, Driver, OrderListItem, Wilaya } from "@/features/orders/types";
 import {
   Alert,
@@ -64,10 +79,12 @@ function initialView(): OrderView {
 
 const isWaiting = (order: OrderListItem) => order.status === "new" || order.status === "unreachable";
 
-function rememberView(view: OrderView) {
+function rememberView(view: OrderView, step: ConfirmStep | null = null) {
   const url = new URL(window.location.href);
   if (view === "all") url.searchParams.delete("view");
   else url.searchParams.set("view", view);
+  if (step) url.searchParams.set("step", step);
+  else url.searchParams.delete("step");
   window.history.replaceState(null, "", url);
 }
 
@@ -75,9 +92,10 @@ function rememberView(view: OrderView) {
  * The orders as the merchant works through them: one queue per step of the
  * day, each with its count, the orders whose delivery needs them, the
  * customers to call back, and a search that also finds a parcel by its
- * tracking number. With a confirmation team, who has each order, a filter
- * by member, and — for a manager — giving waiting orders out. The server
- * filters and pages, so every order is reachable.
+ * tracking number. Orders to confirm open step by step: new, then Call 1,
+ * Call 2, Call 3 and more. With a confirmation team, who has each order, a
+ * filter by member, and — for a manager — giving waiting orders out. The
+ * server filters and pages, so every order is reachable.
  */
 export function OrdersList() {
   const t = useT("orders");
@@ -87,12 +105,14 @@ export function OrdersList() {
   const identity = useIdentity();
   const may = (scope: string) => canScope(identity, scope);
   const [view, setView] = useState<OrderView>(initialView);
+  const [step, setStep] = useState<ConfirmStep | null>(() => confirmStepFrom(window.location.search, initialView()));
   const [filters, setFilters] = useState<Filters>(initialFilters);
   const deferredFilters = useDeferredValue(filters);
   const [orders, setOrders] = useState<OrderListItem[] | null>(null);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [counts, setCounts] = useState<Record<OrderView, number> | null>(null);
+  const [stepCounts, setStepCounts] = useState<Record<ConfirmStep, number> | null>(null);
   const [callbacksDue, setCallbacksDue] = useState(0);
   const [team, setTeam] = useState<TeamOverview | null>(null);
   const [giveOpen, setGiveOpen] = useState(false);
@@ -119,6 +139,7 @@ export function OrdersList() {
   function query(cursor: string | null = null): OrderQuery {
     return {
       ...viewQuery(view),
+      ...(step ? confirmStepQuery(step) : {}),
       search: deferredFilters.search,
       kind: deferredFilters.kind || undefined,
       orderType: deferredFilters.orderType || undefined,
@@ -142,6 +163,7 @@ export function OrdersList() {
       setOrders(page.orders);
       setNextCursor(page.nextCursor);
       setCounts(viewCounts(stageCounts));
+      setStepCounts(confirmStepCounts(stageCounts));
       setCallbacksDue(stageCounts.callbacksDue);
     } catch (cause) {
       if (ticket === request.current) setError(cause instanceof Error ? cause : new Error(String(cause)));
@@ -165,7 +187,7 @@ export function OrdersList() {
   useEffect(() => {
     setOrders(null);
     void load();
-  }, [view, deferredFilters, identity?.role, identity?.scopes.join(",")]);
+  }, [view, step, deferredFilters, identity?.role, identity?.scopes.join(",")]);
 
   useEffect(() => {
     if (may("team:read")) getTeam().then(setTeam).catch(() => setTeam(null));
@@ -177,7 +199,13 @@ export function OrdersList() {
 
   function choose(next: OrderView) {
     setView(next);
+    setStep(null);
     rememberView(next);
+  }
+
+  function chooseStep(next: ConfirmStep | null) {
+    setStep(next);
+    rememberView(view, next);
   }
 
   function setFilter<K extends keyof Filters>(key: K, value: Filters[K]) {
@@ -208,6 +236,9 @@ export function OrdersList() {
   const rowProps = { companies, drivers, onChanged: load, onError: (message: string) => setError(new Error(message)) };
   const selection = (order: OrderListItem) =>
     selectable && (canGive ? isWaiting(order) : order.stage === "ready_to_ship") ? { selected: selected.has(order.id), onToggle: () => toggle(order.id) } : undefined;
+  const showSteps = view === "to_confirm" && stepCounts !== null && (step !== null || stepCounts.call1 + stepCounts.call2 + stepCounts.call3 > 0);
+  const stepLabel = (key: ConfirmStep | null) =>
+    key === null ? t("calls.all") : key === "new" ? t("stage.new") : key === "call3" ? t("calls.call_or_more", { call: 3 }) : t("calls.call", { call: key === "call1" ? 1 : 2 });
   const tabClass = (active: boolean) =>
     `inline-flex h-7 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-sm transition-colors pointer-coarse:h-9 ${
       active ? "bg-foreground/[0.08] font-semibold text-foreground" : "font-medium text-muted-foreground hover:bg-foreground/[0.04] hover:text-foreground"
@@ -282,6 +313,26 @@ export function OrdersList() {
             </button>
           )}
         </div>
+        {showSteps && (
+          <div role="group" aria-label={t("calls.filter")} className="no-scrollbar flex items-center gap-1.5 overflow-x-auto px-2 pt-2">
+            {([null, ...CONFIRM_STEPS] as const).map((key) => (
+              <button
+                key={key ?? "all"}
+                type="button"
+                aria-pressed={step === key}
+                onClick={() => chooseStep(key)}
+                className={`inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full border px-3 text-xs transition-colors pointer-coarse:h-9 ${
+                  step === key
+                    ? "border-foreground/20 bg-foreground/[0.08] font-semibold text-foreground"
+                    : "border-border font-medium text-muted-foreground hover:bg-foreground/[0.04] hover:text-foreground"
+                }`}
+              >
+                {stepLabel(key)}
+                <span className="tabular-nums text-muted-foreground">{key === null ? (counts?.to_confirm ?? 0) : stepCounts[key]}</span>
+              </button>
+            ))}
+          </div>
+        )}
         {filters.queue && (
           <div className="mx-2 mt-2 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-[var(--tone-info-bg)] px-3 py-2 text-sm font-medium text-[var(--tone-info-text)]">
             <span className="flex items-center gap-2">
@@ -376,7 +427,7 @@ export function OrdersList() {
         ) : orders.length === 0 ? (
           <EmptyState
             icon={<PackageOpen />}
-            title={hasFilters ? common("no_results_found") : t(`empty.${view}`)}
+            title={hasFilters ? common("no_results_found") : step ? t("calls.empty") : t(`empty.${view}`)}
             description={!hasFilters && view === "all" ? t("empty_state.description") : undefined}
             action={
               !hasFilters && view === "all" && may("orders:create") ? <LinkButton href="/orders/new">{t("empty_state.action")}</LinkButton> : undefined

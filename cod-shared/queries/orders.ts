@@ -55,6 +55,7 @@ import { creditOf, staffOf, type Author } from "../events/actor";
 import { assignedOnCreate, assignmentOnCreate } from "../team/assign";
 import { WAITING_STATUSES, type AssignmentWay } from "../team/model";
 import { inTeamQueue, type TeamQueue } from "../team/queue";
+import { inCallList, type CallList } from "../orders/calls";
 import { ORDER_STATUS_EVENT, ORDER_STATUS_OF_EVENT, type OrderField, type OrderProcessingEvent } from "../events/catalogue";
 import { recordEvent } from "../events/record";
 import { orderSnapshot } from "../events/snapshots";
@@ -81,6 +82,8 @@ export interface OrderFilters {
   assigneeId?: string | null;
   /** Only orders whose customer asked to be called back and that still wait, the soonest callback first. */
   callback?: "set";
+  /** Only orders on no answer after this many calls; 3 takes every later call too (orders/calls.ts). */
+  calls?: CallList;
   /** Only the orders in one of the confirmation team's queues (team/queue.ts). */
   teamQueue?: TeamQueue;
   wilayaId?: number;
@@ -170,6 +173,10 @@ export async function getAllOrders(db: AppDb, filters: OrderFilters = {}) {
 
   if (filters.teamQueue) {
     conditions.push(inTeamQueue(filters.teamQueue));
+  }
+
+  if (filters.calls !== undefined) {
+    conditions.push(inCallList(filters.calls));
   }
 
   if (filters.attention !== undefined) {
@@ -504,8 +511,9 @@ export type StatusChange = { ok: true } | { ok: false; reason: "not_found" | "ha
 /**
  * What a status change tells about who handled the order, kept on it: its
  * first move away from `new` and its first confirmation, each with the member
- * behind it (null for the system); a callback ends once the order is
- * confirmed or cancelled. Read from the row as it was before the change.
+ * behind it (null for the system); each move to `unreachable` is one more
+ * call without an answer; a callback ends once the order is confirmed or
+ * cancelled. Read from the row as it was before the change.
  */
 function handlingOf(newStatus: OrderStatus, author: Author, now: string) {
   const member = staffOf(author.actor)?.id ?? null;
@@ -515,8 +523,15 @@ function handlingOf(newStatus: OrderStatus, author: Author, now: string) {
     ...(newStatus === "confirmed"
       ? { confirmedAt: sql`coalesce(${orders.confirmedAt}, ${now})`, confirmedBy: sql`case when ${orders.confirmedAt} is null then ${member} else ${orders.confirmedBy} end` }
       : {}),
+    ...(newStatus === "unreachable" ? { unansweredCalls: sql`${orders.unansweredCalls} + 1` } : {}),
     ...(newStatus === "confirmed" || newStatus === "cancelled" ? { callbackAt: null } : {}),
   };
+}
+
+/** What the author saw of the order: a change made to a later state of it is refused (`changed`). */
+export interface SeenOrder {
+  /** Its calls without an answer, as read: a second click on the same "No answer" counts no second call. */
+  unansweredCalls: number;
 }
 
 /**
@@ -530,13 +545,15 @@ function handlingOf(newStatus: OrderStatus, author: Author, now: string) {
  * check holds for the whole batch — and every other statement applies only
  * while that revision stands. Two cancels at once apply their effects once;
  * a cancel racing a handoff loses to it (an order with a shipment has no
- * status change).
+ * status change). With `seen`, it applies only while the order still is as
+ * its author saw it, so a call without an answer is counted once.
  */
 export async function updateOrderStatus(
   db: AppDb,
   orderId: string,
   newStatus: OrderStatus,
   author: Author,
+  seen?: SeenOrder,
 ): Promise<StatusChange> {
   if (newStatus === "new") throw new Error("An order never moves back to new: the lifecycle has no such transition");
   const now = new Date().toISOString();
@@ -555,6 +572,7 @@ export async function updateOrderStatus(
         and(
           eq(orders.id, orderId),
           eq(orders.status, order.status),
+          seen === undefined ? undefined : eq(orders.unansweredCalls, seen.unansweredCalls),
           sql`not exists (select 1 from ${shipments} where ${shipments.orderId} = ${orderId})`,
         ),
       ),

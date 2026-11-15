@@ -9,8 +9,16 @@ const api = vi.hoisted(() => ({
   getOrderRemoval: vi.fn(),
   listDeliveryCompanies: vi.fn(),
   listDrivers: vi.fn(),
+  updateOrderStatus: vi.fn(),
 }));
-vi.mock("@/lib/api", () => ({ apiFetch: vi.fn(), ApiError: class ApiError extends Error {} }));
+const failure = vi.hoisted(() => ({
+  ApiError: class ApiError extends Error {
+    constructor(message: string, public status?: number, public code?: string) {
+      super(message);
+    }
+  },
+}));
+vi.mock("@/lib/api", () => ({ apiFetch: vi.fn(), ApiError: failure.ApiError }));
 vi.mock("@/features/orders/api", () => api);
 const protection = vi.hoisted(() => ({ attemptOfOrder: vi.fn(), addToBlockList: vi.fn() }));
 vi.mock("@/features/apps/order-protection/api", () => protection);
@@ -58,6 +66,7 @@ const ORDER = {
   assigneeName: "Admin",
   assignedAt: "2026-11-12T09:39:00.000Z",
   assignmentHistory: [],
+  unansweredCalls: 0,
   createdAt: "2026-11-12T09:39:00.000Z",
   updatedAt: "2026-11-12T09:39:00.000Z",
 } as unknown as Order;
@@ -155,5 +164,97 @@ describe("an order's page", () => {
     await act(async () => Array.from(dialog.querySelectorAll("button")).find((b) => b.textContent?.trim() === "Assign to…")!.click());
     expect(team.assignOrders).toHaveBeenCalledWith(["o1"], "u-karim");
     expect(toast.error).toHaveBeenCalledWith("This order is already confirmed or cancelled, so it stays with whoever handled it.");
+  });
+});
+
+describe("an order on no answer", () => {
+  const CALLED_TWICE = {
+    ...ORDER,
+    status: "unreachable",
+    stage: "unreachable",
+    unansweredCalls: 2,
+    statusHistory: [
+      { id: "h-placed", status: "new", timestamp: "2026-11-12T09:39:00.000Z", by: null, byName: null },
+      { id: "h-call-1", status: "unreachable", timestamp: "2026-11-12T10:05:00.000Z", by: "u-owner", byName: "Admin" },
+      { id: "h-call-2", status: "unreachable", timestamp: "2026-11-12T14:30:00.000Z", by: "u-owner", byName: "Admin" },
+    ],
+    assignmentHistory: [{ id: "a-1", at: "2026-11-12T09:39:00.000Z", to: { id: "u-owner", name: "Admin" }, from: null, way: "automatic", byName: null }],
+  } as unknown as Order;
+  const card = (title: string) => Array.from(host.querySelectorAll("section")).find((section) => section.querySelector("h2")?.textContent === title)!;
+
+  it("says which call it is at, and its No answer records the next call, sending the count it showed", async () => {
+    api.getOrder.mockResolvedValue(CALLED_TWICE);
+    api.updateOrderStatus.mockResolvedValue({ success: true, data: null });
+    await open();
+    expect(host.querySelector("h1")!.parentElement!.textContent).toBe(`${ORDER.orderNumber}No answer · Call 2`);
+    expect(Array.from(card("Next step").querySelectorAll("button")).map((b) => b.textContent?.trim())).toEqual(["Confirm order", "No answer · Call 3", "Cancel order"]);
+    await act(async () => button("No answer · Call 3")!.click());
+    expect(api.updateOrderStatus).toHaveBeenCalledWith("o1", "unreachable", 2);
+    expect(toast.success).toHaveBeenCalledWith(`${ORDER.orderNumber}: No answer · Call 3`);
+    expect(api.getOrder).toHaveBeenCalledTimes(2);
+  });
+
+  it("sends the count with every move, so a decision on an order that moved on is refused too", async () => {
+    api.getOrder.mockResolvedValue(CALLED_TWICE);
+    api.updateOrderStatus.mockResolvedValue({ success: true, data: null });
+    await open();
+    await act(async () => button("Confirm order")!.click());
+    expect(api.updateOrderStatus).toHaveBeenCalledWith("o1", "confirmed", 2);
+  });
+
+  it("reads the order again and says why when someone recorded that call first", async () => {
+    api.getOrder.mockResolvedValue(CALLED_TWICE);
+    api.updateOrderStatus.mockRejectedValue(new failure.ApiError("The order changed meanwhile; reload it and try again", 409, "ORDER_CHANGED"));
+    await open();
+    await act(async () => button("No answer · Call 3")!.click());
+    for (let i = 0; i < 3; i++) await act(async () => {});
+    expect(api.getOrder).toHaveBeenCalledTimes(2);
+    expect(host.querySelector('[role="alert"]')!.textContent).toBe("This order was updated meanwhile. Check where it stands, then try again.");
+    expect(toast.success).not.toHaveBeenCalled();
+  });
+
+  it("shows the server's own words for any other refusal, and reads nothing again", async () => {
+    api.getOrder.mockResolvedValue(CALLED_TWICE);
+    api.updateOrderStatus.mockRejectedValue(new failure.ApiError("Cannot transition", 400, "INVALID_STATUS_TRANSITION"));
+    await open();
+    await act(async () => button("No answer · Call 3")!.click());
+    expect(api.getOrder).toHaveBeenCalledTimes(1);
+    expect(host.querySelector('[role="alert"]')!.textContent).toBe("Cannot transition");
+  });
+
+  it("numbers each call in its progress, back from the order's count", async () => {
+    api.getOrder.mockResolvedValue({ ...CALLED_TWICE, unansweredCalls: 3 });
+    await open();
+    const steps = Array.from(card("Order progress").querySelectorAll("li p:first-child")).map((p) => p.textContent);
+    expect(steps).toEqual(["No answer · Call 3", "No answer · Call 2", "Received"]);
+  });
+
+  it("counts the calls in the team card, and keeps its history in a side sheet, newest first", async () => {
+    api.getOrder.mockResolvedValue(CALLED_TWICE);
+    await open();
+    const team = card("Confirmation");
+    expect(team.textContent).toContain("2 calls without an answer");
+    expect(team.querySelector("details")).toBeNull();
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+    await act(async () => Array.from(team.querySelectorAll("button")).find((b) => b.textContent?.trim() === "History")!.click());
+    const sheet = document.querySelector<HTMLElement>('[role="dialog"]')!;
+    expect(sheet.querySelector("h2")!.textContent).toBe("Confirmation history");
+    expect(Array.from(sheet.querySelectorAll("li")).map((entry) => entry.querySelector("p")!.textContent)).toEqual(["No answer · Call 2", "No answer · Call 1", "Assigned to Admin", "Order placed"]);
+    expect(sheet.querySelectorAll("li")[0]!.textContent).toContain("Admin");
+    expect(sheet.querySelectorAll("li")[2]!.textContent).toContain("Assigned automatically");
+  });
+
+  it("has no history to open while there is only one thing to tell", async () => {
+    api.getOrder.mockResolvedValue({ ...ORDER, assignmentHistory: [{ id: "a-1", at: ORDER.createdAt, to: { id: "u-owner", name: "Admin" }, from: null, way: "automatic", byName: null }] });
+    await open();
+    expect(Array.from(card("Confirmation").querySelectorAll("button")).some((b) => b.textContent?.trim() === "History")).toBe(false);
+    expect(card("Confirmation").textContent).not.toContain("without an answer");
+  });
+
+  it("keeps the count once the order is decided, for whoever reads it after", async () => {
+    api.getOrder.mockResolvedValue({ ...CALLED_TWICE, status: "cancelled", stage: "cancelled", unansweredCalls: 3 });
+    await open();
+    expect(host.querySelector("h1")!.parentElement!.textContent).toBe(`${ORDER.orderNumber}Cancelled`);
+    expect(card("Confirmation").textContent).toContain("3 calls without an answer");
   });
 });

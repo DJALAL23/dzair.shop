@@ -265,12 +265,14 @@ const updateStatusRoute = defineRoute({
 
 - \`new\` → \`confirmed\` | \`unreachable\` | \`cancelled\`
 - \`confirmed\` → \`preparing\` | \`ready\` | \`unreachable\` | \`cancelled\`
-- \`unreachable\` → \`confirmed\` | \`cancelled\` (the customer did not answer; call again)
+- \`unreachable\` → \`confirmed\` | \`unreachable\` | \`cancelled\` (the customer did not answer: each further call without an answer is one more move to \`unreachable\`)
 - \`preparing\` → \`ready\` | \`cancelled\`
 - \`ready\` → \`cancelled\`; a ready order is handed off with \`POST /orders/{id}/shipment\`
 - \`cancelled\` is final
 
 Any other move returns \`400 INVALID_STATUS_TRANSITION\` with the allowed next statuses.
+
+**Calls without an answer:** each move to \`unreachable\` adds one to the order's \`unansweredCalls\` (Call 1, Call 2, Call 3…); nothing else changes it, and nothing cancels the order for you. Send \`unansweredCalls\` as you read it to have the change applied only to the order as you saw it: otherwise \`409 ORDER_CHANGED\`, and nothing is written.
 
 **Side effects:** \`confirmed\` starts the Meta CAPI confirmed stage (when the store tracks it); \`cancelled\` restores inventory for products with \`trackInventory\` and rolls back the customer's spend. Delivery and return are the shipment's milestones, with their own effects.
 

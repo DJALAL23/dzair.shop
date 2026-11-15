@@ -9,6 +9,9 @@
  *
  * Pure: the server, the MCP tools and the dashboard all decide with these
  * functions, so the three can never disagree about what is allowed.
+ *
+ * `unreachable` moves to itself: each call without an answer is one more
+ * move to it, and the order counts them (Call 1, Call 2, Call 3).
  */
 
 import { ERROR_CODES } from "../errors/codes";
@@ -27,7 +30,7 @@ export type OrderStatus = (typeof ORDER_STATUSES)[number];
 const TRANSITIONS: Readonly<Record<OrderStatus, readonly OrderStatus[]>> = {
   new: ["confirmed", "unreachable", "cancelled"],
   confirmed: ["preparing", "ready", "unreachable", "cancelled"],
-  unreachable: ["confirmed", "cancelled"],
+  unreachable: ["confirmed", "unreachable", "cancelled"],
   preparing: ["ready", "cancelled"],
   ready: ["cancelled"],
   cancelled: [],

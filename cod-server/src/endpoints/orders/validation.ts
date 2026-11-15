@@ -12,6 +12,7 @@ import { parseOrderCursor } from "../../../../cod-shared/queries/orders";
 import { ORDER_STAGES, type OrderStage } from "../../../../cod-shared/orders/stage";
 import { SHIPMENT_KINDS } from "../../../../cod-shared/shipments/model";
 import { ORDER_STATUSES } from "../../../../cod-shared/orders/lifecycle";
+import type { CallList } from "../../../../cod-shared/orders/calls";
 import { LAST_WILAYA_ID } from "../../../../cod-shared/places";
 
 export const createOrderSchema = z.object({
@@ -61,6 +62,12 @@ export { ORDER_STATUSES, type OrderStatus } from "../../../../cod-shared/orders/
 
 export const updateOrderStatusSchema = z.object({
   status: z.enum(ORDER_STATUSES),
+  unansweredCalls: z
+    .number()
+    .int()
+    .min(0)
+    .optional()
+    .describe("The order's `unansweredCalls` as you read it: the change applies only while it still is (409 ORDER_CHANGED otherwise), so one click on No answer counts one call, never two"),
 });
 
 /**
@@ -150,6 +157,11 @@ export const orderFiltersSchema = z.object({
     .enum(["set"])
     .optional()
     .describe("`set`: only orders whose customer asked to be called back, still waiting (new or unreachable), the soonest callback first"),
+  calls: z
+    .enum(["1", "2", "3"])
+    .transform((value) => Number(value) as CallList)
+    .optional()
+    .describe("Only orders on no answer (unreachable) after this many calls without an answer: `1`, `2`, or `3` for three and more"),
   team: z
     .enum(TEAM_QUEUES)
     .optional()

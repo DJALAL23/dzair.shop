@@ -40,7 +40,7 @@ const OVERVIEW: TeamOverview = {
   needsManager: 0,
   withFormerMembers: 0,
 };
-const COUNTS: OrderStageCounts = { stages: [{ stage: "new", count: 3 }], needsAttention: 0, archived: 0, callbacks: 2, callbacksDue: 1, deliveryRate: null };
+const COUNTS: OrderStageCounts = { stages: [{ stage: "new", count: 3 }], needsAttention: 0, archived: 0, callbacks: 2, callbacksDue: 1, noAnswer: { call1: 0, call2: 0, call3OrMore: 0 }, deliveryRate: null };
 
 function order(id: string, overrides: Partial<OrderListItem> = {}): OrderListItem {
   return {
@@ -76,6 +76,7 @@ function order(id: string, overrides: Partial<OrderListItem> = {}): OrderListIte
     trackingNumber: null,
     assigneeId: null,
     assigneeName: null,
+    unansweredCalls: 0,
     ...overrides,
   };
 }
@@ -179,5 +180,105 @@ describe("the orders list with a confirmation team", () => {
     expect(lastQuery()).toMatchObject({ assignee: "u-karim" });
     const options = Array.from(host.querySelectorAll("option")).map((option) => option.textContent);
     expect(options).toEqual(expect.arrayContaining(["Anyone", "Not assigned", "Me (Samira)", "Karim"]));
+  });
+});
+
+describe("the orders to confirm, call by call", () => {
+  const ON_NO_ANSWER: OrderStageCounts = {
+    ...COUNTS,
+    stages: [
+      { stage: "new", count: 3 },
+      { stage: "unreachable", count: 6 },
+      { stage: "confirmed", count: 4 },
+    ],
+    noAnswer: { call1: 3, call2: 2, call3OrMore: 1 },
+  };
+  const steps = () => host.querySelector<HTMLElement>('[role="group"][aria-label="Filter by call"]');
+  const chip = (name: string) => Array.from(steps()!.querySelectorAll<HTMLButtonElement>("button")).find((b) => b.textContent?.startsWith(name))!;
+  const settle = async () => {
+    for (let i = 0; i < 4; i++) await act(async () => { await Promise.resolve(); });
+  };
+
+  it("opens new orders, Call 1, Call 2, Call 3 and more, each with its count, all of them first", async () => {
+    api.getOrderStageCounts.mockResolvedValue(ON_NO_ANSWER);
+    await render();
+    expect(Array.from(steps()!.querySelectorAll("button")).map((b) => [b.textContent, b.getAttribute("aria-pressed")])).toEqual([
+      ["All9", "true"],
+      ["New3", "false"],
+      ["Call 13", "false"],
+      ["Call 22", "false"],
+      ["Call 3+1", "false"],
+    ]);
+    expect(lastQuery()).toMatchObject({ stages: ["new", "unreachable"] });
+    expect(lastQuery().calls).toBeUndefined();
+  });
+
+  it("asks the server for one call, keeps it in the address, and goes back to all of them", async () => {
+    api.getOrderStageCounts.mockResolvedValue(ON_NO_ANSWER);
+    await render();
+    await act(async () => chip("Call 2").click());
+    await settle();
+    expect(lastQuery()).toMatchObject({ stages: ["new", "unreachable"], calls: 2 });
+    expect(chip("Call 2").getAttribute("aria-pressed")).toBe("true");
+    expect(window.location.search).toBe("?view=to_confirm&step=call2");
+    await act(async () => chip("New").click());
+    await settle();
+    expect(lastQuery()).toMatchObject({ stages: ["new"] });
+    expect(lastQuery().calls).toBeUndefined();
+    await act(async () => chip("All").click());
+    await settle();
+    expect(lastQuery().calls).toBeUndefined();
+    expect(lastQuery()).toMatchObject({ stages: ["new", "unreachable"] });
+    expect(window.location.search).toBe("?view=to_confirm");
+  });
+
+  it("opens the call a link names, and forgets it on leaving the queue", async () => {
+    api.getOrderStageCounts.mockResolvedValue(ON_NO_ANSWER);
+    window.history.replaceState(null, "", "/orders/?view=to_confirm&step=call3");
+    await render();
+    expect(lastQuery()).toMatchObject({ calls: 3 });
+    const all = Array.from(host.querySelectorAll<HTMLButtonElement>('[role="tab"]')).find((tab) => tab.textContent?.startsWith("All"))!;
+    await act(async () => all.click());
+    await settle();
+    expect(lastQuery().calls).toBeUndefined();
+    expect(steps()).toBeNull();
+    expect(window.location.search).toBe("");
+  });
+
+  it("keeps the steps once one is open, even with no order left on no answer, so the way back stays", async () => {
+    window.history.replaceState(null, "", "/orders/?view=to_confirm&step=call2");
+    await render();
+    expect(chip("Call 2").getAttribute("aria-pressed")).toBe("true");
+    expect(chip("All").textContent).toBe("All3");
+  });
+
+  it("offers no steps while no order is on no answer, nor outside the orders to confirm", async () => {
+    await render();
+    expect(steps()).toBeNull();
+    api.getOrderStageCounts.mockResolvedValue(ON_NO_ANSWER);
+    window.history.replaceState(null, "", "/orders/?view=all&step=call2");
+    act(() => root.unmount());
+    root = createRoot(host);
+    await render();
+    expect(steps()).toBeNull();
+    expect(lastQuery().calls).toBeUndefined();
+  });
+
+  it("says which call each order is at, and when a step is empty, says so", async () => {
+    api.getOrderStageCounts.mockResolvedValue(ON_NO_ANSWER);
+    api.listOrders.mockResolvedValue({ orders: [order("a", { status: "unreachable", stage: "unreachable", unansweredCalls: 2 }), order("b")], nextCursor: null });
+    await render();
+    const rows = Array.from(host.querySelectorAll("tbody tr")).map((row) => row.textContent ?? "");
+    expect(rows[0]).toContain("No answer · Call 2");
+    expect(rows[1]).not.toContain("Call");
+    api.listOrders.mockResolvedValue({ orders: [order("c", { status: "unreachable", stage: "unreachable", unansweredCalls: 0 })], nextCursor: null });
+    await act(async () => chip("Call 1").click());
+    await settle();
+    expect(host.querySelector("tbody tr")!.textContent).toContain("No answer");
+    expect(host.querySelector("tbody tr")!.textContent).not.toContain("Call");
+    api.listOrders.mockResolvedValue({ orders: [], nextCursor: null });
+    await act(async () => chip("Call 3+").click());
+    await settle();
+    expect(host.textContent).toContain("No order at this step");
   });
 });

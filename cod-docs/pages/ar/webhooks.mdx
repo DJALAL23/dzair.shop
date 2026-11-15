@@ -318,7 +318,7 @@ def verify_webhook(secret: str, headers: dict, raw_body: bytes) -> bool:
 | `order.created` | تم تقديم طلب: في المتجر، أو في لوحة التحكم، أو عبر الـ API، أو بواسطة وكيل ذكاء اصطناعي. |
 | `order.updated` | عُدّل زبون الطلب أو وجهته أو ملاحظاته. |
 | `order.confirmed` | أكّد الزبون الطلب، عادةً عبر الهاتف. |
-| `order.unreachable` | تعذّر الوصول إلى الزبون لتأكيد الطلب. |
+| `order.unreachable` | لم يرد الزبون على اتصال لتأكيد الطلب؛ ويُرسل الحدث من جديد مع كل اتصال آخر بلا رد. |
 | `order.preparing` | الطلب قيد التحضير. |
 | `order.ready` | الطلب مغلَّف وجاهز للتسليم إلى التوصيل. |
 | `order.cancelled` | أُلغي الطلب. |

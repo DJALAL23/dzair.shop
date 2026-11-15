@@ -174,7 +174,8 @@
       "cancelled": "الملغاة",
       "confirmationRate": "نسبة التأكيد",
       "deliveryRate": "نسبة التوصيل",
-      "minutesToDecide": "وقت الاستجابة"
+      "minutesToDecide": "وقت الاستجابة",
+      "callsBeforeCancel": "الاتصالات قبل الإلغاء"
     },
     "cancelled_count_zero": "لا ملغاة",
     "cancelled_count_one": "واحد ملغى",
@@ -190,7 +191,15 @@
     "orders_count_few": "{count} طلبات",
     "orders_count_many": "{count} طلبًا",
     "orders_count_other": "{count} طلب",
-    "waiting": "للاتصال"
+    "waiting": "للاتصال",
+    "calls_before_cancel": "الاتصالات قبل الإلغاء",
+    "calls_before_cancel_help": "للطلبات الملغاة لأن الزبون لم يرد: كم اتصالًا جرى قبل الإلغاء، في المتوسط.",
+    "no_answer_cancels_zero": "لا طلب أُلغي لعدم الرد",
+    "no_answer_cancels_one": "طلب واحد أُلغي لعدم الرد",
+    "no_answer_cancels_two": "طلبان أُلغيا لعدم الرد",
+    "no_answer_cancels_few": "{count} طلبات أُلغيت لعدم الرد",
+    "no_answer_cancels_many": "{count} طلبًا أُلغي لعدم الرد",
+    "no_answer_cancels_other": "{count} طلب أُلغي لعدم الرد"
   },
   "pay": {
     "salary": "الراتب",
@@ -299,12 +308,15 @@
       "tomorrow_morning": "غدًا، 10:00",
       "tomorrow_afternoon": "غدًا، 15:00"
     },
-    "history": "سجل الإسناد",
+    "history": "السجل",
     "changed": "أُعيد إسناد هذا الطلب في الأثناء. أعد التحميل لترى من لديه.",
     "decided": "هذا الطلب مؤكد أو ملغى بالفعل، فيبقى مع من تولّاه.",
     "error": "تعذّر الحفظ. حاول مجددًا.",
     "today_at": "اليوم على {time}",
-    "tomorrow_at": "غدًا على {time}"
+    "tomorrow_at": "غدًا على {time}",
+    "history_title": "سجل التأكيد",
+    "history_subtitle": "من كان الطلب عنده، وكل اتصال بلا رد، والقرار. الأحدث أولًا.",
+    "placed": "تم تقديم الطلب"
   },
   "list": {
     "filter": "مُسند إلى",

@@ -1,7 +1,7 @@
 import { ArrowRight, Send, XCircle } from "lucide-react";
 import { useT } from "@/i18n/react";
 import { Button, Card } from "@/components/ui";
-import type { StatusMove } from "@/features/orders/model";
+import { moveLabel, type StatusMove } from "@/features/orders/model";
 import type { OrderStatus } from "@/features/orders/types";
 
 /**
@@ -11,12 +11,15 @@ import type { OrderStatus } from "@/features/orders/types";
  */
 export function OrderNextStepCard({
   moves,
+  calls,
   canShip,
   busy,
   onMove,
   onShip,
 }: {
   moves: StatusMove[];
+  /** The order's calls without an answer: "No answer" records the next one. */
+  calls: number;
   canShip: boolean;
   busy: boolean;
   onMove: (status: OrderStatus) => void;
@@ -42,7 +45,7 @@ export function OrderNextStepCard({
             onClick={() => onMove(move.status)}
           >
             {move.emphasis === "danger" ? <XCircle size={16} /> : <ArrowRight size={16} className="rtl:rotate-180" />}
-            {t(`move.${move.status}`)}
+            {moveLabel(t, move.status, calls)}
           </Button>
         ))}
       </div>

@@ -8,7 +8,8 @@ export const en: MessageLanguage = {
     "order.created": (e) => `🛒 New order #${e.data.order.number}`,
     "order.updated": (e) => `✏️ Order #${e.data.order.number} was edited`,
     "order.confirmed": (e) => `✅ Order #${e.data.order.number} confirmed`,
-    "order.unreachable": (e) => `📵 The customer of order #${e.data.order.number} could not be reached`,
+    "order.unreachable": (e) =>
+      e.data.previousStatus === "unreachable" ? `📵 Still no answer from the customer of order #${e.data.order.number}` : `📵 The customer of order #${e.data.order.number} could not be reached`,
     "order.preparing": (e) => `📦 Order #${e.data.order.number} is being prepared`,
     "order.ready": (e) => `📦 Order #${e.data.order.number} is ready to ship`,
     "order.cancelled": (e) => `❌ Order #${e.data.order.number} cancelled`,

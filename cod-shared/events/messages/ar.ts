@@ -8,7 +8,8 @@ export const ar: MessageLanguage = {
     "order.created": (e) => `🛒 طلب جديد رقم ${e.data.order.number}`,
     "order.updated": (e) => `✏️ تم تعديل الطلب رقم ${e.data.order.number}`,
     "order.confirmed": (e) => `✅ تم تأكيد الطلب رقم ${e.data.order.number}`,
-    "order.unreachable": (e) => `📵 تعذّر الوصول إلى زبون الطلب رقم ${e.data.order.number}`,
+    "order.unreachable": (e) =>
+      e.data.previousStatus === "unreachable" ? `📵 لا رد بعد من زبون الطلب رقم ${e.data.order.number}` : `📵 تعذّر الوصول إلى زبون الطلب رقم ${e.data.order.number}`,
     "order.preparing": (e) => `📦 الطلب رقم ${e.data.order.number} قيد التحضير`,
     "order.ready": (e) => `📦 الطلب رقم ${e.data.order.number} جاهز للشحن`,
     "order.cancelled": (e) => `❌ تم إلغاء الطلب رقم ${e.data.order.number}`,

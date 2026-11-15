@@ -202,6 +202,10 @@ export interface MemberResults {
   deliveryRate: number | null;
   /** On average, minutes from getting an order to their first decision on it; null when they made none. */
   minutesToDecide: number | null;
+  /** Of the cancelled: those cancelled after at least one call without an answer. */
+  cancelledAfterNoAnswer: number;
+  /** The calls without an answer those orders had: divided by them, how many times they were called before cancelling. */
+  noAnswerCallsBeforeCancel: number;
 }
 
 const percent = (part: number, whole: number) => (whole > 0 ? Math.round((part / whole) * 100) : null);
@@ -222,6 +226,8 @@ export async function teamResults(db: AppDb, from: string, to: string): Promise<
       delivered: sql<number>`sum(${orders.confirmedAt} is not null and exists (select 1 from shipments s where s.order_id = orders.id and s.delivered_at is not null))`,
       returned: sql<number>`sum(${orders.confirmedAt} is not null and exists (select 1 from shipments s where s.order_id = orders.id and s.returned_at is not null))`,
       minutesToDecide: sql<number | null>`avg(case when ${orders.decidedBy} = ${orders.assigneeId} and ${orders.decidedAt} >= ${orders.assignedAt} then (julianday(${orders.decidedAt}) - julianday(${orders.assignedAt})) * 1440 end)`,
+      cancelledAfterNoAnswer: sql<number>`sum(${orders.status} = 'cancelled' and ${orders.confirmedAt} is null and ${orders.unansweredCalls} > 0)`,
+      noAnswerCallsBeforeCancel: sql<number>`sum(case when ${orders.status} = 'cancelled' and ${orders.confirmedAt} is null then ${orders.unansweredCalls} else 0 end)`,
     })
     .from(orders)
     .where(and(sql`${orders.assigneeId} is not null`, sql`${orders.createdAt} >= ${storeDayStart(from)}`, sql`${orders.createdAt} < ${storeDayStart(nextStoreDay(to))}`))
@@ -242,6 +248,8 @@ export async function teamResults(db: AppDb, from: string, to: string): Promise<
       confirmationRate: percent(confirmed, confirmed + cancelled),
       deliveryRate: percent(delivered, delivered + returned),
       minutesToDecide: row.minutesToDecide == null ? null : Math.round(Number(row.minutesToDecide)),
+      cancelledAfterNoAnswer: n(row.cancelledAfterNoAnswer),
+      noAnswerCallsBeforeCancel: n(row.noAnswerCallsBeforeCancel),
     };
   });
 }

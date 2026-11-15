@@ -1,18 +1,20 @@
 import { ArrowLeft, Send } from "lucide-react";
 import { useT } from "@/i18n/react";
 import { Button } from "@/components/ui";
-import type { StatusMove } from "@/features/orders/model";
+import { moveLabel, type StatusMove } from "@/features/orders/model";
 import type { OrderStatus } from "@/features/orders/types";
 
 /** On a phone: the order's one next step within thumb's reach — and nothing when there is none. */
 export function OrderMobileActionBar({
   moves,
+  calls,
   canShip,
   busy,
   onMove,
   onShip,
 }: {
   moves: StatusMove[];
+  calls: number;
   canShip: boolean;
   busy: boolean;
   onMove: (status: OrderStatus) => void;
@@ -35,7 +37,7 @@ export function OrderMobileActionBar({
       ) : (
         next && (
           <Button type="button" className="h-11 flex-1" disabled={busy} onClick={() => onMove(next.status)}>
-            {t(`move.${next.status}`)}
+            {moveLabel(t, next.status, calls)}
           </Button>
         )
       )}

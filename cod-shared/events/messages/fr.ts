@@ -8,7 +8,8 @@ export const fr: MessageLanguage = {
     "order.created": (e) => `🛒 Nouvelle commande n° ${e.data.order.number}`,
     "order.updated": (e) => `✏️ La commande n° ${e.data.order.number} a été modifiée`,
     "order.confirmed": (e) => `✅ Commande n° ${e.data.order.number} confirmée`,
-    "order.unreachable": (e) => `📵 Le client de la commande n° ${e.data.order.number} est injoignable`,
+    "order.unreachable": (e) =>
+      e.data.previousStatus === "unreachable" ? `📵 Toujours pas de réponse du client de la commande n° ${e.data.order.number}` : `📵 Le client de la commande n° ${e.data.order.number} est injoignable`,
     "order.preparing": (e) => `📦 La commande n° ${e.data.order.number} est en préparation`,
     "order.ready": (e) => `📦 La commande n° ${e.data.order.number} est prête à expédier`,
     "order.cancelled": (e) => `❌ Commande n° ${e.data.order.number} annulée`,

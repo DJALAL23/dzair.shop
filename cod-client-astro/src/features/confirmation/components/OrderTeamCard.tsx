@@ -1,24 +1,28 @@
 import { useState } from "react";
-import { AlarmClock, CheckCircle2, History, PhoneCall, UserRound, UserX } from "lucide-react";
+import { AlarmClock, CheckCircle2, PhoneCall, PhoneMissed, UserRound, UserX } from "lucide-react";
 import { useTeamError } from "@/features/confirmation/errors";
 import { useLocale, useT } from "@/i18n/react";
 import { notify } from "@/lib/notify";
 import { relativeTime } from "@/lib/relative-time";
 import { Button, Card, Input } from "@/components/ui";
 import { setOrderCallback } from "@/features/confirmation/api";
-import { callbackChoices, callbackState, fromStoreInput, storeClock, toStoreInput } from "@/features/confirmation/model";
+import { callbackChoices, callbackState, fromStoreInput, toStoreInput } from "@/features/confirmation/model";
 import { useCallbackLabel } from "@/features/confirmation/callback-label";
 import { GiveOrdersDialog } from "@/features/confirmation/components/GiveOrdersDialog";
+import { ConfirmationHistoryButton } from "@/features/confirmation/components/ConfirmationHistory";
+import { assignmentWay } from "@/features/confirmation/history";
 import type { OrderDetail } from "@/features/orders/types";
 
 /**
  * Who works the order: the team member it is with, since when and how it
- * came to them, who confirmed it, and — while the customer has not been
- * confirmed — when to call them back, picked in one tap. While it waits to
- * be confirmed, a manager gives it to someone else here.
+ * came to them, how many calls had no answer, who confirmed it, and — while
+ * the customer has not been confirmed — when to call them back, picked in
+ * one tap. While it waits to be confirmed, a manager gives it to someone
+ * else here. Its history opens in a side sheet, out of the way.
  */
 export function OrderTeamCard({ order, canUpdate, canManage, onChanged }: { order: OrderDetail; canUpdate: boolean; canManage: boolean; onChanged: () => void }) {
   const t = useT("confirmation");
+  const orders = useT("orders");
   const explain = useTeamError();
   const locale = useLocale();
   const callbackLabel = useCallbackLabel();
@@ -28,7 +32,6 @@ export function OrderTeamCard({ order, canUpdate, canManage, onChanged }: { orde
   const [busy, setBusy] = useState(false);
   const waiting = order.status === "new" || order.status === "unreachable";
   const last = order.assignmentHistory?.[0];
-  const history = order.assignmentHistory ?? [];
 
   async function saveCallback(at: string | null) {
     setBusy(true);
@@ -45,19 +48,10 @@ export function OrderTeamCard({ order, canUpdate, canManage, onChanged }: { orde
     }
   }
 
-  const way = (step: NonNullable<typeof last>) =>
-    step.to === null
-      ? t("order.way_unassigned", { name: step.byName ?? "" })
-      : step.way === "take_back"
-        ? t("order.way_take_back", { name: step.from?.name ?? "" })
-        : step.way === "manual"
-          ? t("order.way_manual", { name: step.byName ?? "" })
-          : t("order.way_automatic");
-
   if (!order.assigneeId && !waiting && !order.confirmedByName) return null;
 
   return (
-    <Card title={t("order.title")}>
+    <Card title={t("order.title")} action={<ConfirmationHistoryButton order={order} />}>
       <div className="space-y-3 text-sm">
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-start gap-2.5">
@@ -69,7 +63,7 @@ export function OrderTeamCard({ order, canUpdate, canManage, onChanged }: { orde
               {order.assigneeId && order.assignedAt && (
                 <p className="text-xs text-muted-foreground">
                   {t("order.since", { time: relativeTime(order.assignedAt, locale) })}
-                  {last?.to && ` · ${way(last)}`}
+                  {last?.to && ` · ${assignmentWay(t, last)}`}
                 </p>
               )}
             </div>
@@ -83,6 +77,13 @@ export function OrderTeamCard({ order, canUpdate, canManage, onChanged }: { orde
 
         {(order.takeBacks ?? 0) > 0 && waiting && order.status === "new" && (
           <p className="rounded-lg bg-[var(--tone-warning-bg)] px-3 py-2 text-xs font-medium text-[var(--tone-warning-text)]">{t("order.needs_manager", { count: order.takeBacks ?? 0 })}</p>
+        )}
+
+        {order.unansweredCalls > 0 && (
+          <p className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+            <PhoneMissed size={14} className="shrink-0 text-[var(--tone-warning-text)]" aria-hidden="true" />
+            {orders("calls.count", { count: order.unansweredCalls })}
+          </p>
         )}
 
         {order.confirmedByName && (
@@ -143,27 +144,6 @@ export function OrderTeamCard({ order, canUpdate, canManage, onChanged }: { orde
           </div>
         )}
 
-        {history.length > 1 && (
-          <details className="border-t border-border pt-3">
-            <summary className="flex cursor-pointer items-center gap-2 text-xs font-semibold text-muted-foreground">
-              <History size={14} aria-hidden="true" />
-              {t("order.history")}
-            </summary>
-            <ol className="mt-2 space-y-1.5">
-              {history.map((step) => (
-                <li key={step.id} className="flex items-baseline justify-between gap-3 text-xs">
-                  <span className="min-w-0">
-                    <span className="font-semibold text-foreground">{step.to ? step.to.name : t("order.nobody")}</span>
-                    <span className="text-muted-foreground"> · {way(step)}</span>
-                  </span>
-                  <time dateTime={step.at} className="shrink-0 tabular-nums text-muted-foreground">
-                    {storeClock(step.at, locale, true)}
-                  </time>
-                </li>
-              ))}
-            </ol>
-          </details>
-        )}
       </div>
 
       {giving && <GiveOrdersDialog orderIds={[order.id]} currentAssigneeId={order.assigneeId ?? null} onClose={() => setGiving(false)} onDone={onChanged} />}

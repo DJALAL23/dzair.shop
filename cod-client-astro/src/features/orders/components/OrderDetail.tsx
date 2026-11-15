@@ -161,7 +161,7 @@ export function OrderDetail({ orderId }: { orderId: string }) {
             {order.orderType === "online" ? t("type.online") : t("type.offline")}
           </>
         }
-        badges={<StageBadge stage={order.stage} needsAttention={order.needsAttention} />}
+        badges={<StageBadge stage={order.stage} needsAttention={order.needsAttention} calls={order.unansweredCalls} />}
         backHref="/orders"
         backLabel={t("detail.back_to_orders")}
         actions={
@@ -224,11 +224,11 @@ export function OrderDetail({ orderId }: { orderId: string }) {
           {order.shipment ? (
             <OrderShipmentCard order={order} shipment={order.shipment} companies={companies} onChanged={load} />
           ) : (
-            <OrderNextStepCard moves={moves} canShip={canShip} busy={busy} onMove={(status) => void changeStatus(status)} onShip={() => setShipping(true)} />
+            <OrderNextStepCard moves={moves} calls={order.unansweredCalls} canShip={canShip} busy={busy} onMove={(status) => void changeStatus(status)} onShip={() => setShipping(true)} />
           )}
           <OrderTeamCard order={order} canUpdate={may("orders:update")} canManage={may("team:manage")} onChanged={load} />
           {attempt && !protectionNeedsAttention(attempt) && <OrderProtectionCard attempt={attempt} />}
-          <OrderProgressCard history={order.statusHistory} action={<OrderEventsButton orderId={order.id} {...orderEventsAccess(may)} />} />
+          <OrderProgressCard history={order.statusHistory} calls={order.unansweredCalls} action={<OrderEventsButton orderId={order.id} {...orderEventsAccess(may)} />} />
         </div>
 
         <div className="min-w-0 lg:self-start">
@@ -236,7 +236,7 @@ export function OrderDetail({ orderId }: { orderId: string }) {
         </div>
       </div>
 
-      <OrderMobileActionBar moves={moves} canShip={canShip} busy={busy} onMove={(status) => void changeStatus(status)} onShip={() => setShipping(true)} />
+      <OrderMobileActionBar moves={moves} calls={order.unansweredCalls} canShip={canShip} busy={busy} onMove={(status) => void changeStatus(status)} onShip={() => setShipping(true)} />
 
       {editing && <EditOrderDialog order={order} onClose={() => setEditing(false)} onChanged={load} onError={setError} />}
       {shipping && <HandoffDialog order={order} kinds={kinds} companies={companies} drivers={drivers} onClose={() => setShipping(false)} onDone={load} />}

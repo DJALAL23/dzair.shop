@@ -59,7 +59,8 @@ export async function updateStatus(c: Context<AppContext>) {
   // Get user from context (set by auth middleware)
   const user = c.get("user");
 
-  const change = await queries.updateOrderStatus(db, orderId, validated.status, c.get("author"));
+  const seen = validated.unansweredCalls === undefined ? undefined : { unansweredCalls: validated.unansweredCalls };
+  const change = await queries.updateOrderStatus(db, orderId, validated.status, c.get("author"), seen);
   if (!change.ok) throw refusalFor(change, orderId, "its status no longer changes");
 
   await logActivity(db, user, ACTIONS.ORDER_STATUS_CHANGED, {

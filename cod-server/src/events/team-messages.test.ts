@@ -45,6 +45,16 @@ describe("the team's messages", () => {
     expect(renderTeamMessage({ ...updated, data: { ...updated.data, changedFields: ["customerPhone", "destination"] } }, "fr")).toContain("Modifié: téléphone, adresse");
   });
 
+  it("say a further call without an answer is one more, in each language", () => {
+    const first = exampleEvent("order.unreachable");
+    const again = { ...first, data: { ...first.data, previousStatus: "unreachable" as const } };
+    expect(renderTeamMessage(first, "en")).toMatch(/^📵 The customer of order #ORD-20261025-0042 could not be reached\n/);
+    expect(renderTeamMessage(again, "en")).toMatch(/^📵 Still no answer from the customer of order #ORD-20261025-0042\n/);
+    expect(renderTeamMessage(again, "fr")).toMatch(/^📵 Toujours pas de réponse du client de la commande n° ORD-20261025-0042\n/);
+    expect(renderTeamMessage(again, "ar")).toMatch(/^📵 لا رد بعد من زبون الطلب رقم ORD-20261025-0042\n/);
+    for (const locale of STORE_LOCALES) expect(renderTeamMessage(again, locale).split("\n")[0]).not.toBe(renderTeamMessage(first, locale).split("\n")[0]);
+  });
+
   it("name the staff member or the AI agent's staff member behind a change", () => {
     const confirmed = exampleEvent("order.confirmed");
     expect(renderTeamMessage({ ...confirmed, actor: { kind: "staff", id: "u1", name: "Yacine" } }, "en")).toContain("By: Yacine");

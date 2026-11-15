@@ -23,6 +23,7 @@ import type {
   OrderRemoval,
 } from "./types";
 import type { MerchantReport } from "../../../../cod-shared/shipments/merchant-reports";
+import type { CallList } from "../../../../cod-shared/orders/calls";
 
 interface ListEnvelope<T> {
   success: boolean;
@@ -64,6 +65,8 @@ export interface OrderQuery {
   callbacks?: boolean;
   /** One of the confirmation team's queues. */
   team?: "unassigned" | "needs_manager" | "former";
+  /** Only orders on no answer after this many calls; 3 takes every later call too. */
+  calls?: CallList;
   limit?: number;
   cursor?: string | null;
 }
@@ -82,6 +85,7 @@ export async function listOrders(params: OrderQuery = {}): Promise<OrderPage> {
   if (params.assignee) query.set("assignee", params.assignee);
   if (params.callbacks) query.set("callback", "set");
   if (params.team) query.set("team", params.team);
+  if (params.calls) query.set("calls", String(params.calls));
   if (params.cursor) query.set("cursor", params.cursor);
   const page = await apiFetch<ListEnvelope<OrderListItem> & { nextCursor: string | null }>(`/api/orders?${query}`);
   return { orders: page.data, nextCursor: page.nextCursor };
@@ -97,8 +101,9 @@ export async function getOrder(id: string) {
   return (await apiFetch<DataEnvelope<OrderDetail>>(`/api/orders/${encodeURIComponent(id)}`)).data;
 }
 
-export function updateOrderStatus(id: string, status: OrderStatus) {
-  return apiFetch<DataEnvelope<null>>(`/api/orders/${encodeURIComponent(id)}/status`, json({ method: "PATCH", body: JSON.stringify({ status }) }));
+/** `unansweredCalls`: the order's calls without an answer as shown; a change to an order that moved on since is refused (ORDER_CHANGED). */
+export function updateOrderStatus(id: string, status: OrderStatus, unansweredCalls?: number) {
+  return apiFetch<DataEnvelope<null>>(`/api/orders/${encodeURIComponent(id)}/status`, json({ method: "PATCH", body: JSON.stringify({ status, unansweredCalls }) }));
 }
 
 export async function updateOrder(id: string, body: Record<string, unknown>) {

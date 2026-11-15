@@ -4,12 +4,14 @@ import { useLocale, useT } from "@/i18n/react";
 import { Card, CellEmpty, Initial, Pagination, RowTitle, Select, SortHeader, StatStrip, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableSkeleton } from "@/components/ui";
 import { getTeamResults } from "@/features/confirmation/api";
 import { periodRange, RESULTS_PERIODS, splitMinutes, type ResultsPeriod } from "@/features/confirmation/model";
-import { pageOf, PAGE_SIZE, RESULT_SORTS, sortResults, teamTotals, type ResultSort } from "@/features/confirmation/views";
+import { callsBeforeCancel, pageOf, PAGE_SIZE, RESULT_SORTS, sortResults, teamTotals, type ResultSort } from "@/features/confirmation/views";
 import type { MemberResults } from "@/features/confirmation/types";
 
 /**
  * How the team did over a period: the team's totals first, worked out from
- * the sums, then each member, sortable by any column and paged.
+ * the sums, then each member, sortable by any column and paged — with how
+ * many calls they made before cancelling an order nobody answered, for the
+ * merchant to judge.
  */
 export function ResultsTab({ version }: { version: number }) {
   const t = useT("confirmation");
@@ -34,7 +36,12 @@ export function ResultsTab({ version }: { version: number }) {
     };
   }, [period, version]);
 
-  const number = (value: number) => new Intl.NumberFormat(locale === "ar" ? "ar-DZ" : `${locale}-DZ`).format(value);
+  const numbers = locale === "ar" ? "ar-DZ" : `${locale}-DZ`;
+  const number = (value: number) => new Intl.NumberFormat(numbers).format(value);
+  const calls = (row: MemberResults) => {
+    const average = callsBeforeCancel(row);
+    return average === null ? null : new Intl.NumberFormat(numbers, { maximumFractionDigits: 1 }).format(average);
+  };
   const rate = (value: number | null) => (value === null ? null : `${number(value)}%`);
   const speed = (minutes: number | null) => {
     if (minutes === null) return null;
@@ -120,7 +127,10 @@ export function ResultsTab({ version }: { version: number }) {
                       <div className="flex items-center gap-3">
                         <Initial name={row.name} className="size-9" />
                         <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{row.name}</span>
-                        <span className="shrink-0 text-xs text-muted-foreground">{t("results.orders_count", { count: row.assigned })}</span>
+                        <span className="shrink-0 text-xs text-muted-foreground">
+                          {t("results.orders_count", { count: row.assigned })}
+                          {row.waiting > 0 && ` · ${t("results.still_waiting", { count: row.waiting })}`}
+                        </span>
                       </div>
                       <dl className="mt-2.5 grid grid-cols-3 gap-x-2 gap-y-2.5 rounded-lg bg-subtle p-2.5 text-xs @xl:grid-cols-6">
                         <Figure label={t("results.rate")} value={rate(row.confirmationRate)} strong />
@@ -128,7 +138,7 @@ export function ResultsTab({ version }: { version: number }) {
                         <Figure label={t("results.speed")} value={speed(row.minutesToDecide)} />
                         <Figure label={t("results.confirmed")} value={number(row.confirmed)} />
                         <Figure label={t("results.cancelled")} value={number(row.cancelled)} />
-                        <Figure label={t("results.waiting")} value={number(row.waiting)} />
+                        <Figure label={t("results.calls_before_cancel")} value={calls(row)} />
                       </dl>
                     </li>
                   ))}
@@ -142,6 +152,7 @@ export function ResultsTab({ version }: { version: number }) {
                         <TableHead numeric>{t("results.waiting")}</TableHead>
                         {head("confirmed", t("results.confirmed"))}
                         {head("cancelled", t("results.cancelled"))}
+                        {head("callsBeforeCancel", t("results.calls_before_cancel"), t("results.calls_before_cancel_help"))}
                         {head("confirmationRate", t("results.rate"), t("results.rate_help"))}
                         {head("deliveryRate", t("results.delivery"), t("results.delivery_help"))}
                         {head("minutesToDecide", t("results.speed"), t("results.speed_help"))}
@@ -159,6 +170,9 @@ export function ResultsTab({ version }: { version: number }) {
                           </TableCell>
                           <TableCell numeric>{number(row.confirmed)}</TableCell>
                           <TableCell numeric>{number(row.cancelled)}</TableCell>
+                          <TableCell numeric>
+                            {calls(row) === null ? <CellEmpty /> : <span title={t("results.no_answer_cancels", { count: row.cancelledAfterNoAnswer })}>{calls(row)}</span>}
+                          </TableCell>
                           <TableCell numeric className="font-semibold">
                             {rate(row.confirmationRate) ?? <CellEmpty />}
                           </TableCell>

@@ -9,6 +9,7 @@ import { and, count, eq, gte, ne, sql } from "drizzle-orm";
 import type { AppDb } from "../db/client";
 import { orders, shipments } from "../db/schema";
 import type { OrderStage } from "../orders/stage";
+import { inCallList } from "../orders/calls";
 import { orderNeedsAttentionSql, orderStageSql } from "../orders/stage-sql";
 import { STORE_UTC_OFFSET_HOURS } from "../time/store-day";
 
@@ -23,6 +24,8 @@ export interface OrderStageStats {
   callbacks: number;
   /** Of those, the ones whose callback time has come. */
   callbacksDue: number;
+  /** Orders on no answer, by their call: Call 1, Call 2, and Call 3 with every later call (orders/calls.ts). */
+  noAnswer: { call1: number; call2: number; call3OrMore: number };
   /** Of the parcels whose delivery ended, the share delivered (`deliveryRate`). */
   deliveryRate: number | null;
 }
@@ -63,6 +66,9 @@ export async function getOrderStageStats(db: AppDb, options: { archived?: "inclu
       archivedAttention: sql<number>`sum(${attention} and ${isArchived})`,
       callbacks: sql<number>`sum(${callback})`,
       callbacksDue: sql<number>`sum(${callback} and ${orders.callbackAt} <= ${now})`,
+      call1: sql<number>`sum(${inCallList(1)})`,
+      call2: sql<number>`sum(${inCallList(2)})`,
+      call3OrMore: sql<number>`sum(${inCallList(3)})`,
     })
     .from(orders)
     .leftJoin(shipments, eq(shipments.orderId, orders.id))
@@ -80,6 +86,11 @@ export async function getOrderStageStats(db: AppDb, options: { archived?: "inclu
     archived: rows.reduce((sum, r) => sum + Number(r.archived ?? 0), 0),
     callbacks: rows.reduce((sum, r) => sum + Number(r.callbacks ?? 0), 0),
     callbacksDue: rows.reduce((sum, r) => sum + Number(r.callbacksDue ?? 0), 0),
+    noAnswer: {
+      call1: rows.reduce((sum, r) => sum + Number(r.call1 ?? 0), 0),
+      call2: rows.reduce((sum, r) => sum + Number(r.call2 ?? 0), 0),
+      call3OrMore: rows.reduce((sum, r) => sum + Number(r.call3OrMore ?? 0), 0),
+    },
     deliveryRate: deliveryRate(every),
   };
 }

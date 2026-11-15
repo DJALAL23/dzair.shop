@@ -240,7 +240,7 @@ describe("each member's results", () => {
       order({ id: "r-conf", assigneeId: "u-samira", assignedAt: at, createdAt: at, status: "ready", decidedAt: "2026-11-10T09:10:00.000Z", decidedBy: "u-samira", confirmedAt: "2026-11-10T09:10:00.000Z", confirmedBy: "u-samira" }),
       order({ id: "r-deliv", assigneeId: "u-samira", assignedAt: at, createdAt: at, status: "ready", decidedAt: "2026-11-10T09:30:00.000Z", decidedBy: "u-samira", confirmedAt: "2026-11-10T09:30:00.000Z", confirmedBy: "u-samira" }),
       order({ id: "r-back", assigneeId: "u-samira", assignedAt: at, createdAt: at, status: "ready", confirmedAt: "2026-11-10T10:00:00.000Z", confirmedBy: "u-karim", decidedAt: "2026-11-10T10:00:00.000Z", decidedBy: "u-karim" }),
-      order({ id: "r-cancel", assigneeId: "u-samira", assignedAt: at, createdAt: at, status: "cancelled", decidedAt: "2026-11-10T09:20:00.000Z", decidedBy: "u-samira" }),
+      order({ id: "r-cancel", assigneeId: "u-samira", assignedAt: at, createdAt: at, status: "cancelled", decidedAt: "2026-11-10T09:20:00.000Z", decidedBy: "u-samira", unansweredCalls: 3 }),
       order({ id: "r-wait", assigneeId: "u-samira", assignedAt: at, createdAt: at }),
       order({ id: "r-before", assigneeId: "u-samira", assignedAt: at, createdAt: "2026-10-31T22:59:00.000Z", status: "cancelled" }),
       order({ id: "r-first-minute", assigneeId: "u-karim", assignedAt: at, createdAt: "2026-10-31T23:00:00.000Z" }),
@@ -253,7 +253,7 @@ describe("each member's results", () => {
     const byMember = Object.fromEntries(body.data.map((row: { userId: string }) => [row.userId, row]));
     expect(byMember["u-samira"]).toEqual({
       userId: "u-samira", name: "Samira", assigned: 5, waiting: 1, confirmed: 3, cancelled: 1, delivered: 1, returned: 1,
-      confirmationRate: 75, deliveryRate: 50, minutesToDecide: 20,
+      confirmationRate: 75, deliveryRate: 50, minutesToDecide: 20, cancelledAfterNoAnswer: 1, noAnswerCallsBeforeCancel: 3,
     });
     expect(byMember["u-karim"]).toMatchObject({ assigned: 1, waiting: 1, confirmationRate: null, deliveryRate: null, minutesToDecide: null });
     expect((await manager().get("/api/team/results?from=2026-11-30&to=2026-11-01")).status).toBe(400);

@@ -33,8 +33,8 @@ function ProgressMark({ progress }: { progress: Progress }) {
   );
 }
 
-/** Where an order stands, as the merchant sees it — with a mark when its delivery needs them. */
-export function StageBadge({ stage, needsAttention = false }: { stage: OrderStage; needsAttention?: boolean }) {
+/** Where an order stands, as the merchant sees it — with a mark when its delivery needs them, and on no answer, which call it is at. */
+export function StageBadge({ stage, needsAttention = false, calls = 0 }: { stage: OrderStage; needsAttention?: boolean; calls?: number }) {
   const t = useT("orders");
   return (
     <span className={`inline-flex h-5 shrink-0 items-center gap-1 whitespace-nowrap rounded-md ps-1.5 pe-2 text-xs font-medium ${stageClass(stage)}`}>
@@ -43,7 +43,7 @@ export function StageBadge({ stage, needsAttention = false }: { stage: OrderStag
       ) : (
         <ProgressMark progress={PROGRESS[stage]} />
       )}
-      {t(`stage.${stage}`)}
+      {stage === "unreachable" && calls > 0 ? t("calls.no_answer", { call: calls }) : t(`stage.${stage}`)}
     </span>
   );
 }
