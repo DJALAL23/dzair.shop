@@ -18,6 +18,7 @@
 import { embeddedMessage, embeddedTemplate } from "@/theme/content/messages";
 import { toLocalAlgerianMobile } from "@wocart/storefront";
 import { initCouponField } from "./coupon-field";
+import { creditLandingOfThisVisit } from "./landing-visit";
 import {
   getCart,
   cartCount,
@@ -284,6 +285,7 @@ export function initCheckout(): () => void {
     "submit",
     () => {
       if (itemsInput) itemsInput.value = JSON.stringify(toOrderItems());
+      creditLandingOfThisVisit(form);
       // The merchant's own questions, same rule: serialised at submit, so the
       // answers posted are the ones the shopper was looking at.
       if (customFieldResponsesInput) {
