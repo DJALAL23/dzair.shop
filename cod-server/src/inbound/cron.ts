@@ -6,7 +6,9 @@
  *   2. unknown handoffs are looked up by order number, where the carrier can;
  *   3. pull-only carriers (EcoTrack platform, NOEST, Guepex): open shipments
  *      not synced recently, oldest first, within each company's budget;
- *   4. the drain (`src/events/drain.ts`): the webhook inbox's events due
+ *   4. the confirmation team: untouched orders taken back and shared out,
+ *      and each time set to call a customer back that has come, told once;
+ *   5. the drain (`src/events/drain.ts`): the webhook inbox's events due
  *      again, and the Business Events the passes above recorded — within
  *      what the passes leave of this invocation; the queue drains the rest.
  *
@@ -15,6 +17,7 @@
  */
 
 import { shareOutWaiting, takeBackUntouched } from "../../../cod-shared/team/assign";
+import { announceDueCallbacks } from "../../../cod-shared/team/callbacks";
 import type { Author } from "../../../cod-shared/events/actor";
 import { and, asc, eq, isNull, lt, or } from "drizzle-orm";
 import { SYSTEM_ACTING, carrierAuthor } from "@/lib/acting";
@@ -137,6 +140,8 @@ export async function runInboundCron(env: Env, now = new Date()): Promise<void> 
     // The confirmation team: untouched orders move on, then the orders that waited for someone are shared out.
     ["team take-back", () => takeBackUntouched(db, now, SCHEDULE)],
     ["team share-out", () => shareOutWaiting(db, now, SCHEDULE)],
+    // The customers whose time to be called back has come.
+    ["callbacks due", () => announceDueCallbacks(db, now, SCHEDULE)],
     // Last, so what the passes above recorded is delivered in this run.
     ["drain", () => drainAndContinue(env, { budget: SCHEDULED_DRAIN_BUDGET })],
   ];

@@ -214,7 +214,7 @@
     "language_store": "La langue de la boutique",
     "language_store_now": "La langue de la boutique ({language})",
     "events_label": "Événements",
-    "events_hint": "Les nouvelles commandes et l'issue des livraisons sont activées par défaut.",
+    "events_hint": "Les nouvelles commandes, les clients à rappeler maintenant et l'issue des livraisons sont activés par défaut.",
     "events_required": "Choisissez au moins un événement.",
     "deliveries_title": "Ce qui a été envoyé",
     "deliveries_subtitle": "Chaque notification et la réponse de Telegram.",

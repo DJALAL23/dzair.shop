@@ -14,6 +14,7 @@ import { BusinessLogicError, ConflictError, NotFoundError } from "@/lib/errors/c
 import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
 import { assignOrders, shareOutWaiting } from "../../../../cod-shared/team/assign";
 import * as team from "../../../../cod-shared/team/queries";
+import { setCallback as setCallbackTime } from "../../../../cod-shared/team/callbacks";
 import type { Author } from "../../../../cod-shared/events/actor";
 import type * as v from "./validation";
 
@@ -128,7 +129,7 @@ export async function setCallback(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
   const orderId = c.req.param("id")!;
   const { at } = valid<z.infer<typeof v.callbackSchema>>(c, "json");
-  const changed = await team.setCallback(db, orderId, at === null ? null : new Date(at).toISOString());
+  const changed = await setCallbackTime(db, orderId, at === null ? null : new Date(at).toISOString(), c.get("author"));
   if (!changed.ok) {
     if (changed.reason === "not_found") throw new NotFoundError("Order", orderId);
     throw new BusinessLogicError("A callback is set only on an order still waiting: new, or the customer not reached", ERROR_CODES.ORDER_NOT_WAITING, { orderId });

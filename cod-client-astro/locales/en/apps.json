@@ -214,7 +214,7 @@
     "language_store": "The store's language",
     "language_store_now": "The store's language ({language})",
     "events_label": "Events",
-    "events_hint": "New orders and how deliveries end are on by default.",
+    "events_hint": "New orders, customers to call back now, and how deliveries end are on by default.",
     "events_required": "Choose at least one event.",
     "deliveries_title": "What was sent",
     "deliveries_subtitle": "Each notification and what Telegram answered.",

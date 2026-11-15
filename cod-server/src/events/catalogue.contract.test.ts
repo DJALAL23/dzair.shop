@@ -94,7 +94,10 @@ const SAMPLE: EventDataMap = {
   "order.line_returned": { order, lineId: "l-1", previousReturnedQuantity: 0 },
   "order.deleted": { order },
   "order.assigned": { order: { ...order, status: "new" }, assignee: { id: "u2", name: "Karim" }, previousAssignee: { id: "u3", name: "Amina" }, way: "take_back" },
-  "order.unassigned": { order: { ...order, status: "new" }, previousAssignee: { id: "u2", name: "Karim" } },
+  "order.unassigned": { order: { ...order, status: "new", assignee: null }, previousAssignee: { id: "u2", name: "Karim" } },
+  "order.callback_scheduled": { order: { ...order, status: "unreachable", unansweredCalls: 1, callbackAt: "2026-10-25T13:30:00.000Z" }, at: "2026-10-25T13:30:00.000Z", previousAt: null },
+  "order.callback_cleared": { order: { ...order, status: "unreachable", unansweredCalls: 1 }, previousAt: "2026-10-25T13:30:00.000Z" },
+  "order.callback_due": { order: { ...order, status: "new", callbackAt: "2026-10-25T13:30:00.000Z" }, at: "2026-10-25T13:30:00.000Z" },
   "shipment.handed_off": { shipment: { ...shipment, outForDeliveryAt: null, providerStatus: null }, order },
   "shipment.out_for_delivery": report,
   "shipment.delivery_failed": { ...report, reason: "Client injoignable", attempt: 1 },
@@ -103,4 +106,8 @@ const SAMPLE: EventDataMap = {
   "shipment.returned": report,
   "shipment.cancelled": report,
   "shipment.voided": { shipment, order },
+  "review.submitted": {
+    review: { id: "r-1", product: { id: "p-1", name: "Robe" }, rating: 5, title: null, body: "", status: "approved", verified: true, customerName: "Amina B.", photos: 0, voiceNote: true, submittedAt: "2026-10-27T18:42:10.000Z" },
+    order,
+  },
 };

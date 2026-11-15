@@ -11,6 +11,12 @@ import { and, asc, desc, eq, inArray, lt, ne, sql, type SQL } from "drizzle-orm"
 import { customers, products, reviewMedia, reviews } from "../db/schema";
 import type { AppDb } from "../db/client";
 import type { ModerationStatus, ReviewMediaKind, ReviewSource } from "../reviews/model";
+import { recordReviewSubmitted } from "../reviews/submitted";
+
+type BatchStatement = Parameters<AppDb["batch"]>[0][number];
+
+/** Two statements each, well inside a batch. */
+const STUCK_PER_BATCH = 25;
 
 /** @deprecated Use ModerationStatus from cod-shared/reviews/model. */
 export type ReviewStatus = ModerationStatus;
@@ -256,10 +262,13 @@ export async function storeReviewSubjects(db: AppDb, input: { productId: string;
  * not start, or kept none of them. Leaves any other review untouched.
  */
 export async function settleWithoutMedia(db: AppDb, id: string, outcome: { status: "pending" | "approved"; dropped: number }) {
-  await db
-    .update(reviews)
-    .set({ status: outcome.status, mediaDropped: outcome.dropped, updatedAt: new Date().toISOString() })
-    .where(and(eq(reviews.id, id), eq(reviews.status, "processing")));
+  await db.batch([
+    db
+      .update(reviews)
+      .set({ status: outcome.status, mediaDropped: outcome.dropped, updatedAt: new Date().toISOString() })
+      .where(and(eq(reviews.id, id), eq(reviews.status, "processing"))),
+    recordReviewSubmitted(db, id, sql`changes() > 0`),
+  ]);
 }
 
 /**
@@ -268,10 +277,24 @@ export async function settleWithoutMedia(db: AppDb, id: string, outcome: { statu
  * Returns how many.
  */
 export async function settleStuckReviews(db: AppDb, receivedBefore: string): Promise<number> {
-  const settled = await db
-    .update(reviews)
-    .set({ status: "pending", mediaDropped: sql`max(${reviews.mediaDropped}, 1)`, updatedAt: new Date().toISOString() })
+  const stuck = await db
+    .select({ id: reviews.id })
+    .from(reviews)
     .where(and(eq(reviews.status, "processing"), lt(reviews.createdAt, receivedBefore)))
-    .returning({ id: reviews.id });
-  return settled.length;
+    .all();
+  const now = new Date().toISOString();
+  let settled = 0;
+  for (let start = 0; start < stuck.length; start += STUCK_PER_BATCH) {
+    const statements = stuck.slice(start, start + STUCK_PER_BATCH).flatMap(({ id }) => [
+      db
+        .update(reviews)
+        .set({ status: "pending", mediaDropped: sql`max(${reviews.mediaDropped}, 1)`, updatedAt: now })
+        .where(and(eq(reviews.id, id), eq(reviews.status, "processing")))
+        .returning({ id: reviews.id }),
+      recordReviewSubmitted(db, id, sql`changes() > 0`),
+    ]);
+    const results = (await db.batch(statements as [BatchStatement, ...BatchStatement[]])) as unknown[];
+    settled += results.filter((result, i) => i % 2 === 0 && Array.isArray(result) && result.length > 0).length;
+  }
+  return settled;
 }

@@ -43,6 +43,8 @@ const orderLine = z.object({
 
 const deliveryType = z.enum(["home", "stop_desk"]);
 
+const teamMember = z.object({ id: z.string(), name: z.string() });
+
 const order = z.object({
   id: z.string(),
   number: z.string(),
@@ -69,6 +71,23 @@ const order = z.object({
   customFields: z.array(
     z.object({ id: z.string(), label: z.string(), type: z.enum(["text", "textarea", "number", "select"]), value: z.string() }),
   ),
+  unansweredCalls: z.number().int(),
+  callbackAt: instant.nullable(),
+  assignee: teamMember.nullable(),
+});
+
+const review = z.object({
+  id: z.string(),
+  product: z.object({ id: z.string(), name: z.string() }),
+  rating: z.number().int(),
+  title: z.string().nullable(),
+  body: z.string(),
+  status: z.enum(["pending", "approved"]),
+  verified: z.boolean(),
+  customerName: z.string(),
+  photos: z.number().int(),
+  voiceNote: z.boolean(),
+  submittedAt: instant,
 });
 
 const shipment = z.object({
@@ -90,8 +109,6 @@ const shipment = z.object({
   deliveryAttempts: z.number().int(),
 });
 
-const teamMember = z.object({ id: z.string(), name: z.string() });
-
 const statusChange = z.object({ order, previousStatus: z.enum(ORDER_STATUSES) });
 const shipmentChange = z.object({ shipment, order });
 const shipmentReport = shipmentChange.extend({ reason: z.string().nullable() });
@@ -108,6 +125,9 @@ export const EVENT_DATA_SCHEMAS = {
   "order.deleted": z.object({ order }),
   "order.assigned": z.object({ order, assignee: teamMember, previousAssignee: teamMember.nullable(), way: z.enum(ASSIGNMENT_WAYS) }),
   "order.unassigned": z.object({ order, previousAssignee: teamMember }),
+  "order.callback_scheduled": z.object({ order, at: instant, previousAt: instant.nullable() }),
+  "order.callback_cleared": z.object({ order, previousAt: instant }),
+  "order.callback_due": z.object({ order, at: instant }),
   "shipment.handed_off": shipmentChange,
   "shipment.out_for_delivery": shipmentReport,
   "shipment.delivery_failed": shipmentReport.extend({ attempt: z.number().int() }),
@@ -116,6 +136,7 @@ export const EVENT_DATA_SCHEMAS = {
   "shipment.returned": shipmentReport,
   "shipment.cancelled": shipmentReport,
   "shipment.voided": shipmentChange,
+  "review.submitted": z.object({ review, order }),
 } satisfies { [T in EventType]: z.ZodType<EventData<T>> };
 
 const actor = z.union([

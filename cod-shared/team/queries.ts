@@ -377,16 +377,3 @@ export async function payroll(db: AppDb, month: string): Promise<PayrollLine[]> 
 
 type SQLChunk = ReturnType<typeof sql.raw>;
 
-export type CallbackChange = { ok: true } | { ok: false; reason: "not_found" | "not_waiting" };
-
-/** Sets when to call the customer back (null clears it), on an order still waiting: new, or the customer not reached. */
-export async function setCallback(db: AppDb, orderId: string, at: string | null): Promise<CallbackChange> {
-  const updated = await db
-    .update(orders)
-    .set({ callbackAt: at })
-    .where(and(eq(orders.id, orderId), inArray(orders.status, WAITING_STATUSES)))
-    .returning({ id: orders.id });
-  if (updated.length) return { ok: true };
-  const exists = await db.select({ id: orders.id }).from(orders).where(eq(orders.id, orderId)).get();
-  return { ok: false, reason: exists ? "not_waiting" : "not_found" };
-}

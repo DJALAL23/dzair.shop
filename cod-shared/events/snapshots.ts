@@ -74,6 +74,32 @@ export interface OrderSnapshot {
   freeDeliveryOffer: { id: string | null; name: string | null } | null;
   notes: string | null;
   customFields: { id: string; label: string; type: CustomFieldType; value: string }[];
+  /** Calls to the customer without an answer: an order on no answer is at Call 1, Call 2… Kept once the order is decided. */
+  unansweredCalls: number;
+  /** When to call the customer back, while the order waits; null when no time is set. */
+  callbackAt: string | null;
+  /** The confirmation team member who has the order; null while it is with nobody. */
+  assignee: { id: string; name: string } | null;
+}
+
+/** A customer's review, as it reached the store. */
+export interface ReviewSnapshot {
+  id: string;
+  product: { id: string; name: string };
+  /** Whole stars, 1 to 5. */
+  rating: number;
+  title: string | null;
+  /** Can be empty when a voice note says it instead. */
+  body: string;
+  /** "approved": on the store now; "pending": waiting for the merchant's approval. */
+  status: "pending" | "approved";
+  /** It rests on a delivered order. */
+  verified: boolean;
+  /** The name shown with the review. */
+  customerName: string;
+  photos: number;
+  voiceNote: boolean;
+  submittedAt: string;
 }
 
 export interface ShipmentSnapshot {
@@ -153,7 +179,10 @@ const orderJson = (orderId: SQL) => sql`(select json_object(
   'coupon', case when o.coupon_code is null then null else json_object('code', o.coupon_code, 'discount', ${moneySql(sql`o.coupon_discount`)}) end,
   'freeDeliveryOffer', ${namedSql(sql`o.delivery_offer_id`, sql`o.delivery_offer_name`)},
   'notes', o.notes,
-  'customFields', case when json_valid(o.custom_fields_json) then json(o.custom_fields_json) else json('[]') end
+  'customFields', case when json_valid(o.custom_fields_json) then json(o.custom_fields_json) else json('[]') end,
+  'unansweredCalls', o.unanswered_calls,
+  'callbackAt', ${instantSql(sql`o.callback_at`)},
+  'assignee', json((select json_object('id', u.id, 'name', u.name) from users u where u.id = o.assignee_id))
 ) from orders o where o.id = ${orderId})`;
 
 const idSql = (id: string | SQL) => (typeof id === "string" ? sql`${id}` : id);
@@ -185,4 +214,23 @@ const shipmentJson = (shipmentId: SQL) => sql`(select json_object(
 /** The shipment as it stands where this statement runs in the batch. */
 export function shipmentSnapshot(shipmentId: string | SQL): SqlJson<ShipmentSnapshot> {
   return new SqlJson(shipmentJson(idSql(shipmentId)));
+}
+
+const reviewJson = (reviewId: SQL) => sql`(select json_object(
+  'id', r.id,
+  'product', json_object('id', r.product_id, 'name', (select p.name from products p where p.id = r.product_id)),
+  'rating', r.rating,
+  'title', r.title,
+  'body', r.body,
+  'status', r.status,
+  'verified', json(case when r.verified then 'true' else 'false' end),
+  'customerName', r.customer_name,
+  'photos', (select count(*) from review_media m where m.review_id = r.id and m.kind = 'image'),
+  'voiceNote', json(case when exists (select 1 from review_media m where m.review_id = r.id and m.kind = 'audio') then 'true' else 'false' end),
+  'submittedAt', ${instantSql(sql`r.created_at`)}
+) from reviews r where r.id = ${reviewId})`;
+
+/** The review as it stands where this statement runs in the batch. */
+export function reviewSnapshot(reviewId: string | SQL): SqlJson<ReviewSnapshot> {
+  return new SqlJson(reviewJson(idSql(reviewId)));
 }

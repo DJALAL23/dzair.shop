@@ -18,7 +18,12 @@
       "ready": "Prête à expédier",
       "cancelled": "Commande annulée",
       "line_returned": "Unités refusées à la livraison",
-      "deleted": "Commande supprimée"
+      "deleted": "Commande supprimée",
+      "assigned": "Confiée à un membre de l'équipe",
+      "unassigned": "Reprise à un membre de l'équipe",
+      "callback_scheduled": "Rappel prévu",
+      "callback_cleared": "Rappel retiré",
+      "callback_due": "Heure de rappeler"
     },
     "shipment": {
       "handed_off": "Remise à la livraison",
@@ -29,6 +34,9 @@
       "returned": "Retournée",
       "cancelled": "Livraison annulée",
       "voided": "Remise annulée"
+    },
+    "review": {
+      "submitted": "Nouvel avis"
     }
   },
   "actor": {
@@ -148,6 +156,7 @@
     "every_event": "Tous les événements, y compris ceux ajoutés plus tard",
     "every_order": "Tous les événements de commande, y compris ceux ajoutés plus tard",
     "every_shipment": "Tous les événements de livraison, y compris ceux ajoutés plus tard",
+    "every_review": "Tous les événements d'avis, y compris ceux ajoutés plus tard",
     "no_events": "Choisissez au moins un événement.",
     "name_missing": "Donnez-lui un nom.",
     "create_submit": "Ajouter le webhook",

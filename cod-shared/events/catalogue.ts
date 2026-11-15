@@ -10,17 +10,17 @@ import type { SQL } from "drizzle-orm";
 import type { OrderStatus } from "../orders/lifecycle";
 import type { Milestone } from "../shipments/interpretation";
 import type { Actor, Origin } from "./actor";
-import type { OrderSnapshot, ShipmentSnapshot, SqlJson } from "./snapshots";
+import type { OrderSnapshot, ReviewSnapshot, ShipmentSnapshot, SqlJson } from "./snapshots";
 import type { AssignmentWay } from "../team/model";
 
-export type EventSubject = "order" | "shipment";
+export type EventSubject = "order" | "shipment" | "review";
 
 /** Each Event Type: its subject, its current version, and what it means, as the published reference says it. */
 export const EVENT_CATALOGUE = {
   "order.created": { subject: "order", version: 1, summary: "An order was placed: on the store, in the dashboard, through the API or by an AI agent." },
   "order.updated": { subject: "order", version: 1, summary: "An order's customer, destination or notes were edited." },
   "order.confirmed": { subject: "order", version: 1, summary: "The customer confirmed the order, usually on the phone." },
-  "order.unreachable": { subject: "order", version: 1, summary: "A call to confirm the order had no answer; it is sent again for each further call without an answer." },
+  "order.unreachable": { subject: "order", version: 1, summary: "A call to confirm the order had no answer; it is sent again for each further call without an answer, and the order's unansweredCalls says which call it was." },
   "order.preparing": { subject: "order", version: 1, summary: "The order is being prepared." },
   "order.ready": { subject: "order", version: 1, summary: "The order is packed and ready to hand to delivery." },
   "order.cancelled": { subject: "order", version: 1, summary: "The order was cancelled." },
@@ -28,6 +28,9 @@ export const EVENT_CATALOGUE = {
   "order.deleted": { subject: "order", version: 1, summary: "The order was deleted; the event carries it as it was." },
   "order.assigned": { subject: "order", version: 1, summary: "The order was given to a member of the confirmation team: by the store's rule, by a manager, or taken back from a member who did not act on it in time." },
   "order.unassigned": { subject: "order", version: 1, summary: "A manager took the order back from its team member; it is with nobody now." },
+  "order.callback_scheduled": { subject: "order", version: 1, summary: "A time was set to call the customer back, or the time set was moved." },
+  "order.callback_cleared": { subject: "order", version: 1, summary: "The time set to call the customer back was removed. Confirming or cancelling the order removes it too, without this event." },
+  "order.callback_due": { subject: "order", version: 1, summary: "The time set to call the customer back has come and the order still waits; sent once for each time set." },
   "shipment.handed_off": { subject: "shipment", version: 1, summary: "The order was handed to a carrier or to one of the store's drivers." },
   "shipment.out_for_delivery": { subject: "shipment", version: 1, summary: "The parcel left for the customer." },
   "shipment.delivery_failed": { subject: "shipment", version: 1, summary: "An attempt to deliver the parcel failed." },
@@ -36,6 +39,7 @@ export const EVENT_CATALOGUE = {
   "shipment.returned": { subject: "shipment", version: 1, summary: "The parcel is back with the store." },
   "shipment.cancelled": { subject: "shipment", version: 1, summary: "The shipment was cancelled before it was delivered." },
   "shipment.voided": { subject: "shipment", version: 1, summary: "The handoff was undone: the order is no longer with delivery." },
+  "review.submitted": { subject: "review", version: 1, summary: "A customer reviewed a product of their delivered order: published at once, or waiting for approval, as the store's review settings say." },
 } as const satisfies Record<string, { subject: EventSubject; version: number; summary: string }>;
 
 export type EventType = keyof typeof EVENT_CATALOGUE;
@@ -113,6 +117,11 @@ export interface EventDataMap {
   "order.deleted": { order: OrderSnapshot };
   "order.assigned": { order: OrderSnapshot; assignee: TeamMember; previousAssignee: TeamMember | null; way: AssignmentWay };
   "order.unassigned": { order: OrderSnapshot; previousAssignee: TeamMember };
+  /** `at`: when to call back; `previousAt`: the time it replaces, or null when none was set. */
+  "order.callback_scheduled": { order: OrderSnapshot; at: string; previousAt: string | null };
+  "order.callback_cleared": { order: OrderSnapshot; previousAt: string };
+  /** `at`: the time that was set, which has come. */
+  "order.callback_due": { order: OrderSnapshot; at: string };
   "shipment.handed_off": ShipmentChange;
   "shipment.out_for_delivery": ShipmentReport;
   "shipment.delivery_failed": FailedAttempt;
@@ -121,6 +130,7 @@ export interface EventDataMap {
   "shipment.returned": ShipmentReport;
   "shipment.cancelled": ShipmentReport;
   "shipment.voided": ShipmentChange;
+  "review.submitted": { review: ReviewSnapshot; order: OrderSnapshot };
 }
 
 export type EventData<T extends EventType> = EventDataMap[T];
@@ -136,7 +146,8 @@ export type BusinessEventDraft = {
     subjectId: string;
     /** The order it concerns, for the order's timeline — or the statement that finds it, for a writer that knows only the shipment. */
     orderId: string | SQL;
-    occurredAt: string;
+    /** When it happened — or the statement that reads it, for a writer that records it after the fact. */
+    occurredAt: string | SQL;
     actor: Actor;
     origin: Origin;
     data: DraftData<T>;

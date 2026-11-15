@@ -9,6 +9,9 @@ export type SubscriptionPattern = EventType | `${EventSubject}.*` | "*";
 
 const SUBJECTS = new Set<string>(Object.values(EVENT_CATALOGUE).map((entry) => entry.subject));
 
+/** Every pattern there is — each Event Type, each subject, and `*`: the most a Subscription can name. */
+export const SUBSCRIPTION_PATTERNS_MAX = EVENT_TYPES.length + SUBJECTS.size + 1;
+
 export function isSubscriptionPattern(value: unknown): value is SubscriptionPattern {
   if (typeof value !== "string") return false;
   if (value === "*") return true;

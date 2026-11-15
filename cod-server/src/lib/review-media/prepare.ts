@@ -18,7 +18,7 @@
  * Every step can run again: a kept file's key comes from its upload's id, and
  * its row is written once.
  */
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import type { AppDb } from "@/db";
 import type { MediaLibrary } from "../../../../cod-shared/media/library";
 import { parseImageDimensions } from "@/lib/image-dimensions";
@@ -27,6 +27,7 @@ import type { ReviewMediaJob, ReviewMediaUpload } from "./job";
 import { reviewMedia, reviews } from "../../../../cod-shared/db/schema";
 import { photoKeys, voiceKey, type VoiceContentType } from "../../../../cod-shared/reviews/media";
 import { sniffMedia } from "../../../../cod-shared/media/keys";
+import { recordReviewSubmitted } from "../../../../cod-shared/reviews/submitted";
 import { REVIEW_PHOTO_MAX_BYTES, VOICE_DURATION_TOLERANCE_MS, voiceMaxBytes } from "../../../../cod-shared/reviews/policy";
 import type { ReviewMediaKind, ReviewVoiceLength } from "../../../../cod-shared/reviews/model";
 import type { Staging } from "@/lib/staging";
@@ -156,8 +157,9 @@ export async function attachMedia(db: AppDb, media: Pick<MediaLibrary, "release"
     .update(reviews)
     .set({ status: kept.length > 0 ? job.statusWithMedia : job.statusWithoutMedia, mediaDropped: dropped, updatedAt: now })
     .where(and(eq(reviews.id, job.reviewId), eq(reviews.status, "processing")));
-  if (rows.length) await db.batch([db.insert(reviewMedia).values(rows).onConflictDoNothing({ target: reviewMedia.mediaKey }), land]);
-  else await land;
+  const told = recordReviewSubmitted(db, job.reviewId, sql`changes() > 0`);
+  if (rows.length) await db.batch([db.insert(reviewMedia).values(rows).onConflictDoNothing({ target: reviewMedia.mediaKey }), land, told]);
+  else await db.batch([land, told]);
   return "attached";
 }
 

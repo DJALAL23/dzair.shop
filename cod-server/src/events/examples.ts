@@ -8,15 +8,17 @@
 import { EVENT_CATALOGUE, EVENT_TYPES, type EventData, type EventType } from "../../../cod-shared/events/catalogue";
 import type { Actor, Origin } from "../../../cod-shared/events/actor";
 import type { BusinessEvent } from "../../../cod-shared/events/log";
-import type { Money, OrderSnapshot, ShipmentSnapshot } from "../../../cod-shared/events/snapshots";
+import type { Money, OrderSnapshot, ReviewSnapshot, ShipmentSnapshot } from "../../../cod-shared/events/snapshots";
 import type { OrderStatus } from "../../../cod-shared/orders/lifecycle";
 
 const dzd = (dinars: number): Money => ({ amount: dinars.toFixed(2), currency: "DZD" });
 
 const ORDER_ID = "7f3c2a9e-4b1d-4e8a-9c55-2d6f0b8e1a47";
 const SHIPMENT_ID = "c41e8d2b-90f3-4a6c-b7d1-5e2a9f0c3b68";
+const REVIEW_ID = "3e5a7c9e-1b3d-4f5a-8c7e-9b1d3f5a7c9e";
+const KARIM = { id: "7b9d1f3a-5c7e-4a9b-8d1f-3a5c7e9b1d3f", name: "Karim" };
 
-const order = (status: OrderStatus): OrderSnapshot => ({
+const order = (status: OrderStatus, team: Partial<Pick<OrderSnapshot, "unansweredCalls" | "callbackAt" | "assignee">> = {}): OrderSnapshot => ({
   id: ORDER_ID,
   number: "ORD-20261025-0042",
   status,
@@ -56,7 +58,27 @@ const order = (status: OrderStatus): OrderSnapshot => ({
   freeDeliveryOffer: null,
   notes: "Appeler avant de passer",
   customFields: [{ id: "c3e5a7b9-1d3f-4b5a-9c7e-1f3a5b7d9e1f", label: "Taille habituelle", type: "select", value: "M" }],
+  unansweredCalls: 0,
+  callbackAt: null,
+  assignee: KARIM,
+  ...team,
 });
+
+const CALLBACK_AT = "2026-10-25T13:30:00.000Z";
+
+const review: ReviewSnapshot = {
+  id: REVIEW_ID,
+  product: { id: "e8a1c3b5-7d9f-4b2a-a4c6-8e0f2a4c6e8a", name: "Robe kabyle" },
+  rating: 4,
+  title: "Très belle robe",
+  body: "Le tissu est beau et la taille correspond. La livraison a pris trois jours.",
+  status: "pending",
+  verified: true,
+  customerName: "Amina Benali",
+  photos: 2,
+  voiceNote: false,
+  submittedAt: "2026-10-27T18:42:10.000Z",
+};
 
 const shipment = (milestones: Partial<ShipmentSnapshot> = {}): ShipmentSnapshot => ({
   id: SHIPMENT_ID,
@@ -97,10 +119,10 @@ const EXAMPLES: { [T in EventType]: Example<T> } = {
   "order.created": { occurredAt: "2026-10-25T09:14:03.120Z", actor: SHOPPER, origin: "storefront", data: { order: order("new") } },
   "order.updated": { occurredAt: "2026-10-25T09:38:12.000Z", actor: STAFF, origin: "dashboard", data: { order: order("new"), changedFields: ["customerPhone", "notes"] } },
   "order.confirmed": { occurredAt: "2026-10-25T09:40:55.000Z", actor: STAFF, origin: "dashboard", data: { order: order("confirmed"), previousStatus: "new" } },
-  "order.unreachable": { occurredAt: "2026-10-25T09:40:55.000Z", actor: STAFF, origin: "dashboard", data: { order: order("unreachable"), previousStatus: "new" } },
+  "order.unreachable": { occurredAt: "2026-10-25T09:40:55.000Z", actor: STAFF, origin: "dashboard", data: { order: order("unreachable", { unansweredCalls: 1 }), previousStatus: "new" } },
   "order.preparing": { occurredAt: "2026-10-25T10:05:00.000Z", actor: STAFF, origin: "dashboard", data: { order: order("preparing"), previousStatus: "confirmed" } },
   "order.ready": { occurredAt: "2026-10-25T10:48:30.000Z", actor: STAFF, origin: "dashboard", data: { order: order("ready"), previousStatus: "preparing" } },
-  "order.cancelled": { occurredAt: "2026-10-25T12:20:00.000Z", actor: STAFF, origin: "dashboard", data: { order: order("cancelled"), previousStatus: "unreachable" } },
+  "order.cancelled": { occurredAt: "2026-10-25T12:20:00.000Z", actor: STAFF, origin: "dashboard", data: { order: order("cancelled", { unansweredCalls: 3, assignee: KARIM }), previousStatus: "unreachable" } },
   "order.line_returned": {
     occurredAt: "2026-10-26T13:05:00.000Z",
     actor: STAFF,
@@ -112,9 +134,22 @@ const EXAMPLES: { [T in EventType]: Example<T> } = {
     occurredAt: "2026-10-25T09:14:03.120Z",
     actor: { kind: "system", id: null, name: null },
     origin: "storefront",
-    data: { order: order("new"), assignee: { id: "7b9d1f3a-5c7e-4a9b-8d1f-3a5c7e9b1d3f", name: "Karim" }, previousAssignee: null, way: "automatic" },
+    data: { order: order("new"), assignee: KARIM, previousAssignee: null, way: "automatic" },
   },
-  "order.unassigned": { occurredAt: "2026-10-25T09:30:00.000Z", actor: STAFF, origin: "dashboard", data: { order: order("new"), previousAssignee: { id: "7b9d1f3a-5c7e-4a9b-8d1f-3a5c7e9b1d3f", name: "Karim" } } },
+  "order.unassigned": { occurredAt: "2026-10-25T09:30:00.000Z", actor: STAFF, origin: "dashboard", data: { order: order("new", { assignee: null }), previousAssignee: KARIM } },
+  "order.callback_scheduled": {
+    occurredAt: "2026-10-25T09:41:20.000Z",
+    actor: STAFF,
+    origin: "dashboard",
+    data: { order: order("unreachable", { unansweredCalls: 1, callbackAt: CALLBACK_AT }), at: CALLBACK_AT, previousAt: null },
+  },
+  "order.callback_cleared": { occurredAt: "2026-10-25T11:05:00.000Z", actor: STAFF, origin: "dashboard", data: { order: order("unreachable", { unansweredCalls: 1 }), previousAt: CALLBACK_AT } },
+  "order.callback_due": {
+    occurredAt: CALLBACK_AT,
+    actor: { kind: "system", id: null, name: null },
+    origin: "schedule",
+    data: { order: order("unreachable", { unansweredCalls: 1, callbackAt: CALLBACK_AT }), at: CALLBACK_AT },
+  },
   "shipment.handed_off": { occurredAt: "2026-10-25T11:02:40.000Z", actor: STAFF, origin: "dashboard", data: { shipment: shipment(), order: order("ready") } },
   "shipment.out_for_delivery": { occurredAt: "2026-10-26T08:31:00.000Z", actor: CARRIER, origin: "carrier_webhook", data: { shipment: shipment(outForDelivery), order: order("ready"), reason: null } },
   "shipment.delivery_failed": {
@@ -143,7 +178,10 @@ const EXAMPLES: { [T in EventType]: Example<T> } = {
     data: { shipment: shipment({ cancelledAt: "2026-10-25T14:00:00.000Z", providerStatus: { value: "Annulé", label: null } }), order: order("ready"), reason: "Le client a changé d'adresse" },
   },
   "shipment.voided": { occurredAt: "2026-10-25T11:20:00.000Z", actor: STAFF, origin: "dashboard", data: { shipment: shipment(), order: order("ready") } },
+  "review.submitted": { occurredAt: review.submittedAt, actor: SHOPPER, origin: "storefront", data: { review, order: order("ready") } },
 };
+
+const SUBJECT_IDS = { order: ORDER_ID, shipment: SHIPMENT_ID, review: REVIEW_ID } as const;
 
 const EVENT_IDS: Record<EventType, string> = Object.fromEntries(
   EVENT_TYPES.map((type, i) => [type, `0f9e8d7c-6b5a-4f3e-8d2c-${(0x1b0a09080700 + i).toString(16).padStart(12, "0")}`]),
@@ -158,7 +196,7 @@ export function exampleEvent<T extends EventType>(type: T): Extract<BusinessEven
     sequence: 1040 + EVENT_TYPES.indexOf(type),
     type,
     version: EVENT_CATALOGUE[type].version,
-    subject: { type: subject, id: subject === "order" ? ORDER_ID : SHIPMENT_ID },
+    subject: { type: subject, id: SUBJECT_IDS[subject] },
     orderId: ORDER_ID,
     occurredAt,
     recordedAt: occurredAt.replace(/\.\d{3}Z$/, ".480Z"),

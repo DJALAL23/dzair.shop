@@ -18,7 +18,12 @@
       "ready": "Ready to ship",
       "cancelled": "Order cancelled",
       "line_returned": "Units refused at the door",
-      "deleted": "Order deleted"
+      "deleted": "Order deleted",
+      "assigned": "Given to a team member",
+      "unassigned": "Taken back from a team member",
+      "callback_scheduled": "Call back set",
+      "callback_cleared": "Call back removed",
+      "callback_due": "Time to call back"
     },
     "shipment": {
       "handed_off": "Handed to delivery",
@@ -29,6 +34,9 @@
       "returned": "Returned",
       "cancelled": "Delivery cancelled",
       "voided": "Handoff undone"
+    },
+    "review": {
+      "submitted": "New review"
     }
   },
   "actor": {
@@ -144,6 +152,7 @@
     "every_event": "Every event, including ones added later",
     "every_order": "All order events, including ones added later",
     "every_shipment": "All delivery events, including ones added later",
+    "every_review": "All review events, including ones added later",
     "no_events": "Choose at least one event.",
     "name_missing": "Give it a name.",
     "create_submit": "Add webhook",

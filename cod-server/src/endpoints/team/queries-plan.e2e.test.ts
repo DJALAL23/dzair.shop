@@ -11,6 +11,7 @@ import { listTeamMembers, payroll, teamQueue, teamResults } from "../../../../co
 import { getAllOrders } from "../../../../cod-shared/queries/orders";
 import { getOrderStageStats } from "../../../../cod-shared/queries/analytics";
 import { shareOutWaiting, takeBackUntouched } from "../../../../cod-shared/team/assign";
+import { announceDueCallbacks, setCallback } from "../../../../cod-shared/team/callbacks";
 
 let d1: TestD1;
 const SYSTEM = { actor: { kind: "system" as const, id: null, name: null }, origin: "schedule" as const };
@@ -60,6 +61,8 @@ describe("the team's reads", () => {
     ["one member's counts", (db: never) => getOrderStageStats(db, { archived: "exclude", assigneeId: "u-samira" })],
     ["sharing out", (db: never) => shareOutWaiting(db, new Date(), SYSTEM)],
     ["taking back", (db: never) => takeBackUntouched(db, new Date(), SYSTEM)],
+    ["telling the callbacks whose time has come", (db: never) => announceDueCallbacks(db, new Date(), SYSTEM)],
+    ["setting a callback", (db: never) => setCallback(db, "o-none", null, SYSTEM)],
   ])("%s never scan every order", async (_, read) => {
     const plans = await plansOf(read as never);
     expect(plans.some((plan) => /\b(orders|o|w|s)\b/.test(plan))).toBe(true);
