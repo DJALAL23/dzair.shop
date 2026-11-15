@@ -1,5 +1,5 @@
 import { useDeferredValue, useEffect, useRef, useState } from "react";
-import { AlarmClock, AlertTriangle, Archive, PackageOpen, Send, UserRoundPlus } from "lucide-react";
+import { AlarmClock, AlertTriangle, Archive, PackageOpen, Send, SlidersHorizontal, UserRoundPlus, X } from "lucide-react";
 import { canScope, useIdentity } from "@/features/auth/components/RequireAuth";
 import { useLocale, useT } from "@/i18n/react";
 import { placeLabel } from "@/lib/places";
@@ -26,10 +26,13 @@ import {
   Alert,
   Button,
   Card,
+  Dialog,
   EmptyState,
+  Field,
   LinkButton,
   FilterPill,
   SearchInput,
+  Select,
   Table,
   TableSkeleton,
   TableBody,
@@ -58,6 +61,8 @@ interface Filters {
   /** One of the confirmation team's queues, opened from the team page. */
   queue: "" | TeamQueue;
 }
+
+type FilterField = { key: Exclude<keyof Filters, "search" | "queue">; label: string; options: Array<{ value: string; label: string }> };
 
 const NO_FILTERS: Filters = { search: "", kind: "", orderType: "", wilayaId: "", flagged: "", source: "", assignee: "", queue: "" };
 
@@ -122,6 +127,7 @@ export function OrdersList() {
   const [error, setError] = useState<Error | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkOpen, setBulkOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const request = useRef(0);
 
   const kinds = may("delivery:read") ? handoffKinds(may) : [];
@@ -233,6 +239,62 @@ export function OrdersList() {
   }
 
   const hasFilters = Object.values(filters).some(Boolean);
+  const fields: FilterField[] = [
+    {
+      key: "kind",
+      label: t("filters.delivered_by"),
+      options: [
+        { value: "", label: t("filters.any_delivery") },
+        { value: "carrier", label: t("filters.by_carrier") },
+        { value: "driver", label: t("filters.by_driver") },
+      ],
+    },
+    {
+      key: "orderType",
+      label: t("filters.type"),
+      options: [
+        { value: "", label: t("filters.any_type") },
+        { value: "online", label: t("type.online") },
+        { value: "offline", label: t("type.offline") },
+      ],
+    },
+    {
+      key: "flagged",
+      label: t("filters.protection"),
+      options: [
+        { value: "", label: t("filters.any_protection") },
+        { value: "true", label: t("filters.flagged") },
+      ],
+    },
+    {
+      key: "source",
+      label: t("source.column"),
+      options: [{ value: "", label: t("source.filter.any") }, ...(Object.keys(SOURCE_FILTERS) as SourceFilter[]).map((key) => ({ value: key, label: t(`source.filter.${key}`) }))],
+    },
+    ...(showTeam && team
+      ? [
+          {
+            key: "assignee" as const,
+            label: team$("list.filter"),
+            options: [
+              { value: "", label: team$("list.anyone") },
+              { value: "none", label: team$("list.nobody") },
+              ...team.members.map((member) => ({ value: member.userId, label: member.userId === meId ? team$("list.me_name", { name: member.name }) : member.name })),
+            ],
+          },
+        ]
+      : []),
+    ...(wilayas.length > 0
+      ? [
+          {
+            key: "wilayaId" as const,
+            label: t("filters.wilaya"),
+            options: [{ value: "", label: t("filters.all_wilayas") }, ...wilayas.map((wilaya) => ({ value: String(wilaya.id), label: `${wilaya.id} · ${placeLabel(wilaya, locale)}` }))],
+          },
+        ]
+      : []),
+  ];
+  const narrowing = fields.filter((field) => filters[field.key] !== "").length;
   const rowProps = { companies, drivers, onChanged: load, onError: (message: string) => setError(new Error(message)) };
   const selection = (order: OrderListItem) =>
     selectable && (canGive ? isWaiting(order) : order.stage === "ready_to_ship") ? { selected: selected.has(order.id), onToggle: () => toggle(order.id) } : undefined;
@@ -245,7 +307,7 @@ export function OrdersList() {
     }`;
 
   return (
-    <div className="space-y-3">
+    <div className={`space-y-3 ${selectable && selected.size > 0 ? "pb-20" : ""}`}>
       {error && (
         <Alert role="alert" tone="critical">
           <div className="flex-1">
@@ -270,7 +332,7 @@ export function OrdersList() {
               className={tabClass(view === key)}
             >
               {t(`queues.${key}`)}
-              {counts && <span className="text-xs font-medium tabular-nums text-muted-foreground">{counts[key]}</span>}
+              {counts && <span className={`text-xs font-medium tabular-nums ${counts[key] === 0 ? "text-muted-foreground/50" : "text-muted-foreground"}`}>{counts[key]}</span>}
             </button>
           ))}
           {counts && (counts.callbacks > 0 || view === "callbacks") && (
@@ -315,22 +377,25 @@ export function OrdersList() {
         </div>
         {showSteps && (
           <div role="group" aria-label={t("calls.filter")} className="no-scrollbar flex items-center gap-1.5 overflow-x-auto px-2 pt-2">
-            {([null, ...CONFIRM_STEPS] as const).map((key) => (
-              <button
-                key={key ?? "all"}
-                type="button"
-                aria-pressed={step === key}
-                onClick={() => chooseStep(key)}
-                className={`inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full border px-3 text-xs transition-colors pointer-coarse:h-9 ${
-                  step === key
-                    ? "border-foreground/20 bg-foreground/[0.08] font-semibold text-foreground"
-                    : "border-border font-medium text-muted-foreground hover:bg-foreground/[0.04] hover:text-foreground"
-                }`}
-              >
-                {stepLabel(key)}
-                <span className="tabular-nums text-muted-foreground">{key === null ? (counts?.to_confirm ?? 0) : stepCounts[key]}</span>
-              </button>
-            ))}
+            {([null, ...CONFIRM_STEPS] as const).map((key) => {
+              const count = key === null ? (counts?.to_confirm ?? 0) : stepCounts[key];
+              return (
+                <button
+                  key={key ?? "all"}
+                  type="button"
+                  aria-pressed={step === key}
+                  onClick={() => chooseStep(key)}
+                  className={`inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full border px-3 text-xs transition-colors pointer-coarse:h-9 ${
+                    step === key
+                      ? "border-foreground/20 bg-foreground/[0.08] font-semibold text-foreground"
+                      : `border-border font-medium hover:bg-foreground/[0.04] hover:text-foreground ${count === 0 ? "text-muted-foreground/60" : "text-muted-foreground"}`
+                  }`}
+                >
+                  {stepLabel(key)}
+                  <span className={`tabular-nums ${count === 0 && step !== key ? "text-muted-foreground/50" : "text-muted-foreground"}`}>{count}</span>
+                </button>
+              );
+            })}
           </div>
         )}
         {filters.queue && (
@@ -344,86 +409,42 @@ export function OrdersList() {
             </button>
           </div>
         )}
-        <div className="flex flex-wrap items-center gap-2 p-2">
+        <div className="flex items-center gap-2 p-2 md:flex-wrap">
           <SearchInput
             value={filters.search}
             onChange={(search) => setFilter("search", search)}
             placeholder={t("search_placeholder")}
-            className="basis-full sm:basis-72"
+            className="min-w-0 flex-1 md:min-w-52 md:max-w-sm"
           />
-          <FilterPill label={t("filters.delivered_by")} value={filters.kind} onChange={(value) => setFilter("kind", value as Filters["kind"])}>
-            <option value="">{t("filters.any_delivery")}</option>
-            <option value="carrier">{t("filters.by_carrier")}</option>
-            <option value="driver">{t("filters.by_driver")}</option>
-          </FilterPill>
-          <FilterPill label={t("filters.type")} value={filters.orderType} onChange={(value) => setFilter("orderType", value as Filters["orderType"])}>
-            <option value="">{t("filters.any_type")}</option>
-            <option value="online">{t("type.online")}</option>
-            <option value="offline">{t("type.offline")}</option>
-          </FilterPill>
-          <FilterPill label={t("filters.protection")} value={filters.flagged} onChange={(value) => setFilter("flagged", value as Filters["flagged"])}>
-            <option value="">{t("filters.any_protection")}</option>
-            <option value="true">{t("filters.flagged")}</option>
-          </FilterPill>
-          <FilterPill label={t("source.column")} value={filters.source} onChange={(value) => setFilter("source", value as Filters["source"])}>
-            <option value="">{t("source.filter.any")}</option>
-            {(Object.keys(SOURCE_FILTERS) as SourceFilter[]).map((key) => (
-              <option key={key} value={key}>
-                {t(`source.filter.${key}`)}
-              </option>
+          <div className="hidden md:contents">
+            {fields.map((field) => (
+              <FilterPill key={field.key} label={field.label} value={filters[field.key]} onChange={(value) => setFilter(field.key, value as Filters[typeof field.key])}>
+                {field.options.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </FilterPill>
             ))}
-          </FilterPill>
-          {showTeam && team && (
-            <FilterPill label={team$("list.filter")} value={filters.assignee} onChange={(value) => setFilter("assignee", value)}>
-              <option value="">{team$("list.anyone")}</option>
-              <option value="none">{team$("list.nobody")}</option>
-              {team.members.map((member) => (
-                <option key={member.userId} value={member.userId}>
-                  {member.userId === meId ? team$("list.me_name", { name: member.name }) : member.name}
-                </option>
-              ))}
-            </FilterPill>
-          )}
-          {wilayas.length > 0 && (
-            <FilterPill label={t("filters.wilaya")} value={filters.wilayaId} onChange={(value) => setFilter("wilayaId", value)}>
-              <option value="">{t("filters.all_wilayas")}</option>
-              {wilayas.map((wilaya) => (
-                <option key={wilaya.id} value={String(wilaya.id)}>
-                  {wilaya.id} · {placeLabel(wilaya, locale)}
-                </option>
-              ))}
-            </FilterPill>
-          )}
-          {hasFilters && (
-            <Button type="button" variant="ghost" size="sm" onClick={clearFilters}>
-              {t("filters.clear")}
-            </Button>
-          )}
-          {selectable && pickable.length > 1 && (
-            <label className="flex items-center gap-2 px-1 text-xs font-semibold text-muted-foreground md:hidden">
-              <SelectAllBox state={selectionState} onToggle={toggleAll} label={selectAllLabel} />
-              {selectAllLabel}
-            </label>
-          )}
-          {selectable && selected.size >= BULK_HANDOFF_LIMIT && pickable.length > BULK_HANDOFF_LIMIT && (
-            <p className="text-xs font-medium text-muted-foreground">{t("bulk.limit", { count: BULK_HANDOFF_LIMIT })}</p>
-          )}
-          {selectable && canGive && (
-            <Button type="button" className="ms-auto" disabled={selected.size === 0} onClick={() => setGiveOpen(true)}>
-              <UserRoundPlus size={14} aria-hidden="true" />
-              {selected.size > 0 ? team$("list.give", { count: selected.size }) : team$("list.select_hint")}
-            </Button>
-          )}
-          {selectable && !canGive && (
-            <Button type="button" className="ms-auto" disabled={selected.size === 0} onClick={() => setBulkOpen(true)}>
-              <Send size={14} aria-hidden="true" />
-              {selected.size > 0 ? t("bulk.ship_selected", { count: selected.size }) : t("bulk.select_hint")}
-            </Button>
-          )}
+            {hasFilters && (
+              <Button type="button" variant="ghost" size="sm" onClick={clearFilters}>
+                {t("filters.clear")}
+              </Button>
+            )}
+          </div>
+          <Button type="button" variant="secondary" className="shrink-0 md:hidden" onClick={() => setFiltersOpen(true)} aria-label={narrowing > 0 ? t("filters.button_on", { count: narrowing }) : undefined}>
+            <SlidersHorizontal size={14} aria-hidden="true" />
+            {t("filters.button")}
+            {narrowing > 0 && (
+              <span aria-hidden="true" className="grid min-w-5 place-items-center rounded-full bg-foreground px-1.5 text-[11px] font-semibold tabular-nums text-background">
+                {narrowing}
+              </span>
+            )}
+          </Button>
         </div>
 
         {orders === null ? (
-          <TableSkeleton columns={7} />
+          <TableSkeleton columns={5} />
         ) : orders.length === 0 ? (
           <EmptyState
             icon={<PackageOpen />}
@@ -441,7 +462,7 @@ export function OrdersList() {
               ))}
             </div>
             <div className="relative hidden overflow-x-auto md:block">
-              <Table className="min-w-[1080px]">
+              <Table className="min-w-[680px]">
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
                     {selectable && (
@@ -453,13 +474,10 @@ export function OrdersList() {
                         )}
                       </TableHead>
                     )}
-                    <TableHead>{t("table.order_number")}</TableHead>
-                    <TableHead>{t("table.date")}</TableHead>
-                    <TableHead>{t("table.customer")}</TableHead>
-                    <TableHead>{t("table.phone")}</TableHead>
+                    <TableHead>{t("table.order")}</TableHead>
+                    <TableHead className="hidden xl:table-cell">{t("table.customer")}</TableHead>
                     <TableHead>{t("table.stage")}</TableHead>
-                    <TableHead>{t("source.column")}</TableHead>
-                    <TableHead>{t("table.delivery")}</TableHead>
+                    {showTeam && <TableHead wrap>{team$("list.column")}</TableHead>}
                     <TableHead numeric>{t("table.total")}</TableHead>
                     <TableHead className="w-px">
                       <span className="sr-only">{common("table.actions")}</span>
@@ -483,6 +501,75 @@ export function OrdersList() {
           </>
         )}
       </Card>
+
+      {selectable && selected.size > 0 && (
+        <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
+          <div role="region" aria-label={t("bulk.bar")} className="pointer-events-auto flex max-w-full flex-wrap items-center gap-1.5 rounded-xl border border-border bg-card p-1.5 shadow-2xl">
+            {selectionState !== "all" && pickable.length > selected.size && selected.size < BULK_HANDOFF_LIMIT && (
+              <Button type="button" variant="ghost" size="sm" onClick={toggleAll}>
+                {selectAllLabel}
+              </Button>
+            )}
+            {selected.size >= BULK_HANDOFF_LIMIT && pickable.length > BULK_HANDOFF_LIMIT && (
+              <p className="px-2 text-xs font-medium text-muted-foreground">{t("bulk.limit", { count: BULK_HANDOFF_LIMIT })}</p>
+            )}
+            {canGive ? (
+              <Button type="button" size="sm" onClick={() => setGiveOpen(true)}>
+                <UserRoundPlus size={14} aria-hidden="true" />
+                {team$("list.give", { count: selected.size })}
+              </Button>
+            ) : (
+              <Button type="button" size="sm" onClick={() => setBulkOpen(true)}>
+                <Send size={14} aria-hidden="true" />
+                {t("bulk.ship_selected", { count: selected.size })}
+              </Button>
+            )}
+            <button
+              type="button"
+              onClick={() => setSelected(new Set())}
+              aria-label={t("bulk.clear")}
+              title={t("bulk.clear")}
+              className="grid size-8 shrink-0 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground pointer-coarse:size-9"
+            >
+              <X size={15} aria-hidden="true" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {filtersOpen && (
+        <Dialog
+          placement="end"
+          title={t("filters.title")}
+          onClose={() => setFiltersOpen(false)}
+          footer={
+            <>
+              {hasFilters && (
+                <Button type="button" variant="ghost" onClick={clearFilters}>
+                  {t("filters.clear")}
+                </Button>
+              )}
+              <Button type="button" onClick={() => setFiltersOpen(false)}>
+                {t("filters.show")}
+              </Button>
+            </>
+          }
+        >
+          <div className="space-y-4">
+            {fields.map((field) => (
+              <Field key={field.key} label={field.label}>
+                <Select value={filters[field.key]} onChange={(event) => setFilter(field.key, event.currentTarget.value as Filters[typeof field.key])}>
+                  {field.options.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+            ))}
+          </div>
+        </Dialog>
+      )}
 
       {giveOpen && <GiveOrdersDialog orderIds={[...selected]} onClose={() => setGiveOpen(false)} onDone={() => void load()} />}
 

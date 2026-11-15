@@ -224,7 +224,7 @@ export function OrderDetail({ orderId }: { orderId: string }) {
           {order.shipment ? (
             <OrderShipmentCard order={order} shipment={order.shipment} companies={companies} onChanged={load} />
           ) : (
-            <OrderNextStepCard moves={moves} calls={order.unansweredCalls} canShip={canShip} busy={busy} onMove={(status) => void changeStatus(status)} onShip={() => setShipping(true)} />
+            <OrderNextStepCard moves={moves} status={order.status} calls={order.unansweredCalls} canShip={canShip} busy={busy} onMove={(status) => void changeStatus(status)} onShip={() => setShipping(true)} />
           )}
           <OrderTeamCard order={order} canUpdate={may("orders:update")} canManage={may("team:manage")} onChanged={load} />
           {attempt && !protectionNeedsAttention(attempt) && <OrderProtectionCard attempt={attempt} />}
@@ -236,7 +236,7 @@ export function OrderDetail({ orderId }: { orderId: string }) {
         </div>
       </div>
 
-      <OrderMobileActionBar moves={moves} calls={order.unansweredCalls} canShip={canShip} busy={busy} onMove={(status) => void changeStatus(status)} onShip={() => setShipping(true)} />
+      <OrderMobileActionBar moves={moves} status={order.status} calls={order.unansweredCalls} canShip={canShip} busy={busy} onMove={(status) => void changeStatus(status)} onShip={() => setShipping(true)} />
 
       {editing && <EditOrderDialog order={order} onClose={() => setEditing(false)} onChanged={load} onError={setError} />}
       {shipping && <HandoffDialog order={order} kinds={kinds} companies={companies} drivers={drivers} onClose={() => setShipping(false)} onDone={load} />}

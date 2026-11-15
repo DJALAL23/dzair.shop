@@ -25,6 +25,7 @@ import {
   carriersFor,
   carriersForAll,
   deliveredBy,
+  statusContext,
   deliveryFeeHint,
   deliveryTimeline,
   driversFor,
@@ -45,6 +46,7 @@ import {
   subtotalBeforeCoupon,
   reportsFor,
   statusMoves,
+  nextStepLayout,
   viewCounts,
   viewQuery,
   type May,
@@ -129,6 +131,42 @@ describe("an order's next step", () => {
     expect(statusMoves({ status: "cancelled", hasShipment: false })).toEqual([]);
   });
 
+  it("lays a waiting order's two results of a call side by side, confirming first, and cancelling apart", () => {
+    for (const status of ["new", "unreachable"] as const) {
+      expect(nextStepLayout(status, statusMoves({ status, hasShipment: false }))).toEqual({
+        outcomes: [
+          { status: "confirmed", emphasis: "primary" },
+          { status: "unreachable", emphasis: "secondary" },
+        ],
+        others: [],
+        more: [],
+        cancel: { status: "cancelled", emphasis: "danger" },
+      });
+    }
+  });
+
+  it("keeps a call without an answer on a confirmed order out of the way, behind More", () => {
+    expect(nextStepLayout("confirmed", statusMoves({ status: "confirmed", hasShipment: false }))).toEqual({
+      outcomes: [],
+      others: [
+        { status: "preparing", emphasis: "primary" },
+        { status: "ready", emphasis: "secondary" },
+      ],
+      more: [{ status: "unreachable", emphasis: "secondary" }],
+      cancel: { status: "cancelled", emphasis: "danger" },
+    });
+  });
+
+  it("offers a later order its next move and cancelling, and nothing at all once it is decided", () => {
+    expect(nextStepLayout("preparing", statusMoves({ status: "preparing", hasShipment: false }))).toEqual({
+      outcomes: [],
+      others: [{ status: "ready", emphasis: "primary" }],
+      more: [],
+      cancel: { status: "cancelled", emphasis: "danger" },
+    });
+    expect(nextStepLayout("ready", statusMoves({ status: "ready", hasShipment: true }))).toEqual({ outcomes: [], others: [], more: [], cancel: null });
+  });
+
   it("offers no status move once the order has a shipment — its delivery is the shipment's", () => {
     expect(statusMoves({ status: "ready", hasShipment: true })).toEqual([]);
   });
@@ -192,6 +230,47 @@ const CAPS: CarrierCapabilities = {
 const company = (overrides: Partial<DeliveryCompany>): DeliveryCompany => ({
   id: "c", name: "Packers", nameAr: "-", code: "packers", active: true, isConnected: true, provider: "ecotrack",
   supportsHomeDelivery: true, supportsStopDesk: true, autoValidate: false, capabilities: CAPS, ...overrides,
+});
+
+describe("the one fact an order's status card adds", () => {
+  const order = (overrides: Partial<Parameters<typeof statusContext>[0]> = {}): Parameters<typeof statusContext>[0] => ({
+    status: "new",
+    stage: "new",
+    callbackAt: null,
+    shipmentKind: null,
+    carrierName: null,
+    driverName: null,
+    unansweredCalls: 0,
+    confirmedAt: null,
+    ...overrides,
+  });
+
+  it("says when to call back a customer still waiting, and nothing once the order is decided", () => {
+    const at = "2026-11-15T17:00:00.000Z";
+    expect(statusContext(order({ callbackAt: at }))).toEqual({ kind: "callback", at });
+    expect(statusContext(order({ status: "unreachable", stage: "unreachable", unansweredCalls: 1, callbackAt: at }))).toEqual({ kind: "callback", at });
+    expect(statusContext(order({ status: "confirmed", stage: "confirmed", callbackAt: at }))).toBeNull();
+    expect(statusContext(order({ status: "cancelled", stage: "cancelled", callbackAt: at }))).toBeNull();
+  });
+
+  it("names who carries a shipped order: the carrier or the store's driver", () => {
+    expect(statusContext(order({ status: "ready", stage: "in_transit", shipmentKind: "carrier", carrierName: "Yalidine" }))).toEqual({ kind: "carrier", name: "Yalidine" });
+    expect(statusContext(order({ status: "ready", stage: "delivered", shipmentKind: "driver", driverName: "Amine B" }))).toEqual({ kind: "driver", name: "Amine B" });
+    expect(statusContext(order({ status: "ready", stage: "handoff_pending", shipmentKind: "carrier", carrierName: null }))).toEqual({ kind: "carrier", name: null });
+  });
+
+  it("tells how many calls went unanswered before an order was cancelled, unless it had been confirmed", () => {
+    expect(statusContext(order({ status: "cancelled", stage: "cancelled", unansweredCalls: 2 }))).toEqual({ kind: "no_answer_cancel", calls: 2 });
+    expect(statusContext(order({ status: "cancelled", stage: "cancelled", unansweredCalls: 2, confirmedAt: "2026-11-14T10:00:00.000Z" }))).toBeNull();
+    expect(statusContext(order({ status: "cancelled", stage: "cancelled", unansweredCalls: 0 }))).toBeNull();
+    expect(statusContext(order({ status: "unreachable", stage: "unreachable", unansweredCalls: 2 }))).toBeNull();
+  });
+
+  it("adds nothing to an order with nothing more to say", () => {
+    for (const stage of ["new", "confirmed", "preparing", "ready_to_ship"] as const) {
+      expect(statusContext(order({ status: stage === "ready_to_ship" ? "ready" : stage, stage }))).toBeNull();
+    }
+  });
 });
 
 describe("handing an order off", () => {

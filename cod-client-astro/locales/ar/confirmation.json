@@ -277,6 +277,9 @@
     "with": "مُسند إلى {name}",
     "nobody": "غير مُسند",
     "since": "أُسند {time}",
+    "since_automatic": "أُسند {time} تلقائيًا",
+    "since_manual": "أسنده {name} {time}",
+    "since_take_back": "نُقل من {name} {time}: لم يُعالج في الوقت",
     "way_automatic": "أُسند تلقائيًا",
     "way_manual": "أسنده {name}",
     "way_take_back": "نُقل من {name}: لم يُعالج في الوقت",
@@ -334,7 +337,6 @@
     "give_title_few": "إسناد {count} طلبات إلى",
     "give_title_many": "إسناد {count} طلبًا إلى",
     "give_title_other": "إسناد {count} طلب إلى",
-    "select_hint": "اختر طلبات لإسنادها",
     "given_zero": "لم يُسند أي طلب",
     "given_one": "أُسند طلب واحد",
     "given_two": "أُسند طلبان",
@@ -362,7 +364,8 @@
     "me_name": "أنا ({name})",
     "callback_today": "اليوم، {time}",
     "callback_tomorrow": "غدًا، {time}",
-    "select_all": "تحديد كل الطلبات للاتصال"
+    "select_all": "تحديد كل الطلبات للاتصال",
+    "column": "مُسند إلى"
   },
   "no_access": "ليس لديك وصول إلى فريق التأكيد.",
   "errors": {
@@ -396,5 +399,20 @@
     "waiting_nobody_many": "{count} طلبًا غير مُسند بعد",
     "waiting_nobody_other": "{count} طلب غير مُسند بعد",
     "callbacks": "معاودة الاتصال"
+  },
+  "history": {
+    "after_placed": "بعد {gap} من الطلب",
+    "after_call": "بعد {gap} من الاتصال {call}",
+    "after_previous_call": "بعد {gap} من الاتصال السابق",
+    "after_confirmed": "بعد {gap} من التأكيد",
+    "gap_now": "أقل من دقيقة",
+    "gap_minutes": "{minutes} د",
+    "gap_hours": "{hours} س {minutes} د",
+    "gap_days_zero": "{count} يوم",
+    "gap_days_one": "يوم واحد",
+    "gap_days_two": "يومين",
+    "gap_days_few": "{count} أيام",
+    "gap_days_many": "{count} يومًا",
+    "gap_days_other": "{count} يوم"
   }
 }

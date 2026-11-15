@@ -3,14 +3,13 @@
   "new_order_button": "New order",
   "load_error": "Could not load orders",
   "table": {
-    "order_number": "Order #",
     "customer": "Customer",
     "phone": "Phone",
     "status": "Status",
-    "delivery": "Delivery",
     "date": "Date",
     "total": "Total",
-    "stage": "Stage"
+    "stage": "Stage",
+    "order": "Order"
   },
   "actions": {
     "view": "View",
@@ -60,7 +59,12 @@
     "clear": "Clear filters",
     "protection": "Protection",
     "any_protection": "Any order",
-    "flagged": "Flagged"
+    "flagged": "Flagged",
+    "button": "Filters",
+    "button_on_one": "Filters, {count} on",
+    "button_on_other": "Filters, {count} on",
+    "title": "Filter orders",
+    "show": "Show orders"
   },
   "type": {
     "online": "Online",
@@ -234,7 +238,7 @@
     "callbacks": "No customer to call back",
     "archived": "No archived orders"
   },
-  "search_placeholder": "Order number, customer, phone or tracking number…",
+  "search_placeholder": "Order, customer, phone or tracking…",
   "load_more": "Show more orders",
   "attention": {
     "label": "Needs your attention",
@@ -245,6 +249,7 @@
   },
   "move": {
     "confirmed": "Confirm order",
+    "confirmed_short": "Confirm",
     "preparing": "Start preparing",
     "ready": "Ready to ship",
     "cancelled": "Cancel order",
@@ -255,7 +260,9 @@
     "changed": "This order was updated meanwhile. Check where it stands, then try again."
   },
   "next": {
-    "title": "Next step"
+    "title": "Next step",
+    "more": "More actions",
+    "outcomes": "Result of the call"
   },
   "progress": {
     "title": "Order progress",
@@ -358,7 +365,6 @@
   },
   "bulk": {
     "select": "Select",
-    "select_hint": "Select orders to ship",
     "as_asked": "Each order travels as its customer asked (home or stop desk).",
     "no_carrier": "No delivery company can take all these parcels",
     "result_title": "Shipping done",
@@ -381,7 +387,9 @@
     "driver_desk_to_door_one": "{count} customer chose a stop desk; your driver brings that parcel to their address.",
     "driver_desk_to_door_other": "{count} customers chose a stop desk; your driver brings those parcels to their addresses.",
     "select_all": "Select every order ready to ship",
-    "limit": "One shipment takes at most {count} orders; the first {count} are selected."
+    "limit": "One shipment takes at most {count} orders; the first {count} are selected.",
+    "bar": "Selected orders",
+    "clear": "Clear selection"
   },
   "parcel": {
     "title": "Change the parcel",
@@ -582,5 +590,9 @@
     "empty": "No order at this step",
     "count_one": "{count} call without an answer",
     "count_other": "{count} calls without an answer"
+  },
+  "status_card": {
+    "no_answer_cancel_one": "After {count} call without an answer",
+    "no_answer_cancel_other": "After {count} calls without an answer"
   }
 }

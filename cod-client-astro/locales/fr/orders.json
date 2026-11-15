@@ -3,14 +3,13 @@
   "new_order_button": "Nouvelle commande",
   "load_error": "Impossible de charger les commandes",
   "table": {
-    "order_number": "Commande #",
     "customer": "Client",
     "phone": "Tél.",
     "status": "Statut",
-    "delivery": "Livraison",
     "date": "Date",
     "total": "Total",
-    "stage": "Étape"
+    "stage": "Étape",
+    "order": "Commande"
   },
   "actions": {
     "view": "Voir",
@@ -60,7 +59,13 @@
     "clear": "Effacer les filtres",
     "protection": "Protection",
     "any_protection": "Toutes les commandes",
-    "flagged": "Signalées"
+    "flagged": "Signalées",
+    "button": "Filtres",
+    "button_on_one": "Filtres, {count} actif",
+    "button_on_many": "Filtres, {count} actifs",
+    "button_on_other": "Filtres, {count} actifs",
+    "title": "Filtrer les commandes",
+    "show": "Voir les commandes"
   },
   "type": {
     "online": "En ligne",
@@ -237,7 +242,7 @@
     "callbacks": "Aucun client à rappeler",
     "archived": "Aucune commande archivée"
   },
-  "search_placeholder": "N° de commande, client, téléphone ou n° de suivi…",
+  "search_placeholder": "Commande, client, téléphone, suivi…",
   "load_more": "Afficher plus de commandes",
   "attention": {
     "label": "Demande votre attention",
@@ -248,6 +253,7 @@
   },
   "move": {
     "confirmed": "Confirmer la commande",
+    "confirmed_short": "Confirmer",
     "preparing": "Commencer la préparation",
     "ready": "Prête à expédier",
     "cancelled": "Annuler la commande",
@@ -258,7 +264,9 @@
     "changed": "Cette commande a été modifiée entre-temps. Vérifiez où elle en est, puis réessayez."
   },
   "next": {
-    "title": "Prochaine étape"
+    "title": "Prochaine étape",
+    "more": "Plus d'actions",
+    "outcomes": "Résultat de l'appel"
   },
   "progress": {
     "title": "Suivi de la commande",
@@ -361,7 +369,6 @@
   },
   "bulk": {
     "select": "Sélectionner",
-    "select_hint": "Sélectionnez des commandes à expédier",
     "as_asked": "Chaque commande part comme son client l'a demandé (domicile ou point relais).",
     "no_carrier": "Aucune société ne peut prendre tous ces colis",
     "result_title": "Expédition terminée",
@@ -392,7 +399,9 @@
     "driver_desk_to_door_many": "{count} clients ont choisi un point relais ; votre livreur apporte ces colis à leur adresse.",
     "driver_desk_to_door_other": "{count} clients ont choisi un point relais ; votre livreur apporte ces colis à leur adresse.",
     "select_all": "Sélectionner toutes les commandes prêtes à expédier",
-    "limit": "Un envoi prend au plus {count} commandes ; les {count} premières sont sélectionnées."
+    "limit": "Un envoi prend au plus {count} commandes ; les {count} premières sont sélectionnées.",
+    "bar": "Commandes sélectionnées",
+    "clear": "Annuler la sélection"
   },
   "parcel": {
     "title": "Modifier le colis",
@@ -606,5 +615,10 @@
     "count_one": "{count} appel sans réponse",
     "count_many": "{count} appels sans réponse",
     "count_other": "{count} appels sans réponse"
+  },
+  "status_card": {
+    "no_answer_cancel_one": "Après {count} appel sans réponse",
+    "no_answer_cancel_many": "Après {count} d'appels sans réponse",
+    "no_answer_cancel_other": "Après {count} appels sans réponse"
   }
 }

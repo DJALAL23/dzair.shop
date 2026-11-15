@@ -69,6 +69,16 @@ describe("what became of an order's units", () => {
     expect(text).not.toContain("refused");
   });
 
+  it("marks a refusal in the warning colour, and units back in stock quietly", () => {
+    const note = (stage: OrderStage) => {
+      render(stage, 1);
+      return Array.from(host.querySelectorAll("p")).find((p) => /refused|back in stock/.test(p.textContent ?? ""))!.className;
+    };
+    expect(note("delivered")).toContain("text-[var(--tone-critical-text)]");
+    expect(note("cancelled")).not.toContain("text-[var(--tone-critical-text)]");
+    expect(note("cancelled")).toContain("text-muted-foreground");
+  });
+
   it("says nothing about a line whose units all stayed with the customer", () => {
     for (const stage of ["delivered", "cancelled", "returned"] as const) {
       const text = render(stage, 0);

@@ -1,15 +1,13 @@
-import { AlarmClock, Flag, Star, UserRound } from "lucide-react";
+import { Flag, Star, UserRound } from "lucide-react";
 import { useLocale, useT } from "@/i18n/react";
 import { listOf, useMatchName } from "@/features/apps/order-protection/words";
 import { relativeTime } from "@/lib/relative-time";
-import { RowActions, TableCell, TableRow, openRowOnClick } from "@/components/ui";
+import { CellEmpty, Initial, RowActions, TableCell, TableRow, openRowOnClick } from "@/components/ui";
 import { formatMoney, orderTotal } from "@/features/orders/model";
 import type { DeliveryCompany, Driver, OrderListItem } from "@/features/orders/types";
-import { StageBadge } from "@/features/orders/components/StageBadge";
-import { OrderDelivery } from "@/features/orders/components/OrderDelivery";
+import { OrderStatusCard } from "@/features/orders/components/OrderStatusCard";
 import { OrderRowActions } from "@/features/orders/components/OrderRowActions";
 import { OrderSource } from "@/features/orders/components/OrderSourceCard";
-import { callbackState, dayFromNow, storeClock } from "@/features/confirmation/model";
 
 interface RowProps {
   order: OrderListItem;
@@ -36,35 +34,7 @@ function Pick({ order, selection }: Pick<RowProps, "order" | "selection">) {
 
 const isWaiting = (order: OrderListItem) => order.status === "new" || order.status === "unreachable";
 
-/** When to call the customer back, on an order still waiting, in a few words: red once the time has come. */
-function CallbackChip({ order }: { order: OrderListItem }) {
-  const team = useT("confirmation");
-  const locale = useLocale();
-  if (!order.callbackAt || !isWaiting(order)) return null;
-  const due = callbackState(order.callbackAt) === "due";
-  const day = dayFromNow(order.callbackAt);
-  const when = due
-    ? team("order.callback_due")
-    : day === "today"
-      ? team("list.callback_today", { time: storeClock(order.callbackAt, locale) })
-      : day === "tomorrow"
-        ? team("list.callback_tomorrow", { time: storeClock(order.callbackAt, locale) })
-        : storeClock(order.callbackAt, locale, true);
-  return (
-    <span
-      title={team("order.callback")}
-      className={`inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-md px-1.5 py-0.5 text-[11px] font-semibold ${
-        due ? "bg-[var(--tone-critical-bg)] text-[var(--tone-critical-text)]" : "bg-muted text-muted-foreground"
-      }`}
-    >
-      <AlarmClock size={11} aria-hidden="true" />
-      <span className="sr-only">{team("order.callback")}: </span>
-      {when}
-    </span>
-  );
-}
-
-/** Who on the confirmation team has the order, in one short line; "With nobody" while a waiting order is with no one. */
+/** Who on the confirmation team has the order, in one short line; "Not assigned" while a waiting order is with no one. */
 function OrderAssignee({ order }: { order: OrderListItem }) {
   const team = useT("confirmation");
   if (order.assigneeName) {
@@ -76,7 +46,24 @@ function OrderAssignee({ order }: { order: OrderListItem }) {
     );
   }
   if (!isWaiting(order)) return null;
-  return <span className="block text-xs font-medium text-[var(--tone-warning-text)]">{team("order.nobody")}</span>;
+  return <span className="block shrink-0 text-xs font-medium text-[var(--tone-warning-text)]">{team("order.nobody")}</span>;
+}
+
+/** The team member who has the order, under the "Assigned to" column: their initial and name. */
+function AssigneeCell({ order }: { order: OrderListItem }) {
+  const team = useT("confirmation");
+  if (order.assigneeName) {
+    return (
+      <span className="flex min-w-0 items-center gap-2" title={order.assigneeName}>
+        <Initial name={order.assigneeName} className="size-6 text-[11px]" />
+        <span className="sr-only min-w-0 xl:not-sr-only">
+          <span className="block truncate text-sm text-foreground">{order.assigneeName}</span>
+        </span>
+      </span>
+    );
+  }
+  if (!isWaiting(order)) return <CellEmpty />;
+  return <span className="text-xs font-medium text-[var(--tone-warning-text)]">{team("order.nobody")}</span>;
 }
 
 function OrderNumber({ order, className = "" }: { order: OrderListItem; className?: string }) {
@@ -88,7 +75,7 @@ function OrderNumber({ order, className = "" }: { order: OrderListItem; classNam
   return (
     <a
       href={`/orders/${order.id}`}
-      className={`inline-flex items-center gap-1 font-medium text-foreground underline-offset-2 hover:underline ${className}`}
+      className={`inline-flex items-center gap-1 whitespace-nowrap font-medium text-foreground underline-offset-2 hover:underline ${className}`}
     >
       {order.orderNumber}
       {(order.flagged ?? 0) > 0 && (
@@ -98,6 +85,15 @@ function OrderNumber({ order, className = "" }: { order: OrderListItem; classNam
       )}
       {(order.hasReview ?? 0) > 0 && <Star size={12} aria-hidden="true" className="fill-[var(--tone-warning-text)] text-[var(--tone-warning-text)]" />}
     </a>
+  );
+}
+
+function Placed({ order }: { order: OrderListItem }) {
+  const locale = useLocale();
+  return (
+    <time dateTime={order.createdAt} title={new Date(order.createdAt).toLocaleString(locale)} className="shrink-0">
+      {relativeTime(order.createdAt, locale)}
+    </time>
   );
 }
 
@@ -113,34 +109,41 @@ export function OrderDesktopRow({ order, selection, selectable = false, showAssi
           <Pick order={order} selection={selection} />
         </TableCell>
       )}
-      <TableCell className="whitespace-nowrap">
+      <TableCell className="max-w-60">
         <OrderNumber order={order} />
-      </TableCell>
-      <TableCell className="whitespace-nowrap text-muted-foreground">
-        <time dateTime={order.createdAt} title={new Date(order.createdAt).toLocaleString()}>
-          {relativeTime(order.createdAt, locale)}
-        </time>
-      </TableCell>
-      <TableCell className="max-w-52">
-        <span className="block truncate">{order.customerName}</span>
-        {showAssignee && <OrderAssignee order={order} />}
-      </TableCell>
-      <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">
-        <span dir="ltr">{order.phone}</span>
-      </TableCell>
-      <TableCell>
-        <span className="flex flex-wrap items-center gap-1.5">
-          <StageBadge stage={order.stage} needsAttention={order.needsAttention} calls={order.unansweredCalls} />
-          <CallbackChip order={order} />
+        <span className="mt-0.5 flex min-w-0 max-w-52 items-baseline gap-2 text-xs xl:hidden">
+          <span className="truncate text-foreground">{order.customerName}</span>
+          <span dir="ltr" className="shrink-0 tabular-nums text-muted-foreground">
+            {order.phone}
+          </span>
+        </span>
+        <span className="mt-0.5 flex min-w-0 max-w-52 items-center gap-1.5 text-xs text-muted-foreground xl:max-w-60">
+          <Placed order={order} />
+          {order.source && (
+            <>
+              <span aria-hidden="true">·</span>
+              <OrderSource order={order} compact quiet />
+            </>
+          )}
         </span>
       </TableCell>
-      <TableCell className="max-w-44">
-        <OrderSource order={order} />
+      <TableCell className="hidden max-w-52 xl:table-cell">
+        <span className="block truncate text-foreground">{order.customerName}</span>
+        <span className="block text-xs tabular-nums text-muted-foreground">
+          <span dir="ltr">{order.phone}</span>
+        </span>
       </TableCell>
-      <TableCell className="max-w-48">
-        <OrderDelivery order={order} />
+      <TableCell className="max-w-64">
+        <OrderStatusCard order={order} />
       </TableCell>
-      <TableCell numeric>{formatMoney(orderTotal(order), locale)}</TableCell>
+      {showAssignee && (
+        <TableCell className="max-w-44">
+          <AssigneeCell order={order} />
+        </TableCell>
+      )}
+      <TableCell numeric className="font-medium">
+        {formatMoney(orderTotal(order), locale)}
+      </TableCell>
       <TableCell className="w-px">
         <RowActions>
           <OrderRowActions order={order} {...actions} />
@@ -152,6 +155,7 @@ export function OrderDesktopRow({ order, selection, selectable = false, showAssi
 
 export function OrderMobileCard({ order, selection, showAssignee = false }: Pick<RowProps, "order" | "selection"> & { showAssignee?: boolean }) {
   const locale = useLocale();
+  const assignee = showAssignee && (order.assigneeName || isWaiting(order));
   return (
     <article
       onClick={openRowOnClick(`/orders/${order.id}`)}
@@ -165,7 +169,7 @@ export function OrderMobileCard({ order, selection, showAssignee = false }: Pick
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline justify-between gap-3">
           <OrderNumber order={order} className="text-sm" />
-          <span className="shrink-0 text-sm font-medium tabular-nums text-foreground">{formatMoney(orderTotal(order), locale)}</span>
+          <span className="shrink-0 text-sm font-semibold tabular-nums text-foreground">{formatMoney(orderTotal(order), locale)}</span>
         </div>
         <div className="mt-0.5 flex items-baseline justify-between gap-3 text-sm">
           <span className="truncate text-foreground">{order.customerName}</span>
@@ -173,20 +177,24 @@ export function OrderMobileCard({ order, selection, showAssignee = false }: Pick
             {order.phone}
           </span>
         </div>
-        <div className="mt-2 flex min-w-0 items-center gap-3">
-          <StageBadge stage={order.stage} needsAttention={order.needsAttention} calls={order.unansweredCalls} />
-          {order.shipmentKind && <OrderDelivery order={order} />}
-          <span className="min-w-0 max-w-32">
-            <OrderSource order={order} compact />
+        <div className="mt-2 flex min-w-0 items-center justify-between gap-3">
+          <OrderStatusCard order={order} />
+          <span className="shrink-0 text-xs text-muted-foreground">
+            <Placed order={order} />
           </span>
-          <time dateTime={order.createdAt} className="ms-auto shrink-0 text-xs text-muted-foreground">
-            {relativeTime(order.createdAt, locale)}
-          </time>
         </div>
-        {((showAssignee && (order.assigneeName || isWaiting(order))) || (order.callbackAt && isWaiting(order))) && (
-          <div className="mt-1.5 flex min-w-0 items-center gap-2">
-            <CallbackChip order={order} />
-            {showAssignee && <OrderAssignee order={order} />}
+        {(order.source || assignee) && (
+          <div className="mt-2 flex min-w-0 items-center justify-between gap-3 text-xs">
+            {order.source && (
+              <span className="min-w-0">
+                <OrderSource order={order} compact quiet />
+              </span>
+            )}
+            {assignee && (
+              <span className={`min-w-0 ${order.source ? "ms-auto" : ""}`}>
+                <OrderAssignee order={order} />
+              </span>
+            )}
           </div>
         )}
       </div>

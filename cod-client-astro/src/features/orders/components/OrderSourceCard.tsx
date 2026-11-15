@@ -40,7 +40,7 @@ function ChannelIcon({ channel, size, className = "" }: { channel: OrderChannel 
 }
 
 /** The order's source in a list: its icon and headline, and the ad's name under it when it credits one. */
-export function OrderSource({ order, compact = false }: { order: Pick<OrderListItem, "source">; compact?: boolean }) {
+export function OrderSource({ order, compact = false, quiet = false }: { order: Pick<OrderListItem, "source">; compact?: boolean; quiet?: boolean }) {
   const t = useT("orders");
   const label = useSourceLabel();
   const headline = label(order.source ?? null) ?? t("source.unknown");
@@ -49,7 +49,7 @@ export function OrderSource({ order, compact = false }: { order: Pick<OrderListI
     <span className={`flex min-w-0 items-start gap-1.5 ${compact ? "text-xs" : "text-sm"}`}>
       <ChannelIcon channel={order.source?.channel} size={compact ? 12 : 14} className={compact ? "mt-px" : "mt-0.5"} />
       <span className="flex min-w-0 flex-col">
-        <span className={`truncate ${order.source ? "text-foreground" : "text-muted-foreground"}`}>{headline}</span>
+        <span className={`truncate ${order.source && !quiet ? "text-foreground" : "text-muted-foreground"}`}>{headline}</span>
         {detail && !compact && (
           <span className="truncate text-xs text-muted-foreground">
             <bdi>{detail}</bdi>

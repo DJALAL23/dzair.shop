@@ -119,6 +119,11 @@ export function callNumbers(history: readonly StatusHistoryItem[], unansweredCal
   return new Map(calls.flatMap((step, index) => (unansweredCalls - index > 0 ? [[step.id, unansweredCalls - index] as const] : [])));
 }
 
+/** A stage in words: on no answer, which call the order is at. */
+export function stageLabel(t: Translate, stage: OrderStage, unansweredCalls: number): string {
+  return stage === "unreachable" && unansweredCalls > 0 ? t("calls.no_answer", { call: unansweredCalls }) : t(`stage.${stage}`);
+}
+
 /** A status move in words: "No answer" says which call it records. */
 export function moveLabel(t: Translate, status: OrderStatus, unansweredCalls: number): string {
   return status === "unreachable" ? t("calls.no_answer", { call: unansweredCalls + 1 }) : t(`move.${status}`);
@@ -168,6 +173,26 @@ export function deliveredBy(order: Pick<OrderListItem, "shipmentKind" | "carrier
   return null;
 }
 
+export type StatusContext =
+  | { kind: "callback"; at: string }
+  | { kind: "carrier" | "driver"; name: string | null }
+  | { kind: "no_answer_cancel"; calls: number };
+
+/**
+ * The one fact an order's status card adds under its stage: when to call a
+ * waiting customer back, who carries a shipped order, or how many calls went
+ * unanswered before an order that was never confirmed was cancelled.
+ */
+export function statusContext(
+  order: Pick<OrderListItem, "status" | "stage" | "callbackAt" | "shipmentKind" | "carrierName" | "driverName" | "unansweredCalls" | "confirmedAt">,
+): StatusContext | null {
+  if (order.callbackAt && (order.status === "new" || order.status === "unreachable")) return { kind: "callback", at: order.callbackAt };
+  const by = deliveredBy(order);
+  if (by) return by;
+  if (order.stage === "cancelled" && order.unansweredCalls > 0 && !order.confirmedAt) return { kind: "no_answer_cancel", calls: order.unansweredCalls };
+  return null;
+}
+
 // ─── The order's next step ───────────────────────────────────────────────────
 
 export interface StatusMove {
@@ -197,6 +222,29 @@ export function statusMoves(order: Pick<OrderBase, "status"> & { hasShipment: bo
   moves.sort((left, right) => (left.emphasis === "primary" ? -1 : right.emphasis === "primary" ? 1 : 0));
   if (allowed.includes("cancelled")) moves.push({ status: "cancelled", emphasis: "danger" });
   return moves;
+}
+
+export interface NextStepLayout {
+  /** A waiting order's two results of a call, side by side: confirmed, and no answer. */
+  outcomes: StatusMove[];
+  /** Every other move, the usual next one first. */
+  others: StatusMove[];
+  /** Moves kept out of the way: a call without an answer on an order already confirmed. */
+  more: StatusMove[];
+  cancel: StatusMove | null;
+}
+
+/**
+ * How the next step lays out an order's moves. A call has two results, so a
+ * waiting order shows them side by side; once confirmed, preparing comes
+ * next, and another call without an answer stays behind More. Cancelling
+ * always stands apart.
+ */
+export function nextStepLayout(status: OrderStatus, moves: StatusMove[]): NextStepLayout {
+  const cancel = moves.find((move) => move.status === "cancelled") ?? null;
+  const rest = moves.filter((move) => move.status !== "cancelled");
+  if (status === "new" || status === "unreachable") return { outcomes: rest, others: [], more: [], cancel };
+  return { outcomes: [], others: rest.filter((move) => move.status !== "unreachable"), more: rest.filter((move) => move.status === "unreachable"), cancel };
 }
 
 /** A ready order with no shipment waits to be handed to a carrier or a driver. */

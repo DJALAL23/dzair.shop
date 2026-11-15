@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Translate } from "@/i18n/core";
-import { assignmentWay, confirmationHistory } from "./history";
+import { assignedLine, assignmentWay, confirmationHistory, gapLine, gapWords, historyGaps } from "./history";
 import type { AssignmentStep, StatusHistoryItem } from "@/features/orders/types";
 
 const AT = "2026-11-14T08:00:00.000Z";
@@ -63,5 +63,78 @@ describe("how an order came to its member", () => {
     expect(assignmentWay(words, handover("a", AT, "Samira", "manual", { byName: "Bilal" }))).toBe('order.way_manual{"name":"Bilal"}');
     expect(assignmentWay(words, handover("a", AT, "Samira", "take_back", { from: { id: "u-k", name: "Karim" } }))).toBe('order.way_take_back{"name":"Karim"}');
     expect(assignmentWay(words, handover("a", AT, null, "manual", { byName: "Bilal" }))).toBe('order.way_unassigned{"name":"Bilal"}');
+  });
+});
+
+describe("when and how the order came to the member who has it, in one line", () => {
+  const words: Translate = (key, values) => `${key}${values ? JSON.stringify(values) : ""}`;
+
+  it("says when, and how: by the rule, by a manager, or taken back from a member", () => {
+    expect(assignedLine(words, "yesterday", handover("a", AT, "Samira"), "u-Samira")).toBe('order.since_automatic{"time":"yesterday"}');
+    expect(assignedLine(words, "yesterday", handover("a", AT, "Samira", "manual", { byName: "Bilal" }), "u-Samira")).toBe('order.since_manual{"time":"yesterday","name":"Bilal"}');
+    expect(assignedLine(words, "yesterday", handover("a", AT, "Samira", "take_back", { from: { id: "u-k", name: "Karim" } }), "u-Samira")).toBe(
+      'order.since_take_back{"time":"yesterday","name":"Karim"}',
+    );
+  });
+
+  it("says only when, if the latest handover is not to the member who has it, or names nobody", () => {
+    expect(assignedLine(words, "yesterday", undefined, "u-Samira")).toBe('order.since{"time":"yesterday"}');
+    expect(assignedLine(words, "yesterday", handover("a", AT, "Karim"), "u-Samira")).toBe('order.since{"time":"yesterday"}');
+    expect(assignedLine(words, "yesterday", handover("a", AT, null, "manual", { byName: "Bilal" }), "u-Samira")).toBe('order.since{"time":"yesterday"}');
+    expect(assignedLine(words, "yesterday", handover("a", AT, "Samira", "manual"), "u-Samira")).toBe('order.since{"time":"yesterday"}');
+    expect(assignedLine(words, "yesterday", handover("a", AT, "Samira", "take_back"), "u-Samira")).toBe('order.since{"time":"yesterday"}');
+  });
+});
+
+describe("how long after the step before it each call and decision came", () => {
+  const words: Translate = (key, values) => `${key}${values ? JSON.stringify(values) : ""}`;
+  const at = (minutes: number) => new Date(Date.parse(AT) + minutes * 60_000).toISOString();
+
+  it("times the first call from the order being placed, each later call from the one before, and the decision from the last call", () => {
+    const entries = confirmationHistory({
+      statusHistory: [status("p", "new", at(0)), status("c1", "unreachable", at(90)), status("c2", "unreachable", at(210)), status("ok", "confirmed", at(215))],
+      assignmentHistory: [handover("h", at(30), "Samira")],
+      unansweredCalls: 2,
+    });
+    expect(Object.fromEntries(historyGaps(entries))).toEqual({
+      c1: { minutes: 90, after: { kind: "placed" } },
+      c2: { minutes: 120, after: { kind: "call", call: 1 } },
+      ok: { minutes: 5, after: { kind: "call", call: 2 } },
+    });
+  });
+
+  it("times a call after a confirmation from the confirmation, and a call whose number is lost from the previous call", () => {
+    const entries = confirmationHistory({
+      statusHistory: [status("c0", "unreachable", at(0)), status("ok", "confirmed", at(60)), status("c9", "unreachable", at(61))],
+      assignmentHistory: [],
+      unansweredCalls: 1,
+    });
+    expect(Object.fromEntries(historyGaps(entries))).toEqual({
+      ok: { minutes: 60, after: { kind: "call", call: null } },
+      c9: { minutes: 1, after: { kind: "confirmed" } },
+    });
+  });
+
+  it("says a gap in minutes, hours and minutes, or days, and under a minute as such", () => {
+    expect(gapWords(words, 0)).toBe("history.gap_now");
+    expect(gapWords(words, 1)).toBe('history.gap_minutes{"minutes":1}');
+    expect(gapWords(words, 59)).toBe('history.gap_minutes{"minutes":59}');
+    expect(gapWords(words, 60)).toBe('history.gap_hours{"hours":1,"minutes":"00"}');
+    expect(gapWords(words, 125)).toBe('history.gap_hours{"hours":2,"minutes":"05"}');
+    expect(gapWords(words, 1439)).toBe('history.gap_hours{"hours":23,"minutes":"59"}');
+    expect(gapWords(words, 1440)).toBe('history.gap_days{"count":1}');
+    expect(gapWords(words, 6 * 1440 + 700)).toBe('history.gap_days{"count":6}');
+  });
+
+  it("gives a step after a cancellation no gap: nothing is counted from a closed order", () => {
+    const entries = confirmationHistory({ statusHistory: [status("x", "cancelled", at(0)), status("y", "unreachable", at(5))], assignmentHistory: [], unansweredCalls: 1 });
+    expect(historyGaps(entries).has("y")).toBe(false);
+  });
+
+  it("names the step the gap is counted from", () => {
+    expect(gapLine(words, { minutes: 5, after: { kind: "placed" } })).toBe('history.after_placed{"gap":"history.gap_minutes{\\"minutes\\":5}"}');
+    expect(gapLine(words, { minutes: 5, after: { kind: "confirmed" } })).toBe('history.after_confirmed{"gap":"history.gap_minutes{\\"minutes\\":5}"}');
+    expect(gapLine(words, { minutes: 5, after: { kind: "call", call: 2 } })).toBe('history.after_call{"gap":"history.gap_minutes{\\"minutes\\":5}","call":2}');
+    expect(gapLine(words, { minutes: 5, after: { kind: "call", call: null } })).toBe('history.after_previous_call{"gap":"history.gap_minutes{\\"minutes\\":5}"}');
   });
 });

@@ -229,6 +229,9 @@
     "with": "Attribuée à {name}",
     "nobody": "Non attribuée",
     "since": "Attribuée {time}",
+    "since_automatic": "Attribuée {time}, automatiquement",
+    "since_manual": "Attribuée {time} par {name}",
+    "since_take_back": "Retirée à {name} {time} : non traitée à temps",
     "way_automatic": "Attribuée automatiquement",
     "way_manual": "Attribuée par {name}",
     "way_take_back": "Retirée à {name} : non traitée à temps",
@@ -277,7 +280,6 @@
     "give_title_one": "Attribuer {count} commande à",
     "give_title_many": "Attribuer {count} commandes à",
     "give_title_other": "Attribuer {count} commandes à",
-    "select_hint": "Sélectionnez des commandes à attribuer",
     "given_one": "{count} commande attribuée",
     "given_many": "{count} commandes attribuées",
     "given_other": "{count} commandes attribuées",
@@ -296,7 +298,8 @@
     "me_name": "Moi ({name})",
     "callback_today": "Aujourd'hui, {time}",
     "callback_tomorrow": "Demain, {time}",
-    "select_all": "Sélectionner toutes les commandes à appeler"
+    "select_all": "Sélectionner toutes les commandes à appeler",
+    "column": "Attribuée à"
   },
   "no_access": "Vous n'avez pas accès à l'équipe de confirmation.",
   "errors": {
@@ -324,5 +327,17 @@
     "waiting_nobody_many": "{count} pas encore attribuées",
     "waiting_nobody_other": "{count} pas encore attribuées",
     "callbacks": "Rappels"
+  },
+  "history": {
+    "after_placed": "{gap} après la commande",
+    "after_call": "{gap} après l'appel {call}",
+    "after_previous_call": "{gap} après l'appel précédent",
+    "after_confirmed": "{gap} après la confirmation",
+    "gap_now": "moins d'une minute",
+    "gap_minutes": "{minutes} min",
+    "gap_hours": "{hours} h {minutes} min",
+    "gap_days_one": "{count} jour",
+    "gap_days_many": "{count} de jours",
+    "gap_days_other": "{count} jours"
   }
 }

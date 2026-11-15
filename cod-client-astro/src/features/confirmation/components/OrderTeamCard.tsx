@@ -10,7 +10,7 @@ import { callbackChoices, callbackState, fromStoreInput, toStoreInput } from "@/
 import { useCallbackLabel } from "@/features/confirmation/callback-label";
 import { GiveOrdersDialog } from "@/features/confirmation/components/GiveOrdersDialog";
 import { ConfirmationHistoryButton } from "@/features/confirmation/components/ConfirmationHistory";
-import { assignmentWay } from "@/features/confirmation/history";
+import { assignedLine } from "@/features/confirmation/history";
 import type { OrderDetail } from "@/features/orders/types";
 
 /**
@@ -31,7 +31,6 @@ export function OrderTeamCard({ order, canUpdate, canManage, onChanged }: { orde
   const [custom, setCustom] = useState("");
   const [busy, setBusy] = useState(false);
   const waiting = order.status === "new" || order.status === "unreachable";
-  const last = order.assignmentHistory?.[0];
 
   async function saveCallback(at: string | null) {
     setBusy(true);
@@ -62,8 +61,7 @@ export function OrderTeamCard({ order, canUpdate, canManage, onChanged }: { orde
               <p className="truncate font-semibold text-foreground">{order.assigneeId ? t("order.with", { name: order.assigneeName ?? "" }) : t("order.nobody")}</p>
               {order.assigneeId && order.assignedAt && (
                 <p className="text-xs text-muted-foreground">
-                  {t("order.since", { time: relativeTime(order.assignedAt, locale) })}
-                  {last?.to && ` · ${assignmentWay(t, last)}`}
+                  {assignedLine(t, relativeTime(order.assignedAt, locale), order.assignmentHistory?.[0], order.assigneeId)}
                 </p>
               )}
             </div>

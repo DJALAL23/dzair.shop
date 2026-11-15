@@ -121,14 +121,27 @@ async function render() {
 const rowBoxes = () => Array.from(host.querySelectorAll<HTMLInputElement>('tbody input[type="checkbox"]'));
 const button = (name: RegExp) => Array.from(document.querySelectorAll<HTMLButtonElement>("button")).find((b) => name.test(b.textContent ?? ""));
 const lastQuery = () => api.listOrders.mock.calls.at(-1)![0];
+const bar = () => document.querySelector<HTMLElement>('[role="region"][aria-label="Selected orders"]');
+const barButton = (name: string) => Array.from(bar()?.querySelectorAll<HTMLButtonElement>("button") ?? []).find((b) => b.textContent === name || b.getAttribute("aria-label") === name);
+const assigned = () => {
+  const column = Array.from(host.querySelectorAll("thead th")).findIndex((cell) => cell.textContent === "Assigned to");
+  return Array.from(host.querySelectorAll("tbody tr")).map((row) => {
+    const cell = row.children[column]!.cloneNode(true) as Element;
+    for (const hidden of Array.from(cell.querySelectorAll('[aria-hidden="true"]'))) hidden.remove();
+    return cell.textContent ?? "";
+  });
+};
 
 describe("the orders list with a confirmation team", () => {
-  it("shows who has each order, and a waiting order assigned to no one as such", async () => {
+  it("shows who has each order under its own column, and a waiting order assigned to no one as such", async () => {
     await render();
-    const rows = Array.from(host.querySelectorAll("tbody tr")).map((row) => row.textContent ?? "");
-    expect(rows[0]).toContain("Assigned to Samira");
-    expect(rows[1]).toContain("Not assigned");
-    expect(rows[2]).toContain("Assigned to Karim");
+    expect(assigned()).toEqual(["Samira", "Not assigned", "Karim"]);
+  });
+
+  it("says nothing in that column of a decided order that is with no one", async () => {
+    api.listOrders.mockResolvedValue({ orders: [order("d", { status: "confirmed", stage: "confirmed" })], nextCursor: null });
+    await render();
+    expect(assigned()).toEqual([""]);
   });
 
   it("lets a manager pick the waiting orders to confirm and assign them", async () => {
@@ -143,7 +156,7 @@ describe("the orders list with a confirmation team", () => {
     identity.scopes = ["orders:read", "team:read"];
     await render();
     expect(rowBoxes()).toHaveLength(0);
-    expect(host.querySelector("tbody")!.textContent).toContain("Assigned to Samira");
+    expect(assigned()[0]).toBe("Samira");
   });
 
   it("shows no team column to a member who sees only their own orders", async () => {
@@ -173,6 +186,83 @@ describe("the orders list with a confirmation team", () => {
     for (let i = 0; i < 4; i++) await act(async () => { await Promise.resolve(); });
     expect(lastQuery().team).toBeUndefined();
     expect(window.location.search).not.toContain("team=");
+  });
+
+  it("says under each order when it came in and, when known, where from", async () => {
+    api.listOrders.mockResolvedValue({
+      orders: [order("a", { source: { channel: "paid_social", platform: "meta", app: null, adName: "Promo", campaignName: null } as OrderListItem["source"] }), order("b")],
+      nextCursor: null,
+    });
+    await render();
+    const firsts = Array.from(host.querySelectorAll("tbody tr")).map((row) => row.querySelector("td:nth-child(2)")!.textContent ?? "");
+    expect(firsts[0]).toMatch(/^ORD-a.+·Facebook or Instagram/);
+    expect(firsts[1]).not.toContain("·");
+    expect(host.querySelector("tbody")!.textContent).not.toContain("Source unknown");
+  });
+
+  it("offers to assign only once an order is picked, then to pick them all, and lets the pick go", async () => {
+    await render();
+    expect(bar()).toBeNull();
+    expect(button(/Select orders to assign/)).toBeUndefined();
+    await act(async () => { rowBoxes()[0]!.click(); });
+    expect(bar()!.textContent).toContain("Assign 1 order to…");
+    await act(async () => { barButton("Select all orders to call")!.click(); });
+    expect(bar()!.textContent).toContain("Assign 2 orders to…");
+    expect(barButton("Select all orders to call")).toBeUndefined();
+    await act(async () => { barButton("Clear selection")!.click(); });
+    expect(bar()).toBeNull();
+    expect(rowBoxes().map((box) => box.checked)).toEqual([false, false]);
+  });
+
+  it("gathers the filters behind one button on a phone, in a sheet that narrows the list and says how many are on", async () => {
+    await render();
+    const filters = () => Array.from(host.querySelectorAll<HTMLButtonElement>("button")).find((b) => b.textContent?.startsWith("Filters"))!;
+    expect(filters().getAttribute("aria-label")).toBeNull();
+    await act(async () => filters().click());
+    const sheet = document.querySelector<HTMLElement>('[role="dialog"]')!;
+    expect(sheet.querySelector("h2")!.textContent).toBe("Filter orders");
+    const fields = () => Array.from(sheet.querySelectorAll("label")).map((label) => ({ name: label.firstElementChild?.textContent?.trim(), trigger: label.querySelector<HTMLButtonElement>('button[aria-haspopup="listbox"]')! }));
+    expect(fields().map((field) => field.name)).toEqual(["Delivered by", "Type", "Protection", "Source", "Assigned to"]);
+    await act(async () => fields().find((field) => field.name === "Assigned to")!.trigger.click());
+    const option = Array.from(document.querySelectorAll<HTMLElement>('[role="option"]')).find((item) => item.textContent?.trim() === "Not assigned")!;
+    await act(async () => option.dispatchEvent(new MouseEvent("mousedown", { bubbles: true })));
+    for (let i = 0; i < 4; i++) await act(async () => { await Promise.resolve(); });
+    expect(lastQuery()).toMatchObject({ assignee: "none" });
+    expect(filters().getAttribute("aria-label")).toBe("Filters, 1 on");
+    await act(async () => Array.from(sheet.querySelectorAll<HTMLButtonElement>("button")).find((b) => b.textContent === "Show orders")!.click());
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+  });
+
+  it("shows each customer's phone beside their name", async () => {
+    await render();
+    const customers = Array.from(host.querySelectorAll("tbody tr")).map((row) => row.querySelector("td:nth-child(3)")!.textContent);
+    expect(customers[0]).toBe("Amel0551234567");
+  });
+
+  it("opens the assigning of the picked orders from the bar", async () => {
+    await render();
+    await act(async () => { rowBoxes()[0]!.click(); });
+    await act(async () => { barButton("Assign 1 order to…")!.click(); });
+    for (let i = 0; i < 4; i++) await act(async () => { await Promise.resolve(); });
+    expect(document.querySelector('[role="dialog"]')).not.toBeNull();
+  });
+
+  it("narrows the list from a filter pill on a wide screen", async () => {
+    await render();
+    const pill = host.querySelector<HTMLButtonElement>('button[aria-haspopup="listbox"][aria-label="Assigned to"]')!;
+    await act(async () => pill.click());
+    const option = Array.from(document.querySelectorAll<HTMLElement>('[role="option"]')).find((item) => item.textContent?.trim() === "Not assigned")!;
+    await act(async () => option.dispatchEvent(new MouseEvent("mousedown", { bubbles: true })));
+    for (let i = 0; i < 4; i++) await act(async () => { await Promise.resolve(); });
+    expect(lastQuery()).toMatchObject({ assignee: "none" });
+  });
+
+  it("gives each next step in a row's menu the icon of the stage it leads to", async () => {
+    identity.scopes = [...MANAGER, "orders:update"];
+    await render();
+    await act(async () => host.querySelector<HTMLButtonElement>('tbody button[aria-label$="ORD-c"]')!.click());
+    const item = Array.from(document.querySelectorAll<HTMLElement>('[role="menuitem"]')).find((entry) => entry.textContent?.trim() === "Start preparing")!;
+    expect(item.querySelector("svg.lucide-package-open")).not.toBeNull();
   });
 
   it("filters by who has the order, the viewer named as themselves", async () => {

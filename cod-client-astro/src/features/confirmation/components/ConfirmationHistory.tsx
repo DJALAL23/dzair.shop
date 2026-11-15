@@ -3,7 +3,7 @@ import { CheckCircle2, History, PackagePlus, PhoneMissed, UserRound, UserX, XCir
 import { useLocale, useT } from "@/i18n/react";
 import { Button, Dialog } from "@/components/ui";
 import { storeClock } from "@/features/confirmation/model";
-import { assignmentWay, confirmationHistory, type HistoryEntry } from "@/features/confirmation/history";
+import { assignmentWay, confirmationHistory, gapLine, historyGaps, type Gap, type HistoryEntry } from "@/features/confirmation/history";
 import type { OrderDetail } from "@/features/orders/types";
 
 /**
@@ -17,6 +17,7 @@ export function ConfirmationHistoryButton({ order }: { order: Pick<OrderDetail, 
   const [open, setOpen] = useState(false);
   const entries = confirmationHistory(order);
   if (entries.length < 2) return null;
+  const gaps = historyGaps(entries);
 
   return (
     <>
@@ -34,7 +35,7 @@ export function ConfirmationHistoryButton({ order }: { order: Pick<OrderDetail, 
         >
           <ol className="space-y-4">
             {entries.map((entry) => (
-              <Entry key={`${entry.kind}:${entry.id}`} entry={entry} />
+              <Entry key={`${entry.kind}:${entry.id}`} entry={entry} gap={gaps.get(entry.id)} />
             ))}
           </ol>
         </Dialog>
@@ -52,7 +53,7 @@ const MARK = {
   cancelled: { icon: XCircle, tone: "bg-[var(--tone-critical-bg)] text-[var(--tone-critical-text)]" },
 } as const;
 
-function Entry({ entry }: { entry: HistoryEntry }) {
+function Entry({ entry, gap }: { entry: HistoryEntry; gap?: Gap }) {
   const t = useT("confirmation");
   const orders = useT("orders");
   const locale = useLocale();
@@ -79,6 +80,7 @@ function Entry({ entry }: { entry: HistoryEntry }) {
             {storeClock(entry.at, locale, true)}
           </time>
           {detail && ` · ${detail}`}
+          {gap && ` · ${gapLine(t, gap)}`}
         </p>
       </div>
     </li>

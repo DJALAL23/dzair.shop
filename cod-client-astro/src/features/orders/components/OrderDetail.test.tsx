@@ -246,6 +246,29 @@ describe("an order on no answer", () => {
     expect(sheet.querySelectorAll("li")[2]!.textContent).toContain("Assigned automatically");
   });
 
+  it("says in one line how the order came to its member, and in its history how long after the step before each call came", async () => {
+    api.getOrder.mockResolvedValue(CALLED_TWICE);
+    await open();
+    const team = card("Confirmation");
+    expect(team.textContent).toMatch(/Assigned [^·]+, automatically/);
+    expect(team.textContent!.match(/Assigned/g)).toHaveLength(2);
+    await act(async () => Array.from(team.querySelectorAll("button")).find((b) => b.textContent?.trim() === "History")!.click());
+    const entries = Array.from(document.querySelectorAll<HTMLElement>('[role="dialog"] li')).map((entry) => entry.textContent ?? "");
+    expect(entries[0]).toContain("4 h 25 min after call 1");
+    expect(entries[1]).toContain("26 min after it was placed");
+    expect(entries[2]).not.toContain(" after ");
+    expect(entries[3]).not.toContain(" after ");
+  });
+
+  it("says only when the order came to its member if its last handover was to someone else", async () => {
+    api.getOrder.mockResolvedValue({ ...CALLED_TWICE, assignmentHistory: [{ id: "a-2", at: "2026-11-12T10:00:00.000Z", to: { id: "u-karim", name: "Karim" }, from: { id: "u-owner", name: "Admin" }, way: "manual", byName: "Admin" }] });
+    await open();
+    const team = card("Confirmation");
+    expect(team.textContent).toMatch(/Assigned /);
+    expect(team.textContent).not.toContain("by Admin");
+    expect(team.textContent).not.toContain("automatically");
+  });
+
   it("has no history to open while there is only one thing to tell", async () => {
     api.getOrder.mockResolvedValue({ ...ORDER, assignmentHistory: [{ id: "a-1", at: ORDER.createdAt, to: { id: "u-owner", name: "Admin" }, from: null, way: "automatic", byName: null }] });
     await open();

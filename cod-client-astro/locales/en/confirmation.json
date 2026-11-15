@@ -213,6 +213,9 @@
     "with": "Assigned to {name}",
     "nobody": "Not assigned",
     "since": "Assigned {time}",
+    "since_automatic": "Assigned {time}, automatically",
+    "since_manual": "Assigned {time} by {name}",
+    "since_take_back": "Moved from {name} {time}: not handled in time",
     "way_automatic": "Assigned automatically",
     "way_manual": "Assigned by {name}",
     "way_take_back": "Moved from {name}: not handled in time",
@@ -258,7 +261,6 @@
     "give_other": "Assign {count} orders to…",
     "give_title_one": "Assign {count} order to",
     "give_title_other": "Assign {count} orders to",
-    "select_hint": "Select orders to assign",
     "given_one": "{count} order assigned",
     "given_other": "{count} orders assigned",
     "not_moved_one": "{count} order was reassigned by someone else in the meantime and was skipped",
@@ -274,7 +276,8 @@
     "me_name": "Me ({name})",
     "callback_today": "Today, {time}",
     "callback_tomorrow": "Tomorrow, {time}",
-    "select_all": "Select all orders to call"
+    "select_all": "Select all orders to call",
+    "column": "Assigned to"
   },
   "no_access": "You don't have access to the confirmation team.",
   "errors": {
@@ -300,5 +303,16 @@
     "waiting_nobody_one": "{count} not assigned yet",
     "waiting_nobody_other": "{count} not assigned yet",
     "callbacks": "Callbacks"
+  },
+  "history": {
+    "after_placed": "{gap} after it was placed",
+    "after_call": "{gap} after call {call}",
+    "after_previous_call": "{gap} after the previous call",
+    "after_confirmed": "{gap} after it was confirmed",
+    "gap_now": "under a minute",
+    "gap_minutes": "{minutes} min",
+    "gap_hours": "{hours} h {minutes} min",
+    "gap_days_one": "{count} day",
+    "gap_days_other": "{count} days"
   }
 }

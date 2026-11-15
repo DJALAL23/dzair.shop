@@ -3,14 +3,13 @@
   "new_order_button": "طلب جديد",
   "load_error": "تعذر تحميل الطلبات",
   "table": {
-    "order_number": "رقم الطلب",
     "customer": "العميل",
     "phone": "الهاتف",
     "status": "الحالة",
-    "delivery": "التوصيل",
     "date": "التاريخ",
     "total": "الإجمالي",
-    "stage": "المرحلة"
+    "stage": "المرحلة",
+    "order": "الطلب"
   },
   "actions": {
     "view": "عرض",
@@ -60,7 +59,16 @@
     "clear": "مسح الفلاتر",
     "protection": "الحماية",
     "any_protection": "كل الطلبات",
-    "flagged": "المشبوهة"
+    "flagged": "المشبوهة",
+    "button": "التصفية",
+    "button_on_zero": "التصفية، لا شيء مفعّل",
+    "button_on_one": "التصفية، عامل واحد مفعّل",
+    "button_on_two": "التصفية، عاملان مفعّلان",
+    "button_on_few": "التصفية، {count} عوامل مفعّلة",
+    "button_on_many": "التصفية، {count} عاملًا مفعّلًا",
+    "button_on_other": "التصفية، {count} عامل مفعّل",
+    "title": "تصفية الطلبات",
+    "show": "عرض الطلبات"
   },
   "type": {
     "online": "أونلاين",
@@ -246,7 +254,7 @@
     "callbacks": "لا يوجد زبون لمعاودة الاتصال به",
     "archived": "لا توجد طلبات مؤرشفة"
   },
-  "search_placeholder": "رقم الطلب، الزبون، الهاتف أو رقم التتبع…",
+  "search_placeholder": "طلب، زبون، هاتف أو رقم تتبع…",
   "load_more": "عرض المزيد من الطلبات",
   "attention": {
     "label": "يحتاج انتباهك",
@@ -257,6 +265,7 @@
   },
   "move": {
     "confirmed": "تأكيد الطلب",
+    "confirmed_short": "تأكيد",
     "preparing": "بدء التجهيز",
     "ready": "جاهزة للشحن",
     "cancelled": "إلغاء الطلب",
@@ -267,7 +276,9 @@
     "changed": "عُدِّل هذا الطلب في الأثناء. تحقق من حالته، ثم أعد المحاولة."
   },
   "next": {
-    "title": "الخطوة التالية"
+    "title": "الخطوة التالية",
+    "more": "إجراءات أخرى",
+    "outcomes": "نتيجة الاتصال"
   },
   "progress": {
     "title": "مسار الطلب",
@@ -370,7 +381,6 @@
   },
   "bulk": {
     "select": "تحديد",
-    "select_hint": "حدد طلبات للشحن",
     "as_asked": "يُشحن كل طلب كما طلب زبونه (منزل أو مكتب).",
     "no_carrier": "لا توجد شركة يمكنها استلام كل هذه الطرود",
     "result_title": "انتهى الشحن",
@@ -425,7 +435,9 @@
     "driver_desk_to_door_many": "اختار {count} زبونًا مكتب استلام؛ سيوصل سائقك طرودهم إلى عناوينهم.",
     "driver_desk_to_door_other": "اختار {count} زبون مكتب استلام؛ سيوصل سائقك طرودهم إلى عناوينهم.",
     "select_all": "تحديد كل الطلبات الجاهزة للشحن",
-    "limit": "تأخذ الشحنة الواحدة {count} طلبًا على الأكثر؛ حُدّد أول {count} طلب."
+    "limit": "تأخذ الشحنة الواحدة {count} طلبًا على الأكثر؛ حُدّد أول {count} طلب.",
+    "bar": "الطلبات المحددة",
+    "clear": "إلغاء التحديد"
   },
   "parcel": {
     "title": "تعديل الطرد",
@@ -678,5 +690,13 @@
     "count_few": "{count} اتصالات بلا رد",
     "count_many": "{count} اتصالًا بلا رد",
     "count_other": "{count} اتصال بلا رد"
+  },
+  "status_card": {
+    "no_answer_cancel_zero": "دون أي مكالمة بلا رد",
+    "no_answer_cancel_one": "بعد مكالمة واحدة بلا رد",
+    "no_answer_cancel_two": "بعد مكالمتين بلا رد",
+    "no_answer_cancel_few": "بعد {count} مكالمات بلا رد",
+    "no_answer_cancel_many": "بعد {count} مكالمة بلا رد",
+    "no_answer_cancel_other": "بعد {count} مكالمة بلا رد"
   }
 }
