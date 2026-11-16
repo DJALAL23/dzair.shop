@@ -126,7 +126,6 @@
     "publish": "Publier maintenant",
     "publish_hint": "Désactivé : il attend parmi les avis en attente.",
     "done_published": "Avis ajouté et publié",
-    "done_pending": "Avis ajouté ; il attend parmi les avis en attente",
-    "done_processing": "Avis ajouté ; ses fichiers sont en préparation"
+    "done_pending": "Avis ajouté ; il attend parmi les avis en attente"
   }
 }

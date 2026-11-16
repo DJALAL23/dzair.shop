@@ -71,7 +71,7 @@ export async function uploadReviewFile(file: Blob, durationMs?: number) {
 
 export async function createStoreReview(review: NewStoreReview) {
   return (
-    await apiFetch<DataEnvelope<{ id: string; status: "processing" | "pending" | "approved"; verified: boolean; review: Review | null }>>(
+    await apiFetch<DataEnvelope<{ id: string; status: "pending" | "approved"; verified: boolean; review: Review }>>(
       "/api/reviews",
       json({ method: "POST", body: JSON.stringify(review) }),
     )
