@@ -16,6 +16,7 @@ import { samePhone } from "../lib/phone";
 import type { ReviewMediaKind, ReviewStatus } from "../reviews/model";
 import { DEFAULT_REVIEW_POLICY, reviewPolicy, type ReviewPolicy } from "../reviews/policy";
 import { recordReviewSubmitted } from "../reviews/submitted";
+import { isUploadTaken, reviewMediaRows, type ReviewFile } from "./review-uploads";
 
 export interface ReviewableProduct {
   productId: string;
@@ -219,15 +220,21 @@ export interface NewShopperReview {
   rating: number;
   title: string | null;
   body: string;
-  status: Extract<ReviewStatus, "processing" | "pending" | "approved">;
+  status: Extract<ReviewStatus, "pending" | "approved">;
   /** It rests on a delivered order. */
   verified: boolean;
+  /** Its photos and voice note, already kept. */
+  files: readonly ReviewFile[];
 }
 
-/** Records it, or says the order already reviewed this product (even when two submissions race). */
-export async function insertShopperReview(db: AppDb, review: NewShopperReview): Promise<{ ok: true; id: string } | { ok: false; reason: "already_reviewed" }> {
+/**
+ * Records it with its files, or says the order already reviewed this product,
+ * or that another review took one of its files (even when two submissions race).
+ */
+export async function insertShopperReview(db: AppDb, review: NewShopperReview): Promise<{ ok: true; id: string } | { ok: false; reason: "already_reviewed" | "upload_taken" }> {
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
+  const files = review.files.length ? [db.insert(reviewMedia).values(reviewMediaRows(id, review.files, now))] : [];
   try {
     await db.batch([
       db.insert(reviews).values({
@@ -247,12 +254,14 @@ export async function insertShopperReview(db: AppDb, review: NewShopperReview): 
         createdAt: now,
         updatedAt: now,
       }),
+      ...files,
       recordReviewSubmitted(db, id),
     ]);
   } catch (error) {
     if (/UNIQUE constraint failed: reviews\.order_id/.test(`${(error as Error)?.message} ${(error as { cause?: unknown })?.cause ?? ""}`)) {
       return { ok: false, reason: "already_reviewed" };
     }
+    if (isUploadTaken(error)) return { ok: false, reason: "upload_taken" };
     throw error;
   }
   return { ok: true, id };

@@ -253,7 +253,6 @@ export const TOOL_REGISTRY: ToolRegistryEntry[] = [
       "publishLandingPage",
       "deleteLandingPage",
       "uploadLandingPageImage",
-      "getLandingPageImageUploadStatus",
       "removeLandingPageImage",
       "reorderLandingPageImages",
       "duplicateLandingPage",

@@ -3,47 +3,45 @@
  * person. It names the product and a customer — from the list, or a name
  * typed in — and may rest on one of that customer's orders that brought the
  * product: a delivered one makes it a verified purchase, nothing else does.
- * It carries the date it is entered. Its photos and voice note go through
- * the same media job as a shopper's.
+ * It carries the date it is entered. Its photos and voice note are prepared
+ * and kept as they arrive, like a shopper's, under the staff member's folder.
  */
 import type { AppDb } from "@/db";
 import { BusinessLogicError, ConflictError, NotFoundError, ValidationError } from "@/lib/errors/classes";
 import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
-import { insertStoreReview, settleWithoutMedia, storeReviewOrders, storeReviewSubjects } from "../../../../cod-shared/queries/reviews";
+import { insertStoreReview, storeReviewOrders, storeReviewSubjects } from "../../../../cod-shared/queries/reviews";
+import { findUploads } from "../../../../cod-shared/queries/review-uploads";
+import type { MediaLibrary } from "../../../../cod-shared/media/library";
 import { REVIEW_MAX_PHOTOS, REVIEW_VOICE_LENGTHS } from "../../../../cod-shared/reviews/model";
 import { REVIEW_TEXT } from "../../../../cod-shared/reviews/policy";
-import { isMediaId } from "../../../../cod-shared/reviews/media";
-import { findReceived, receiveFile, type ReceivedFile } from "@/lib/review-media/receive";
-import { reviewMediaInstanceId, type ReviewMediaJob } from "@/lib/review-media/job";
-import type { Staging } from "@/lib/staging";
+import { isMediaId, staffFolder } from "../../../../cod-shared/reviews/media";
+import { receiveFile, type ReceivedFile } from "@/lib/review-media/receive";
 
 /** What the store may attach: the hard limits, whatever shoppers are allowed. */
 export const STORE_ALLOWANCE = { maxPhotos: REVIEW_MAX_PHOTOS, voiceMaxSeconds: REVIEW_VOICE_LENGTHS[REVIEW_VOICE_LENGTHS.length - 1] };
 
-/** One folder per staff member: files sent for a review not yet saved. */
-export function staffFolder(userId: string): string {
-  return `staff/${userId.replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 64)}`;
-}
-
 export interface StoreReviewDeps {
   db: AppDb;
   storeId: string;
-  staging: Staging;
-  workflow?: Pick<Workflow, "create">;
+  /** The store's Media Library; null when its media is not set up. */
+  media: MediaLibrary | null;
+  images?: ImagesBinding;
 }
 
+const notSetUp = () => new BusinessLogicError("Photos and voice notes are not set up on this server", ERROR_CODES.REVIEW_MEDIA_LIMIT, { max: 0 });
+const notReceived = (uploadId?: string) => new BusinessLogicError("A file of this review was not received", ERROR_CODES.REVIEW_UPLOAD_NOT_FOUND, uploadId ? { uploadId } : {});
+
 export async function receiveStaffUpload(
-  deps: Pick<StoreReviewDeps, "staging" | "workflow">,
+  deps: Omit<StoreReviewDeps, "storeId">,
   userId: string,
   input: { body: ReadableStream<Uint8Array> | null; declaredBytes?: number; declaredDurationMs?: number },
 ): Promise<ReceivedFile> {
-  if (!deps.workflow) throw new BusinessLogicError("Photos and voice notes are not set up on this server", ERROR_CODES.REVIEW_MEDIA_LIMIT, { max: 0 });
-  return receiveFile(deps.staging, {
+  if (!deps.media) throw notSetUp();
+  return receiveFile({ db: deps.db, media: deps.media, images: deps.images }, {
     folder: staffFolder(userId),
     ...input,
     allowance: STORE_ALLOWANCE,
     folderLimit: { image: 30, audio: 10 },
-    metadata: { staff: userId },
   });
 }
 
@@ -61,7 +59,7 @@ export interface StoreReviewInput {
   publish: boolean;
 }
 
-export async function createStoreReview(deps: StoreReviewDeps, actor: { id: string }, input: StoreReviewInput): Promise<{ id: string; status: "processing" | "pending" | "approved"; verified: boolean }> {
+export async function createStoreReview(deps: StoreReviewDeps, actor: { id: string }, input: StoreReviewInput): Promise<{ id: string; status: "pending" | "approved"; verified: boolean }> {
   const customerId = input.customerId || null;
   const { product, customer } = await storeReviewSubjects(deps.db, { productId: input.productId, customerId });
   if (!product) throw new NotFoundError("Product", input.productId);
@@ -80,9 +78,11 @@ export async function createStoreReview(deps: StoreReviewDeps, actor: { id: stri
   }
 
   const ids = [...new Set(input.uploads ?? [])];
-  if (ids.some((id) => !isMediaId(id))) throw new BusinessLogicError("A file of this review was not received", ERROR_CODES.REVIEW_UPLOAD_NOT_FOUND);
-  if (ids.length > 0 && !deps.workflow) throw new BusinessLogicError("Photos and voice notes are not set up on this server", ERROR_CODES.REVIEW_MEDIA_LIMIT, { max: 0 });
-  const uploads = ids.length ? await findReceived(deps.staging, staffFolder(actor.id), ids) : [];
+  if (ids.some((id) => !isMediaId(id))) throw notReceived();
+  if (ids.length > 0 && !deps.media) throw notSetUp();
+  const found = ids.length ? await findUploads(deps.db, { folder: staffFolder(actor.id), ids, host: deps.media!.hostKind }) : { files: [] };
+  if ("missing" in found) throw notReceived(found.missing);
+  const uploads = found.files;
   const photos = uploads.filter((upload) => upload.kind === "image").length;
   if (photos > STORE_ALLOWANCE.maxPhotos) throw new BusinessLogicError(`At most ${STORE_ALLOWANCE.maxPhotos} photos`, ERROR_CODES.REVIEW_MEDIA_LIMIT, { kind: "image", max: STORE_ALLOWANCE.maxPhotos });
   if (uploads.length - photos > 1) throw new BusinessLogicError("At most one voice note", ERROR_CODES.REVIEW_MEDIA_LIMIT, { kind: "audio", max: 1 });
@@ -102,20 +102,11 @@ export async function createStoreReview(deps: StoreReviewDeps, actor: { id: stri
     rating: input.rating,
     title: input.title?.trim() || null,
     body,
-    status: uploads.length ? "processing" : landing,
+    status: landing,
     createdBy: actor.id,
+    files: uploads,
   });
+  if (!inserted.ok && inserted.reason === "upload_taken") throw notReceived();
   if (!inserted.ok) throw new ConflictError("This product was already reviewed from this order", ERROR_CODES.ORDER_ALREADY_REVIEWED, { orderId: input.orderId });
-  const verified = order?.delivered ?? false;
-  if (!uploads.length) return { id: inserted.id, status: landing, verified };
-
-  const job: ReviewMediaJob = { reviewId: inserted.id, uploads, voiceMaxSeconds: STORE_ALLOWANCE.voiceMaxSeconds, statusWithMedia: landing, statusWithoutMedia: landing };
-  try {
-    await deps.workflow!.create({ id: reviewMediaInstanceId(inserted.id), params: job });
-  } catch (error) {
-    console.error(`[reviews] media job for store review ${inserted.id} could not start; kept without its files`, error);
-    await settleWithoutMedia(deps.db, inserted.id, { status: landing, dropped: uploads.length });
-    return { id: inserted.id, status: landing, verified };
-  }
-  return { id: inserted.id, status: "processing", verified };
+  return { id: inserted.id, status: landing, verified: order?.delivered ?? false };
 }

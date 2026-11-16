@@ -14,7 +14,6 @@
     "db:setup:local": "npm run db:migrate:local && npm run db:seed:local",
     "db:seed:remote": "npx tsx scripts/seed-store.ts --remote",
     "db:setup:remote": "npm run db:migrate:remote && npm run db:seed:remote",
-    "r2:lifecycle": "node scripts/setup-r2-lifecycle.mjs",
     "events:release-catalogue": "npx tsx scripts/release-event-catalogue.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest --run",

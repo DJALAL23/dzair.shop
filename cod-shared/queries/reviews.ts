@@ -2,21 +2,17 @@
  * Reviews as the merchant works with them: the moderation list, decisions,
  * removal, and the reviews the store enters itself.
  *
- * A review still `processing` (its media job running) is the system's: it is
- * neither listed nor moderated until it lands. Removal returns the R2 keys of
- * the files that went with the rows, for the caller to delete after the
- * commit (cod-server `lib/reviews/removal.ts`).
+ * A review lands as it is written, its files with it. One still `processing`
+ * was written before migration 0091 settled them; it is neither listed nor
+ * moderated. Removal returns the Media Keys of the files that went with the
+ * rows, for the caller to release after the commit (cod-server
+ * `lib/reviews/removal.ts`).
  */
-import { and, asc, desc, eq, inArray, lt, ne, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, ne, sql, type SQL } from "drizzle-orm";
 import { customers, products, reviewMedia, reviews } from "../db/schema";
 import type { AppDb } from "../db/client";
 import type { ModerationStatus, ReviewMediaKind, ReviewSource } from "../reviews/model";
-import { recordReviewSubmitted } from "../reviews/submitted";
-
-type BatchStatement = Parameters<AppDb["batch"]>[0][number];
-
-/** Two statements each, well inside a batch. */
-const STUCK_PER_BATCH = 25;
+import { isUploadTaken, reviewMediaRows, type ReviewFile } from "./review-uploads";
 
 /** @deprecated Use ModerationStatus from cod-shared/reviews/model. */
 export type ReviewStatus = ModerationStatus;
@@ -209,15 +205,18 @@ export interface NewStoreReview {
   rating: number;
   title: string | null;
   body: string;
-  status: "processing" | "pending" | "approved";
+  status: "pending" | "approved";
   createdBy: string;
+  /** Its photos and voice note, already kept. */
+  files: readonly ReviewFile[];
 }
 
-export async function insertStoreReview(db: AppDb, review: NewStoreReview): Promise<{ ok: true; id: string } | { ok: false; reason: "already_reviewed" }> {
+export async function insertStoreReview(db: AppDb, review: NewStoreReview): Promise<{ ok: true; id: string } | { ok: false; reason: "already_reviewed" | "upload_taken" }> {
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
+  const files = review.files.length ? [db.insert(reviewMedia).values(reviewMediaRows(id, review.files, now))] : [];
   try {
-    await db.insert(reviews).values({
+    await db.batch([db.insert(reviews).values({
       id,
       storeId: review.storeId,
       productId: review.productId,
@@ -234,11 +233,12 @@ export async function insertStoreReview(db: AppDb, review: NewStoreReview): Prom
       createdBy: review.createdBy,
       createdAt: now,
       updatedAt: now,
-    });
+    }), ...files]);
   } catch (error) {
     if (/UNIQUE constraint failed: reviews\.order_id/.test(`${(error as Error)?.message} ${(error as { cause?: unknown })?.cause ?? ""}`)) {
       return { ok: false, reason: "already_reviewed" };
     }
+    if (isUploadTaken(error)) return { ok: false, reason: "upload_taken" };
     throw error;
   }
   return { ok: true, id };
@@ -255,46 +255,3 @@ export async function storeReviewSubjects(db: AppDb, input: { productId: string;
   return { product: product[0] ?? null, customer: customer[0] ?? null };
 }
 
-// ─── The media job's end ─────────────────────────────────────────────────────
-
-/**
- * A review still `processing` lands without its files: the media job could
- * not start, or kept none of them. Leaves any other review untouched.
- */
-export async function settleWithoutMedia(db: AppDb, id: string, outcome: { status: "pending" | "approved"; dropped: number }) {
-  await db.batch([
-    db
-      .update(reviews)
-      .set({ status: outcome.status, mediaDropped: outcome.dropped, updatedAt: new Date().toISOString() })
-      .where(and(eq(reviews.id, id), eq(reviews.status, "processing"))),
-    recordReviewSubmitted(db, id, sql`changes() > 0`),
-  ]);
-}
-
-/**
- * Reviews still `processing` long after they came in — their media job never
- * finished — go to the merchant's queue without their files, so none is lost.
- * Returns how many.
- */
-export async function settleStuckReviews(db: AppDb, receivedBefore: string): Promise<number> {
-  const stuck = await db
-    .select({ id: reviews.id })
-    .from(reviews)
-    .where(and(eq(reviews.status, "processing"), lt(reviews.createdAt, receivedBefore)))
-    .all();
-  const now = new Date().toISOString();
-  let settled = 0;
-  for (let start = 0; start < stuck.length; start += STUCK_PER_BATCH) {
-    const statements = stuck.slice(start, start + STUCK_PER_BATCH).flatMap(({ id }) => [
-      db
-        .update(reviews)
-        .set({ status: "pending", mediaDropped: sql`max(${reviews.mediaDropped}, 1)`, updatedAt: now })
-        .where(and(eq(reviews.id, id), eq(reviews.status, "processing")))
-        .returning({ id: reviews.id }),
-      recordReviewSubmitted(db, id, sql`changes() > 0`),
-    ]);
-    const results = (await db.batch(statements as [BatchStatement, ...BatchStatement[]])) as unknown[];
-    settled += results.filter((result, i) => i % 2 === 0 && Array.isArray(result) && result.length > 0).length;
-  }
-  return settled;
-}

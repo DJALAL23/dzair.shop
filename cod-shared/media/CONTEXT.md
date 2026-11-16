@@ -36,16 +36,12 @@ _Avoid_: Provider, storage, bucket, CDN
 The Media Host's own id for a file, when it has one (ImageKit's `fileId`).
 _Avoid_: File id, external id
 
-**Staging**:
-The store's private R2 area, `staging/`, cleared after a day, for files that
-must be prepared before they are kept. Never served, and it never reaches a
-kept file.
-_Avoid_: Temp bucket, uploads folder
-
 **Preparation**:
-Turning a staged file into its kept form — a photo re-encoded to WebP, which
-drops EXIF and GPS; a voice note measured — before it is stored on the host.
-_Avoid_: Processing, optimization
+Turning a file as it arrives into its kept form — a photo re-encoded to WebP,
+which drops EXIF and GPS; a voice note measured — before it is stored on the
+host. It happens in the request that brings the file: nothing waits anywhere
+first, so a store needs no storage besides its Media Host.
+_Avoid_: Processing, optimization, staging
 
 ### How it is seen
 
@@ -70,7 +66,6 @@ A caller saying it no longer shows some keys. The files nothing else shows
 are deleted from the host, then their rows.
 _Avoid_: Delete image, cleanup
 
-**Sweep**:
-The scheduled release of pending rows older than a day and of ready rows
-older than 30 days that nothing shows.
-_Avoid_: Orphan cleanup, garbage collection
+Nothing is released on a schedule. A file sent but never attached — a review
+photo whose review was never sent — stays on the host until the merchant
+deletes it there.

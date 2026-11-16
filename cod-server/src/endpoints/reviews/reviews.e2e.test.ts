@@ -9,11 +9,13 @@
  * files after the rows; a store review names a product and a customer (or a
  * typed name), rests only on an order of that customer that brought the
  * product, is verified only when that order was delivered, and needs
- * reviews:create; its files go to the media job; removing a product removes
+ * reviews:create; its files are prepared and kept as they arrive — on the
+ * store's bucket, or on ImageKit with no bucket — and attached when it is
+ * written, each to one review only; removing a product removes
  * its reviews' files too. The store's review rules are the Reviews App's
  * (`endpoints/apps/reviews.e2e.test.ts`).
  */
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from "vitest";
 import { signIn } from "@/test-utils/sign-in";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { eq } from "drizzle-orm";
@@ -21,10 +23,11 @@ import type { AppContext } from "@/types";
 import { errorHandler } from "@/middleware/error";
 import { openApiValidationHook } from "@/openapi/validation-hook";
 import { createTestD1, type TestD1 } from "@/test-utils/d1";
-import { TEST_DELIVERY, TEST_MEDIA_VARS, testMedia } from "@/test-utils/media";
+import { TEST_DELIVERY, TEST_IMAGEKIT, TEST_IMAGEKIT_VARS, TEST_MEDIA_VARS, routeImageKit, testMedia } from "@/test-utils/media";
+import { fakeImages } from "@/test-utils/images";
 import { webp } from "../../../../cod-shared/media/hosts/testing/files";
+import { fakeImageKit } from "../../../../cod-shared/media/hosts/testing/fake-imagekit";
 import * as schema from "@/db/schema";
-import type { ReviewMediaJob } from "@/lib/review-media/job";
 import { removeProduct } from "@/lib/remove-product";
 import reviewsRouter from "./routes";
 
@@ -37,7 +40,8 @@ let d1: TestD1;
 let bucket: R2Bucket;
 let app: OpenAPIHono<AppContext>;
 let scopes: string[];
-let jobs: Array<{ id: string; params: ReviewMediaJob }>;
+let host: "r2" | "imagekit";
+let imagesOn: boolean;
 
 beforeAll(async () => {
   d1 = await createTestD1();
@@ -46,10 +50,9 @@ beforeAll(async () => {
   app.use("*", async (c, next) => {
     c.env = {
       DB: d1.raw,
-      MEDIA_BUCKET: bucket,
       ENVIRONMENT: "production",
-      ...TEST_MEDIA_VARS,
-      REVIEW_MEDIA_WORKFLOW: { create: async (options: { id: string; params: ReviewMediaJob }) => (jobs.push(options), {} as never) },
+      ...(host === "r2" ? { ...TEST_MEDIA_VARS, MEDIA_BUCKET: bucket } : TEST_IMAGEKIT_VARS),
+      IMAGE_TRANSFORM: imagesOn ? fakeImages().binding : undefined,
     } as never;
     signIn(c, { id: "u1", email: "s@example.com", name: "Samia", role: "staff", status: "active", apiKey: "k", scopes } as never);
     await next();
@@ -64,7 +67,8 @@ afterAll(async () => {
 
 beforeEach(async () => {
   scopes = ALL;
-  jobs = [];
+  host = "r2";
+  imagesOn = true;
   const db = d1.db;
   for (const table of [schema.media, schema.activityLogs, schema.reviewMedia, schema.reviews, schema.shipments, schema.orderProducts, schema.orders, schema.products, schema.customers, schema.deliveryCompanies, schema.stores]) {
     await db.delete(table);
@@ -112,6 +116,10 @@ beforeEach(async () => {
   const media = testMedia(d1);
   for (const key of ["reviews/rA/m1.webp", "reviews/rA/m1-t.webp"]) await media.store({ key, contentType: "image/webp", body: webp() });
   await media.store({ key: "reviews/rA/m2.ogg", contentType: "audio/ogg", body: OGG });
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
 });
 
 const call = (method: string, path: string, body?: unknown) =>
@@ -228,21 +236,48 @@ describe("entering a review the store received", () => {
     expect((await call("POST", "", { ...entered, customerId: "nope" })).status).toBe(404);
   });
 
-  it("sends its photos and voice note to the media job; a voice note may stand for the text", async () => {
+  it("keeps its photos and voice note as they arrive, and attaches them when it is written; a voice note may stand for the text", async () => {
     const photo = (await json(await app.request("/api/reviews/uploads", { method: "POST", body: JPEG }))).data;
     const voice = (await json(await app.request("/api/reviews/uploads", { method: "POST", headers: { "X-Media-Duration-Ms": "15000" }, body: OGG }))).data;
     expect([photo.kind, voice.kind]).toEqual(["image", "audio"]);
-    expect(await stored("staging/reviews/staff/u1/")).toHaveLength(2);
-
-    const { data } = await json(await call("POST", "", { productId: "p2", customerId: "c2", rating: 4, body: "", uploads: [photo.uploadId, voice.uploadId], publish: false }));
-    expect(data).toMatchObject({ status: "processing", review: null });
-    expect(jobs).toHaveLength(1);
-    expect(jobs[0].params).toMatchObject({ voiceMaxSeconds: 120, statusWithMedia: "pending", statusWithoutMedia: "pending" });
-    expect(jobs[0].params.uploads.map((u) => u.kind)).toEqual(["image", "audio"]);
-    expect(jobs[0].params.uploads[1].declaredDurationMs).toBe(15000);
+    expect(await stored("reviews/staff-u1/")).toEqual([
+      `reviews/staff-u1/${photo.uploadId}-t.webp`,
+      `reviews/staff-u1/${photo.uploadId}.webp`,
+      `reviews/staff-u1/${voice.uploadId}.ogg`,
+    ].sort());
+    expect(await stored("staging/")).toEqual([]);
 
     expect(await json(await call("POST", "", { productId: "p2", customerId: "c2", rating: 4, body: "ok", uploads: [photo.uploadId] }))).toMatchObject({ code: "VALIDATION_FAILED" });
+    const res = await call("POST", "", { productId: "p2", customerId: "c2", rating: 4, body: "", uploads: [photo.uploadId, voice.uploadId], publish: false });
+    expect(res.status).toBe(201);
+    const { data } = await json(res);
+    expect(data).toMatchObject({ status: "pending", review: { id: data.id, status: "pending" } });
+    expect(data.review.media.map((m: { kind: string; url: string; durationMs: number | null }) => [m.kind, m.url, m.durationMs])).toEqual([
+      ["image", `${TEST_DELIVERY.origin}/reviews/staff-u1/${photo.uploadId}.webp`, null],
+      ["audio", `${TEST_DELIVERY.origin}/reviews/staff-u1/${voice.uploadId}.ogg`, 15000],
+    ]);
+
+    expect(await json(await call("POST", "", { ...entered, customerId: "c2", uploads: [photo.uploadId] }))).toMatchObject({ code: "REVIEW_UPLOAD_NOT_FOUND" });
     expect(await json(await call("POST", "", { ...entered, customerId: "c2", uploads: ["f".repeat(32)] }))).toMatchObject({ code: "REVIEW_UPLOAD_NOT_FOUND" });
+  });
+
+  it("on an ImageKit store, keeps a staff member's files in ImageKit and none in a bucket", async () => {
+    host = "imagekit";
+    const imagekit = fakeImageKit(TEST_IMAGEKIT);
+    routeImageKit(imagekit, vi.stubGlobal);
+    const photo = (await json(await app.request("/api/reviews/uploads", { method: "POST", body: JPEG }))).data;
+    expect([...imagekit.files.keys()].sort()).toEqual([`/stores/maysa/reviews/staff-u1/${photo.uploadId}-t.webp`, `/stores/maysa/reviews/staff-u1/${photo.uploadId}.webp`]);
+    const { data } = await json(await call("POST", "", { productId: "p2", customerName: "Lina", rating: 5, body: "Reçue par WhatsApp, très contente", uploads: [photo.uploadId], publish: true }));
+    expect(data.review.media[0].url).toBe(`${TEST_IMAGEKIT_VARS.MEDIA_ORIGIN}/reviews/staff-u1/${photo.uploadId}.webp`);
+    expect(await stored("reviews/staff-u1/")).toEqual([]);
+  });
+
+  it("takes no photo without the image service — a photo is never kept unconverted — but still takes a voice note", async () => {
+    imagesOn = false;
+    const photo = await app.request("/api/reviews/uploads", { method: "POST", body: JPEG });
+    expect(await json(photo)).toMatchObject({ code: "REVIEW_MEDIA_LIMIT", context: { kind: "image", max: 0 } });
+    expect(await stored("reviews/")).toEqual(["reviews/rA/m1-t.webp", "reviews/rA/m1.webp", "reviews/rA/m2.ogg"]);
+    expect((await app.request("/api/reviews/uploads", { method: "POST", body: OGG })).status).toBe(201);
   });
 
   it("refuses an upload that is not a photo or voice note", async () => {

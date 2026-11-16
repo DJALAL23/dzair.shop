@@ -4,8 +4,8 @@ The backend engine for Wocart, a COD-first e-commerce platform for Algeria
 that is **agentic-ready**. It exposes the merchant REST API, the public
 storefront API, delivery-carrier webhooks, and a complete **MCP remote server**
 (RFC 9728) so AI agents can operate the store with RBAC-scoped tools. Built on
-Cloudflare Workers, Hono, and Drizzle ORM, with D1, Queues and Cloudflare
-Workflows under the hood.
+Cloudflare Workers, Hono, and Drizzle ORM, with D1 and Queues under the hood,
+and R2 when a store keeps its media there.
 
 This package is part of the [Wocart repository](../README.md). The dashboard
 (`cod-client-astro`) and storefront (`cod-astro`) live in sibling folders and
@@ -44,7 +44,7 @@ database, and bucket is a placeholder you replace with your own resources.
    ```bash
    wrangler login
    wrangler d1 create <your-db-name>   # → copy the returned database_id into wrangler.toml, set COD_DB_NAME in the root .env
-   wrangler r2 bucket create <your-bucket> # → match bucket_name in wrangler.toml, set COD_R2_BUCKET_NAME in the root .env
+   wrangler r2 bucket create <your-bucket> # only for media on R2 → match bucket_name in wrangler.toml, set COD_R2_BUCKET_NAME in the root .env
    wrangler kv namespace create RATE_LIMIT  # → kv id
    wrangler kv namespace create OAUTH_KV    # → kv id (MCP OAuth provider)
    ```
@@ -144,7 +144,6 @@ cod-server/
 │   ├── lib/                   # Meta CAPI client, activity log, shared errors
 │   ├── mcp/                   # MCP remote server (OAuth provider wiring + scope-gated tool registry)
 │   ├── events/                # Business Events: the catalogue's schemas, the drain, Consumer Kinds (Meta conversions)
-│   ├── workflows/             # Durable Cloudflare Workflows (landing-page images, review media)
 │   ├── cron/                  # Scheduled handlers (abandoned-order sweep)
 │   ├── openapi/               # OpenAPI assembly: security schemes, Swagger UI, shared Zod schemas — the served spec generates from route definitions
 │   ├── rbac/                  # Scope-based authorization middleware

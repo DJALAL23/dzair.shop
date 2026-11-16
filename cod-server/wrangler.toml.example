@@ -6,7 +6,7 @@
 # database. See README.md → "Getting Started" for step-by-step setup.
 #
 #   wrangler d1 create codflow-os-db  → gives you a database_id
-#   wrangler r2 bucket create codflow-images
+#   wrangler r2 bucket create codflow-images   (only for a store on R2)
 #   wrangler kv namespace create RATE_LIMIT
 #   wrangler kv namespace create OAUTH_KV
 #   wrangler deploy
@@ -25,15 +25,17 @@ database_name = "codflow-os-db"
 database_id = "00000000-0000-0000-0000-000000000000"
 migrations_dir = "src/db/migrations"
 
-# R2 bucket: uploads waiting to be prepared (staging/, cleared after a day by
-# `npm run r2:lifecycle`), and the store's media itself when MEDIA_HOST is r2.
+# R2 bucket: the store's media when MEDIA_HOST is r2, as in local development.
+# A store on ImageKit has no bucket: leave this block out, and its Cloudflare
+# account never needs R2.
 # Replace with the name from `wrangler r2 bucket create codflow-images`.
 [[r2_buckets]]
 binding = "MEDIA_BUCKET"
 bucket_name = "codflow-images"
 
-# Cloudflare Images binding — write-time WebP transcode for landing page
-# uploads (billed as unique transformations; 5,000/month free tier).
+# Cloudflare Images binding — a review photo becomes WebP as it arrives (EXIF
+# and GPS gone), and an AI agent's landing image too (billed as unique
+# transformations; 5,000/month free tier). Without it reviews take no photos.
 [images]
 binding = "IMAGE_TRANSFORM"
 
@@ -48,21 +50,9 @@ id = "00000000000000000000000000000000"
 binding = "OAUTH_KV"
 id = "00000000000000000000000000000000"
 
-# CodLandingPageImageUploadWorkflow — durable background upload of MCP-agent
-# images (ChatGPT & co.) into landing page image stacks.
-[[workflows]]
-name       = "lp-image-upload-workflow"
-binding    = "LP_IMAGE_UPLOAD_WORKFLOW"
-class_name = "CodLandingPageImageUploadWorkflow"
-
-# CodReviewMediaWorkflow — prepares a shopper's review photos and voice note
-# after the review is in. Also needs the REVIEW_UPLOAD_SECRET secret
+# Review photos and voice notes also need the REVIEW_UPLOAD_SECRET secret
 # (`wrangler secret put REVIEW_UPLOAD_SECRET`, any long random value); without
-# both, the storefront takes text reviews only.
-[[workflows]]
-name       = "review-media-workflow"
-binding    = "REVIEW_MEDIA_WORKFLOW"
-class_name = "CodReviewMediaWorkflow"
+# it, the storefront takes text reviews only.
 
 # Review attempts per order number (a phone cannot be guessed for one order).
 # namespace_id: any positive integer unique in your Cloudflare account.
@@ -138,9 +128,12 @@ ALLOWED_ORIGINS = "*"
 [env.production]
 vars = { ENVIRONMENT = "production", WORKER_URL = "https://api.example.com", MEDIA_HOST = "imagekit", MEDIA_DELIVERY = "imagekit", MEDIA_ORIGIN = "https://ik.imagekit.io/your_imagekit_id/stores/your-store", IMAGEKIT_PUBLIC_KEY = "public_your_key", IMAGEKIT_FOLDER = "/stores/your-store", BETTER_AUTH_URL = "https://dashboard.example.com/api/auth", WORKER_SELF_URL = "https://api.example.com/", ALLOWED_ORIGINS = "https://dashboard.example.com,https://store.example.com", STOREFRONT_URL = "https://store.example.com" }
 
-[[env.production.r2_buckets]]
-binding = "MEDIA_BUCKET"
-bucket_name = "codflow-images"
+# This store keeps its media on ImageKit, so it declares no bucket. A store on
+# R2 sets MEDIA_HOST = "r2", MEDIA_DELIVERY = "cloudflare", MEDIA_ORIGIN to its
+# bucket's domain, and declares it:
+#   [[env.production.r2_buckets]]
+#   binding = "MEDIA_BUCKET"
+#   bucket_name = "codflow-images"
 
 [env.production.images]
 binding = "IMAGE_TRANSFORM"
@@ -159,16 +152,6 @@ id = "00000000000000000000000000000000"
 [[env.production.kv_namespaces]]
 binding = "OAUTH_KV"
 id = "00000000000000000000000000000000"
-
-[[env.production.workflows]]
-name       = "lp-image-upload-workflow"
-binding    = "LP_IMAGE_UPLOAD_WORKFLOW"
-class_name = "CodLandingPageImageUploadWorkflow"
-
-[[env.production.workflows]]
-name       = "review-media-workflow"
-binding    = "REVIEW_MEDIA_WORKFLOW"
-class_name = "CodReviewMediaWorkflow"
 
 [[env.production.queues.producers]]
 binding = "EVENTS_QUEUE"

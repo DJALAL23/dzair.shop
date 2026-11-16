@@ -18,7 +18,6 @@ import { fakeS3 } from "./hosts/testing/fake-s3";
 import { jpeg, pdf, png, stream, webm, webp } from "./hosts/testing/files";
 import { mediaLibrary, type MediaLibrary, type UploadSend } from "./library";
 
-const DAY = 24 * 60 * 60 * 1000;
 const RELAY = "https://store.test/api/media/uploads/";
 
 interface Rig {
@@ -134,7 +133,6 @@ describe.each(SETUPS)("the Media Library, %s", (_name, makeRig, reach) => {
 
   const run = (sql: string, ...binds: unknown[]) => d1.raw.prepare(sql).bind(...binds).run();
   const row = (key: string) => d1.raw.prepare(`SELECT * FROM media WHERE "key" = ?1`).bind(key).first<Record<string, unknown>>();
-  const age = (key: string, days: number) => run(`UPDATE media SET created_at = ?2 WHERE "key" = ?1`, key, new Date(clock.at - days * DAY).toISOString());
 
   async function uploaded(body: Uint8Array<ArrayBuffer>, contentType = "image/png", report: { width?: number; height?: number } = {}) {
     const ticket = await library.requestUpload({ folder: "products", contentType, bytes: body.byteLength });
@@ -270,7 +268,9 @@ describe.each(SETUPS)("the Media Library, %s", (_name, makeRig, reach) => {
       const fresh = await library.store({ folder: "landing", contentType: "image/webp", body: webp(400) });
       expect(fresh).toMatchObject({ key: expect.stringMatching(/^landing\/[0-9a-f]{32}\.webp$/), status: "ready", kind: "image", bytes: 400 });
       const voice = await library.store({ key: "reviews/r1/m2.webm", contentType: "audio/webm", body: webm(900) });
-      expect(voice).toMatchObject({ key: "reviews/r1/m2.webm", status: "ready", kind: "audio", contentType: "audio/webm", bytes: 900 });
+      expect(voice).toMatchObject({ key: "reviews/r1/m2.webm", status: "ready", kind: "audio", contentType: "audio/webm", bytes: 900, durationMs: null });
+      const measured = await library.store({ key: "reviews/r1/m3.webm", contentType: "audio/webm", body: webm(900), durationMs: 41_500 });
+      expect(measured).toMatchObject({ durationMs: 41_500 });
       expect(await rig.holds("reviews/r1/m2.webm")).toBe(true);
     });
 
@@ -327,40 +327,6 @@ describe.each(SETUPS)("the Media Library, %s", (_name, makeRig, reach) => {
       await run(`INSERT INTO media (id, "key", host, kind, content_type, status, created_at) VALUES (?1, 'products/elsewhere.png', ?2, 'image', 'image/png', 'ready', '2026-01-01')`, crypto.randomUUID(), rig.host.kind === "r2" ? "imagekit" : "r2");
       expect(await library.release(["products/elsewhere.png"])).toEqual({ released: [], kept: ["products/elsewhere.png"] });
       expect(await row("products/elsewhere.png")).not.toBeNull();
-    });
-  });
-
-  describe("the sweep", () => {
-    it("forgets uploads never finished after a day and unshown files after 30 days, and reports before it deletes", async () => {
-      const abandoned = await library.requestUpload({ folder: "products", contentType: "image/png", bytes: 256 });
-      await rig.send(abandoned, { body: png(256), contentType: "image/png" }, library);
-      const recentAbandoned = await library.requestUpload({ folder: "products", contentType: "image/png", bytes: 256 });
-      const oldUnshown = (await uploaded(png())).image.key;
-      const oldShown = (await uploaded(png())).image.key;
-      const recentUnshown = (await uploaded(png())).image.key;
-      await age(abandoned.key, 2);
-      await age(recentAbandoned.key, 0.5);
-      await age(oldUnshown, 31);
-      await age(oldShown, 31);
-      await age(recentUnshown, 29);
-      await run("INSERT INTO product_categories (id, name, slug, image_key, created_at, updated_at) VALUES (?1, 'Robes', ?1, ?2, '2026-01-01', '2026-01-01')", crypto.randomUUID(), oldShown);
-
-      const report = await library.sweep();
-      const orphans = report.orphans.map((orphan) => orphan.key);
-      expect(orphans).toEqual(expect.arrayContaining([abandoned.key, oldUnshown]));
-      expect(orphans).not.toContain(oldShown);
-      expect(orphans).not.toContain(recentUnshown);
-      expect(orphans).not.toContain(recentAbandoned.key);
-      expect(report).toMatchObject({ dryRun: true, deleted: 0 });
-      expect(await rig.holds(abandoned.key)).toBe(true);
-
-      const done = await library.sweep({ dryRun: false });
-      expect(done.deleted).toBe(done.orphans.length);
-      expect(await row(abandoned.key)).toBeNull();
-      expect(await rig.holds(abandoned.key), "an upload never confirmed is found and deleted on the host").toBe(false);
-      expect(await rig.holds(oldUnshown)).toBe(false);
-      expect(await rig.holds(oldShown)).toBe(true);
-      expect(await row(recentAbandoned.key)).toMatchObject({ status: "pending" });
     });
   });
 
