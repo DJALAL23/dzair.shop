@@ -145,9 +145,14 @@ A docs build fetches `/api/openapi.json` from a local cod-server, or from
   `defineTheme({ key })`); renaming a theme's key orphans its merchants' edits.
 - **Reviews.** A shopper proves a purchase with the order number and its
   phone, for a delivered order, one review per product. Photos are kept only
-  as WebP from the Images binding, which drops EXIF and GPS. Review files are
-  deleted after their rows (`cod-server/src/lib/reviews/removal.ts`). `processing` reviews
-  belong to the system.
+  as WebP from the Images binding, which drops EXIF and GPS. Every file is
+  prepared as it arrives and kept on the store's media host; a review lands
+  with its files in one write. Review files are deleted after their rows
+  (`cod-server/src/lib/reviews/removal.ts`).
+- **A store needs nothing beyond its media host.** An ImageKit store has no
+  R2 bucket and its account never needs R2: never add Staging, a bucket
+  binding or a Workflow that every store must have. `MEDIA_BUCKET` exists
+  only for `MEDIA_HOST = "r2"`.
 - **Seed data has one source, `cod-shared/starter/`.** `storeDefaultsSql`
   gives a store its default menus, collections, legal pages and, if it has
   never taken an order, a shipping profile; `demoCatalogSql` adds the starter

@@ -44,13 +44,11 @@ wins over the default.
 | Binding | Type | Required | What it is for |
 | --- | --- | --- | --- |
 | `DB` | D1 | Yes | The store's database (`migrations_dir = "src/db/migrations"`) |
-| `MEDIA_BUCKET` | R2 | Yes | Uploads waiting to be prepared, and the store's files when they are kept on R2 |
+| `MEDIA_BUCKET` | R2 | With `MEDIA_HOST = "r2"` | The store's files. A store on ImageKit has no bucket |
 | `OAUTH_KV` | KV | Yes | AI-agent sign-in: clients, grants and tokens |
 | `RATE_LIMIT` | KV | Recommended | Rate limits on verification codes and on AI-agent calls |
-| `IMAGE_TRANSFORM` | Images | Recommended | Re-encodes uploaded photos to WebP, which drops their location data. Without it, an uploaded photo is never kept |
+| `IMAGE_TRANSFORM` | Images | Recommended | Re-encodes uploaded photos to WebP as they arrive, which drops their location data. Without it, reviews take no photos |
 | `EVENTS_QUEUE` | Queue (producer and consumer) | Yes | Wakes the delivery of events and the carriers' webhook inbox |
-| `LP_IMAGE_UPLOAD_WORKFLOW` | Workflow | Yes | Prepares images an AI agent adds to a landing page |
-| `REVIEW_MEDIA_WORKFLOW` | Workflow | For review media | Prepares a review's photos and voice note |
 | `REVIEW_RATE_LIMITER` | Rate limit | Recommended | Review attempts per order number |
 
 The server also needs both scheduled triggers:
