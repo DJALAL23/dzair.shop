@@ -111,9 +111,9 @@ const createReviewRoute = defineRoute({
           success: z.boolean(),
           data: z.object({
             id: z.string(),
-            status: z.enum(["processing", "pending", "approved"]),
+            status: z.enum(["pending", "approved"]),
             verified: z.boolean(),
-            review: ReviewSchema.nullable().openapi({ description: "null while its files are being prepared" }),
+            review: ReviewSchema,
           }),
         }),
       ),

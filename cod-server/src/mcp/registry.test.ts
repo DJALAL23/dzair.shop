@@ -108,7 +108,6 @@ vi.mock("@/endpoints/landing-pages/ai-tools", () => ({
     toolMap(
       "listLandingPages",
       "getLandingPageDetails",
-      "getLandingPageImageUploadStatus",
       "archiveLandingPage",
       "createLandingPage",
       "deleteLandingPage",
@@ -290,7 +289,6 @@ const ALL_TOOLS = [
   "getDefaultShippingRules",
   "getDriverDetails",
   "getLandingPageDetails",
-  "getLandingPageImageUploadStatus",
   "getOfferDetails",
   "getOrderDetails",
   "getPendingSettlements",
@@ -453,7 +451,6 @@ describe("buildToolsForUser — scope gating", () => {
       "createLandingPage",
       "deleteLandingPage",
       "duplicateLandingPage",
-      "getLandingPageImageUploadStatus",
       "publishLandingPage",
       "removeLandingPageImage",
       "reorderLandingPageImages",

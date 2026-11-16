@@ -236,6 +236,10 @@ hide the record button rather than showing one that cannot work.
 A photo is kept by the server as WebP; that conversion is also what removes its
 EXIF and GPS data. Do not add a second client-side “strip metadata” step.
 
+Each file is prepared and kept as it arrives, so the upload's answer is final:
+a photo the server cannot read is refused with `INVALID_FILE_TYPE`, and a voice
+note longer than the store allows with `FILE_TOO_LARGE`.
+
 ## 4. Submit
 
 ```ts

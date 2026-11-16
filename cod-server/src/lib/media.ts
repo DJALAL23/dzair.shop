@@ -24,9 +24,20 @@ export function mediaHostOf(env: Env): MediaHost {
     case "imagekit":
       return imagekitHost({ publicKey: env.IMAGEKIT_PUBLIC_KEY ?? "", privateKey: env.IMAGEKIT_PRIVATE_KEY ?? "", folder: env.IMAGEKIT_FOLDER ?? "" });
     case "r2":
+      if (!env.MEDIA_BUCKET) throw new MediaError("not_configured", "MEDIA_HOST is r2, and the Worker has no MEDIA_BUCKET binding");
       return r2Host({ binding: env.MEDIA_BUCKET });
     default:
       throw new MediaError("not_configured", `MEDIA_HOST must be one of ${MEDIA_HOSTS.join(", ")}`, { value: env.MEDIA_HOST ?? null });
+  }
+}
+
+/** The store's Media Library, or null when its media is not configured. */
+export function configuredMedia(env: Env): MediaLibrary | null {
+  try {
+    return mediaOf(env);
+  } catch (error) {
+    if (error instanceof MediaError && error.reason === "not_configured") return null;
+    throw error;
   }
 }
 

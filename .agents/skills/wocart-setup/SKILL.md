@@ -51,8 +51,8 @@ same in more detail: `cod-docs/pages/self-hosting/` (`local.mdx`,
 
 ## Before starting — state this to the developer
 
-> "I will create a D1 database, an R2 bucket, three KV namespaces and a queue
-> in your Cloudflare account, fill your configuration files with their IDs,
+> "I will create a D1 database, three KV namespaces and a queue (and an R2
+> bucket only if you keep your images on R2) in your Cloudflare account, fill your configuration files with their IDs,
 > migrate and seed the database, and deploy the API server, the dashboard and
 > the storefront. The API and the storefront need your own domain on
 > Cloudflare. Nothing is left on example values."
@@ -84,9 +84,13 @@ Never create a lockfile inside `cod-server`, `cod-client-astro` or `cod-shared`.
 ## Step 2 — Choose the names
 
 Ask the developer for a short, unique prefix (`<p>`, for example `mystore`).
-Names must not collide with another store in the same account: Worker names,
-queue names and **Workflow names are unique per account**, and deploying a
-duplicate overwrites or breaks the other store.
+Names must not collide with another store in the same account: Worker names
+and **queue names are unique per account**, and deploying a duplicate
+overwrites or breaks the other store.
+
+Ask now where the store's images will live (step 5): ImageKit or R2. A store
+on ImageKit gets no bucket, and its Cloudflare account never needs R2 turned
+on (R2 asks for a payment card).
 
 | What | Name |
 | --- | --- |
@@ -94,15 +98,14 @@ duplicate overwrites or breaks the other store.
 | Dashboard Worker | `<p>-dashboard` |
 | Storefront Worker | `<p>-storefront` |
 | D1 database | `<p>-db` |
-| R2 bucket | `<p>-media` |
+| R2 bucket (R2 only) | `<p>-media` |
 | Queue | `<p>-events` |
-| Workflows | `<p>-lp-image-upload-workflow`, `<p>-review-media-workflow` |
 
 ## Step 3 — Create the resources
 
 ```bash
 npx wrangler d1 create <p>-db                              # note database_id
-npx wrangler r2 bucket create <p>-media
+npx wrangler r2 bucket create <p>-media                    # only for images on R2
 npx wrangler kv namespace create <p>-rate-limit            # API server: RATE_LIMIT
 npx wrangler kv namespace create <p>-oauth                 # API server: OAUTH_KV (MCP sign-in)
 npx wrangler kv namespace create <p>-dashboard-rate-limit  # dashboard: RATE_LIMIT_KV
@@ -148,11 +151,11 @@ COD_SERVER_URL=https://api.<domain>        # the API's public address (step 8)
 - `name = "<p>-server"` (top line only);
 - `[[d1_databases]]`: `database_name = "<p>-db"` and its `database_id`
   (the top-level one is also what the migration scripts read);
-- `[[r2_buckets]]`: `bucket_name = "<p>-media"`;
+- `[[r2_buckets]]`: `bucket_name = "<p>-media"` with R2; with ImageKit, delete
+  the `[[env.production.r2_buckets]]` block (the top-level one serves local
+  development only);
 - `[[kv_namespaces]]`: `RATE_LIMIT` and `OAUTH_KV` with their IDs;
 - the queue: `queue = "<p>-events"` in the producer **and** the consumer;
-- the two `[[workflows]]`: `name = "<p>-lp-image-upload-workflow"` and
-  `name = "<p>-review-media-workflow"`, keeping each `binding` and `class_name`;
 - `[[ratelimits]]`: a `namespace_id` no other store in the account uses
   (any positive integer).
 
@@ -228,8 +231,9 @@ Ask the developer. A store keeps its images where they start, so decide now.
   MEDIA_ORIGIN = "https://media.<domain>"
   ```
 
-The R2 bucket is needed either way: uploads wait there before they are
-prepared. Local development needs nothing: the top-level values serve the
+With ImageKit the deployed store has no bucket: every file, review photos
+included, is prepared as it arrives and kept on ImageKit. Local development
+needs nothing: the top-level values serve the
 local bucket through the local server. The storefront takes no media setting;
 the API tells it. Details: `cod-docs/pages/self-hosting/media.mdx`.
 
@@ -257,14 +261,13 @@ cd cod-server
 npm run db:migrate:local
 npm run db:migrate:remote
 STORE_API_KEY=<STORE_API_KEY> npm run db:seed:remote
-npm run r2:lifecycle
 ```
 
 `db:seed:remote` creates the store, its API key (it keeps only a hash), the
 menus, the default collections, the four legal pages and a shipping profile.
 Running it again changes nothing the store has. The starter catalog with
 photos is not part of a self-hosted setup: its pictures are not in this
-repository. `r2:lifecycle` deletes uploads that were never used, after a day.
+repository.
 
 **The API server.** It deploys with its production settings, as
 `<p>-server-production`:
@@ -414,9 +417,9 @@ is the usual reason the local dashboard "does not work".
 | Problem | Cause | Fix |
 | --- | --- | --- |
 | Every Wrangler command: `Authentication error [code: 10000]` | A stale `CLOUDFLARE_ACCOUNT_ID` in the shell | `unset CLOUDFLARE_ACCOUNT_ID` |
-| `wrangler r2 bucket create` fails | R2 is not enabled | Enable R2 in the dashboard (payment card, free tier), retry |
+| `wrangler r2 bucket create` fails | R2 is not enabled (it asks for a payment card) | Enable R2 in the dashboard and retry, or keep images on ImageKit, which needs no bucket |
 | Deploy fails on a binding | An example value is left | Re-run the step 4 check |
-| Deploy fails: a Workflow or queue already exists | The name belongs to another store in the account | Use this store's prefix (step 2) |
+| Deploy fails: a queue already exists | The name belongs to another store in the account | Use this store's prefix (step 2) |
 | Sign-in answers 500 | The deployed database is not migrated | `npm run db:migrate:remote` in `cod-server` |
 | Sign-in answers `403 INVALID_ORIGIN` | The dashboard's address is not in `PUBLIC_TRUSTED_ORIGINS` | Add it, `npm run deploy` in `cod-client-astro` |
 | Signed in, but every screen fails with 401 | The API server cannot check the dashboard's sign-in | `BETTER_AUTH_URL` must be the dashboard's `/api/auth` address and `WORKER_SELF_URL` the API's own, in `[env.production]`; redeploy the API |

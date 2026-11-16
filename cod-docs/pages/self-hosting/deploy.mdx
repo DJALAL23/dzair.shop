@@ -22,7 +22,7 @@ another project's.
 
 ```bash
 npx wrangler d1 create mystore-db
-npx wrangler r2 bucket create mystore-media
+npx wrangler r2 bucket create mystore-media   # only for a store on R2
 npx wrangler kv namespace create RATE_LIMIT
 npx wrangler kv namespace create OAUTH_KV
 npx wrangler kv namespace create DASHBOARD_RATE_LIMIT
@@ -71,12 +71,6 @@ fails until it has run. `db:seed:remote` creates the store, its API key (it
 keeps only its hash), menus, default collections, legal pages and a shipping
 profile; running it again changes nothing the store has. Generate the key with
 `openssl rand -hex 32` and keep it for the storefront (step 4).
-
-Then clear uploads that were never prepared, once for the bucket:
-
-```bash
-npm run r2:lifecycle
-```
 
 ## 4. Deploy the three Workers
 

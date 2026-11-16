@@ -14,10 +14,15 @@ The database keeps only each file's **key** (for example
 `/store/config` gives storefronts the delivery, so a storefront has nothing to
 configure and moving to another host rewrites no data.
 
-Uploads always go through the API server, so no bucket needs a CORS policy.
-An upload waits in the bucket's `staging/` folder until it is prepared; run
-`npm run r2:lifecycle` once per bucket (in `cod-server`), and an upload that
-was never finished is deleted after a day.
+A file is prepared as it arrives — a review photo becomes WebP, which drops
+its location data; a voice note is measured — and kept on the store's host at
+once. Nothing waits anywhere first, so **a store on ImageKit needs no R2
+bucket at all**, and its Cloudflare account never needs R2 turned on. A store
+on R2 keeps every file in its bucket; its uploads go through the API server,
+so the bucket needs no CORS policy.
+
+Nothing is deleted on a schedule. A file sent but never used — a photo whose
+review was never submitted — stays on the host; delete it there if you wish.
 
 ## The settings
 

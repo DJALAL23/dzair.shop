@@ -17,7 +17,6 @@
 import { describe, it, expect } from "vitest";
 import {
   TOOL_ANNOTATIONS,
-  READ_ONLY_OVERRIDES,
   OPEN_WORLD_TOOLS,
   IDEMPOTENT_WRITE_TOOLS,
 } from "./annotations";
@@ -65,12 +64,11 @@ describe("TOOL_ANNOTATIONS", () => {
     }
   });
 
-  it("readOnlyHint claims come only from read-scoped tools or the explicit allowlist", () => {
+  it("readOnlyHint claims come only from read-scoped tools", () => {
     const reads = readScopeToolNames();
     for (const name of TOOL_NAMES) {
       if (TOOL_ANNOTATIONS[name]?.readOnlyHint === true) {
-        const justified = reads.has(name) || READ_ONLY_OVERRIDES.has(name);
-        expect(justified, `${name} claims readOnly without justification`).toBe(true);
+        expect(reads.has(name), `${name} claims readOnly without justification`).toBe(true);
       }
     }
   });
@@ -94,7 +92,6 @@ describe("TOOL_ANNOTATIONS", () => {
 
   it("read tools are idempotent; writes are not unless documented as such", () => {
     expect(TOOL_ANNOTATIONS["listCustomers"]?.idempotentHint).toBe(true);
-    expect(TOOL_ANNOTATIONS["getLandingPageImageUploadStatus"]?.idempotentHint).toBe(true);
     expect(TOOL_ANNOTATIONS["createOrder"]?.idempotentHint).toBe(false);
     expect(TOOL_ANNOTATIONS["deleteLandingPage"]?.idempotentHint).toBe(false);
 
@@ -109,11 +106,6 @@ describe("TOOL_ANNOTATIONS", () => {
     for (const name of ["listEventConsumers", "listEventDeliveries"]) {
       expect(TOOL_ANNOTATIONS[name], name).toMatchObject({ readOnlyHint: true, destructiveHint: false, idempotentHint: true });
     }
-  });
-
-  it("the manage-gated status poll is overridden to read-only", () => {
-    expect(TOOL_ANNOTATIONS["getLandingPageImageUploadStatus"]?.readOnlyHint).toBe(true);
-    expect(TOOL_ANNOTATIONS["getLandingPageImageUploadStatus"]?.destructiveHint).toBe(false);
   });
 });
 

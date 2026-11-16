@@ -50,7 +50,7 @@ export function migrationStatements(files: readonly string[]): string[] {
 export interface TestD1 {
   db: AppDb;
   raw: D1Database;
-  /** The worker's `MEDIA_BUCKET`: its staging, and its media (`MEDIA_HOST` is `r2`). */
+  /** The worker's `MEDIA_BUCKET`: its media, when `MEDIA_HOST` is `r2`. */
   bucket: R2Bucket;
   /**
    * A request to the worker given as `worker` (see `bundleWorker`), served by

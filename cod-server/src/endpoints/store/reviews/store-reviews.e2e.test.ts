@@ -1,40 +1,46 @@
 /**
  * A shopper's review through the real /store/reviews routes, on real D1 and
- * the store's real (local) bucket: find the order, send files, submit, and
- * see it listed.
+ * the store's own media host — its real (local) bucket, or ImageKit with no
+ * bucket at all: find the order, send files, submit, and see it listed.
  *
  * Proved: the purchase is proven by number and phone, and only for a
- * delivered order; uploads need the grant, are typed by their bytes and
- * bounded by the store's choices; a submission is answered at once and hands
- * its files to the media job, or lands without them when the job cannot
- * start; text publishes or waits as the merchant chose; one review per
- * product of an order, even when two submissions race; attempts are limited
- * per order; the list shows only approved reviews and nothing internal; a
- * store that turned reviews off takes and shows none.
+ * delivered order; uploads need the grant, are typed by their bytes, bounded
+ * by the store's choices, prepared as they arrive (a photo becomes WebP and a
+ * thumbnail, a voice note is measured) and kept on the store's host, nowhere
+ * else; a submission records the review with its files in one write and it
+ * lands at once, published or waiting as the merchant chose; a file is one
+ * review's only; one review per product of an order, even when two
+ * submissions race; attempts are limited per order; the list shows only
+ * approved reviews and nothing internal; a store that turned reviews off
+ * takes and shows none.
  */
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from "vitest";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import type { AppContext } from "@/types";
 import { errorHandler } from "@/middleware/error";
 import { openApiValidationHook } from "@/openapi/validation-hook";
 import { createTestD1, type TestD1 } from "@/test-utils/d1";
-import { TEST_DELIVERY, TEST_MEDIA_VARS } from "@/test-utils/media";
+import { TEST_DELIVERY, TEST_IMAGEKIT, TEST_IMAGEKIT_VARS, TEST_MEDIA_VARS, routeImageKit } from "@/test-utils/media";
+import { fakeImages, mediaFixture, type FakeImages } from "@/test-utils/images";
+import { fakeImageKit, type FakeImageKit } from "../../../../../cod-shared/media/hosts/testing/fake-imagekit";
 import * as schema from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { readUploadGrant } from "@/lib/review-media/grant";
-import type { ReviewMediaJob } from "@/lib/review-media/job";
+import { audioDurationMs } from "@/lib/review-media/audio-duration";
 import reviewsRouter from "./routes";
 
 const T = "2026-10-16T10:00:00.000Z";
 const SECRET = "review-grant-test-secret-of-32-bytes-at-least";
-const JPEG = Uint8Array.from([0xff, 0xd8, 0xff, 0xe0, ...new Array(200).fill(7)]);
-const WEBM = Uint8Array.from([0x1a, 0x45, 0xdf, 0xa3, ...new Array(300).fill(1)]);
+const JPEG = mediaFixture("photo.jpg");
+const WEBM = mediaFixture("voice.webm");
+const LONG_OGG = mediaFixture("voice-40s.ogg");
 
 let d1: TestD1;
 let bucket: R2Bucket;
 let app: OpenAPIHono<AppContext>;
-let jobs: Array<{ id: string; params: ReviewMediaJob }>;
-let workflowDown: boolean;
+let images: FakeImages;
+let imagesOn: boolean;
+let host: "r2" | "imagekit";
 let limiterKeys: string[];
 let limitReached: boolean;
 let mediaOn: boolean;
@@ -46,19 +52,10 @@ beforeAll(async () => {
   app.use("*", async (c, next) => {
     c.env = {
       DB: d1.raw,
-      MEDIA_BUCKET: bucket,
-      ...TEST_MEDIA_VARS,
+      ...(host === "r2" ? { ...TEST_MEDIA_VARS, MEDIA_BUCKET: bucket } : TEST_IMAGEKIT_VARS),
+      IMAGE_TRANSFORM: imagesOn ? images.binding : undefined,
       ENVIRONMENT: "production",
       REVIEW_UPLOAD_SECRET: mediaOn ? SECRET : undefined,
-      REVIEW_MEDIA_WORKFLOW: mediaOn
-        ? {
-            create: async (options: { id: string; params: ReviewMediaJob }) => {
-              if (workflowDown) throw new Error("Workflows unavailable");
-              jobs.push(options);
-              return {} as never;
-            },
-          }
-        : undefined,
       REVIEW_RATE_LIMITER: {
         limit: async ({ key }: { key: string }) => {
           limiterKeys.push(key);
@@ -78,13 +75,14 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
-  jobs = [];
-  workflowDown = false;
+  images = fakeImages();
+  imagesOn = true;
+  host = "r2";
   limiterKeys = [];
   limitReached = false;
   mediaOn = true;
   const db = d1.db;
-  for (const table of [schema.reviewMedia, schema.reviews, schema.shipments, schema.orderProducts, schema.orders, schema.products, schema.customers, schema.deliveryCompanies, schema.stores]) {
+  for (const table of [schema.reviewMedia, schema.reviews, schema.media, schema.shipments, schema.orderProducts, schema.orders, schema.products, schema.customers, schema.deliveryCompanies, schema.stores]) {
     await db.delete(table);
   }
   const listed = await bucket.list();
@@ -116,13 +114,26 @@ beforeEach(async () => {
   ] as never);
 });
 
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
 const json = (method: string, path: string, body: unknown) =>
   app.request(`/store/reviews${path}`, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-const upload = (grant: string | undefined, bytes: Uint8Array) =>
-  app.request("/store/reviews/uploads", { method: "PUT", headers: { "Content-Type": "application/octet-stream", ...(grant ? { "X-Review-Grant": grant } : {}) }, body: bytes });
+const upload = (grant: string | undefined, bytes: Uint8Array, headers: Record<string, string> = {}) =>
+  app.request("/store/reviews/uploads", { method: "PUT", headers: { "Content-Type": "application/octet-stream", ...(grant ? { "X-Review-Grant": grant } : {}), ...headers }, body: bytes });
 const body = async <T = any>(res: Response) => (await res.json()) as T;
 const open = async (phone = "0551 23 45 67", orderNumber = "ORD-20261016-1111") => json("POST", "/eligibility", { orderNumber, phone });
 const review = { orderNumber: "ORD-20261016-1111", phone: "0551234567", productId: "p1", rating: 5, body: "Très belle robe, bien reçue" };
+const bucketKeys = async () => (await bucket.list()).objects.map((o) => o.key).sort();
+const kept = async () => (await d1.db.select({ key: schema.media.key, host: schema.media.host, contentType: schema.media.contentType, durationMs: schema.media.durationMs, status: schema.media.status }).from(schema.media).orderBy(asc(schema.media.key)).all());
+const reviewFiles = (reviewId: string) => d1.db.select().from(schema.reviewMedia).where(eq(schema.reviewMedia.reviewId, reviewId)).orderBy(asc(schema.reviewMedia.position)).all();
+const onImageKit = (): FakeImageKit => {
+  host = "imagekit";
+  const fake = fakeImageKit(TEST_IMAGEKIT);
+  routeImageKit(fake, vi.stubGlobal);
+  return fake;
+};
 
 describe("finding the order to review", () => {
   it("proves the purchase and says what can be reviewed and attached", async () => {
@@ -190,15 +201,57 @@ describe("finding the order to review", () => {
 describe("sending files", () => {
   const grant = async () => (await body(await open())).data.media.grant as string;
 
-  it("keeps a photo and a voice note under the grant, typed by their bytes", async () => {
+  it("prepares a photo into WebP and its thumbnail, measures a voice note, and keeps them in the store's bucket under the grant", async () => {
     const g = await grant();
+    const folder = (await readUploadGrant(SECRET, g))!.id;
     const photo = await upload(g, JPEG);
     expect(photo.status).toBe(201);
-    expect((await body(photo)).data).toMatchObject({ kind: "image", bytes: JPEG.byteLength });
-    const voice = await upload(g, WEBM);
-    expect((await body(voice)).data).toMatchObject({ kind: "audio" });
-    const stored = await bucket.list({ prefix: "staging/reviews/", include: ["customMetadata", "httpMetadata"] });
-    expect(stored.objects.map((o) => [o.customMetadata?.kind, o.httpMetadata?.contentType]).sort()).toEqual([["audio", "audio/webm"], ["image", "image/jpeg"]]);
+    const photoId = (await body(photo)).data.uploadId;
+    expect((await body(await upload(g, JPEG))).data).toMatchObject({ kind: "image", bytes: JPEG.byteLength });
+    const voice = (await body(await upload(g, WEBM))).data;
+    expect(voice).toMatchObject({ kind: "audio", bytes: WEBM.byteLength });
+
+    expect(images.calls).toEqual([
+      { width: 1600, height: 1600, fit: "scale-down" }, { width: 480, height: 480, fit: "scale-down" },
+      { width: 1600, height: 1600, fit: "scale-down" }, { width: 480, height: 480, fit: "scale-down" },
+    ]);
+    const rows = await kept();
+    expect(rows.filter((row) => row.key.startsWith(`reviews/${folder}/${photoId}`))).toEqual([
+      { key: `reviews/${folder}/${photoId}-t.webp`, host: "r2", contentType: "image/webp", durationMs: null, status: "ready" },
+      { key: `reviews/${folder}/${photoId}.webp`, host: "r2", contentType: "image/webp", durationMs: null, status: "ready" },
+    ]);
+    const voiceRow = rows.find((row) => row.key === `reviews/${folder}/${voice.uploadId}.webm`)!;
+    expect(voiceRow).toMatchObject({ host: "r2", contentType: "audio/webm", status: "ready" });
+    expect(Math.abs(voiceRow.durationMs! - 3208)).toBeLessThanOrEqual(60);
+    expect(await bucketKeys()).toEqual(rows.map((row) => row.key).sort());
+    expect((await bucketKeys()).some((key) => key.startsWith("staging/"))).toBe(false);
+  });
+
+  it("on an ImageKit store, keeps everything in ImageKit: no bucket is bound, none is touched", async () => {
+    const imagekit = onImageKit();
+    const g = await grant();
+    const folder = (await readUploadGrant(SECRET, g))!.id;
+    const photoId = (await body(await upload(g, JPEG))).data.uploadId;
+    const voiceId = (await body(await upload(g, WEBM))).data.uploadId;
+    expect([...imagekit.files.keys()].sort()).toEqual([
+      `/stores/maysa/reviews/${folder}/${photoId}-t.webp`,
+      `/stores/maysa/reviews/${folder}/${photoId}.webp`,
+      `/stores/maysa/reviews/${folder}/${voiceId}.webm`,
+    ].sort());
+    expect((await kept()).every((row) => row.host === "imagekit" && row.status === "ready")).toBe(true);
+    expect(await bucketKeys()).toEqual([]);
+
+    const { data } = await body(await json("POST", "", { ...review, grant: g, uploads: [photoId, voiceId] }));
+    const files = await reviewFiles(data.id);
+    expect(files.map((file) => [file.kind, file.mediaKey, file.thumbKey])).toEqual([
+      ["image", `reviews/${folder}/${photoId}.webp`, `reviews/${folder}/${photoId}-t.webp`],
+      ["audio", `reviews/${folder}/${voiceId}.webm`, null],
+    ]);
+    const listed = await body(await app.request("/store/reviews?productId=p1"));
+    expect(listed.data).toEqual([]);
+    await d1.db.update(schema.reviews).set({ status: "approved" });
+    const shown = (await body(await app.request("/store/reviews?productId=p1"))).data[0];
+    expect(shown.media[0]).toMatchObject({ url: `${TEST_IMAGEKIT_VARS.MEDIA_ORIGIN}/reviews/${folder}/${photoId}.webp`, thumbUrl: `${TEST_IMAGEKIT_VARS.MEDIA_ORIGIN}/reviews/${folder}/${photoId}-t.webp` });
   });
 
   it("refuses without a valid grant", async () => {
@@ -210,17 +263,18 @@ describe("sending files", () => {
     const res = await upload(await grant(), new TextEncoder().encode("<svg onload=alert(1)></svg>"));
     expect(res.status).toBe(400);
     expect(await body(res)).toMatchObject({ code: "INVALID_FILE_TYPE" });
-    expect((await bucket.list()).objects).toHaveLength(0);
+    expect(await bucketKeys()).toEqual([]);
+    expect(await kept()).toEqual([]);
   });
 
-  it("refuses a file larger than the store allows, without storing it", async () => {
+  it("refuses a file larger than the store allows, without keeping it", async () => {
     const tooLong = new Uint8Array(30 * 24 * 1024 + 64 * 1024 + 1);
     tooLong.set([0x1a, 0x45, 0xdf, 0xa3]);
     await d1.db.update(schema.stores).set({ reviewMaxPhotos: 0 });
     const res = await upload(await grant(), tooLong);
     expect(res.status).toBe(400);
     expect(await body(res)).toMatchObject({ code: "FILE_TOO_LARGE" });
-    expect((await bucket.list()).objects).toHaveLength(0);
+    expect(await bucketKeys()).toEqual([]);
   });
 
   it("stops reading a streamed file that grows past the limit, even with no length announced", async () => {
@@ -239,7 +293,49 @@ describe("sending files", () => {
     expect(res.status).toBe(400);
     expect(await body(res)).toMatchObject({ code: "FILE_TOO_LARGE" });
     expect(sent).toBeLessThan(12 * 1024 * 1024);
-    expect((await bucket.list()).objects).toHaveLength(0);
+    expect(await bucketKeys()).toEqual([]);
+  });
+
+  it("refuses a voice note longer than the store allows, keeping nothing", async () => {
+    const res = await upload(await grant(), LONG_OGG);
+    expect(res.status).toBe(400);
+    expect(await body(res)).toMatchObject({ code: "FILE_TOO_LARGE", context: { maxSeconds: 30 } });
+    expect(await kept()).toEqual([]);
+  });
+
+  it("keeps the recorder's length only when the file does not say it, and never above the limit", async () => {
+    const g = await grant();
+    const fragmented = mediaFixture("voice-fragmented.m4a");
+    await upload(g, fragmented, { "X-Media-Duration-Ms": "90000" });
+    const [row] = (await kept()).filter((r) => r.contentType === "audio/mp4");
+    expect(row!.durationMs).toBe(audioDurationMs(fragmented, "audio/mp4") ?? 30_000);
+    await upload(g, WEBM, { "X-Media-Duration-Ms": "90000" });
+    const [webm] = (await kept()).filter((r) => r.contentType === "audio/webm");
+    expect(Math.abs(webm!.durationMs! - 3208)).toBeLessThanOrEqual(60);
+  });
+
+  it("refuses a photo nothing can read, and keeps nothing of it", async () => {
+    images.failures.push("bad");
+    const res = await upload(await grant(), JPEG);
+    expect(res.status).toBe(400);
+    expect(await body(res)).toMatchObject({ code: "INVALID_FILE_TYPE" });
+    expect(await kept()).toEqual([]);
+  });
+
+  it("answers a passing failure of the image service as one, so the browser sends the photo again", async () => {
+    const g = await grant();
+    images.failures.push("transient");
+    expect((await upload(g, JPEG)).status).toBe(500);
+    expect(await kept()).toEqual([]);
+    expect((await upload(g, JPEG)).status).toBe(201);
+  });
+
+  it("offers no photos, and takes none, without the image service: a photo is never kept unconverted", async () => {
+    imagesOn = false;
+    const opened = (await body(await open())).data;
+    expect(opened.media).toMatchObject({ maxPhotos: 0, voiceMaxSeconds: 30 });
+    expect(await body(await upload(opened.media.grant, JPEG))).toMatchObject({ code: "REVIEW_MEDIA_LIMIT", context: { kind: "image", max: 0 } });
+    expect((await upload(opened.media.grant, WEBM)).status).toBe(201);
   });
 
   it("refuses a kind the store does not take", async () => {
@@ -248,10 +344,22 @@ describe("sending files", () => {
     expect(await body(res)).toMatchObject({ code: "REVIEW_MEDIA_LIMIT", context: { kind: "audio", max: 0 } });
   });
 
-  it("bounds how many files one grant takes", async () => {
+  it("bounds how many files one grant holds before a review shows them", async () => {
     const g = await grant();
-    for (let i = 0; i < 4; i++) expect((await upload(g, JPEG)).status).toBe(201);
+    const ids: string[] = [];
+    for (let i = 0; i < 4; i++) {
+      const res = await upload(g, JPEG);
+      expect(res.status).toBe(201);
+      ids.push((await body(res)).data.uploadId);
+    }
     expect(await body(await upload(g, JPEG))).toMatchObject({ code: "REVIEW_MEDIA_LIMIT" });
+    const folder = (await readUploadGrant(SECRET, g))!.id;
+    await d1.db.update(schema.media).set({ status: "pending" }).where(eq(schema.media.key, `reviews/${folder}/${ids[3]}.webp`));
+    const retried = await upload(g, JPEG);
+    expect(retried.status, "a file whose keep never finished does not count").toBe(201);
+    expect(await body(await upload(g, JPEG))).toMatchObject({ code: "REVIEW_MEDIA_LIMIT" });
+    expect((await json("POST", "", { ...review, grant: g, uploads: ids.slice(0, 2) })).status).toBe(201);
+    expect((await upload(g, JPEG)).status).toBe(201);
     const another = await grant();
     expect(another).not.toBe(g);
     expect((await upload(another, JPEG)).status).toBe(201);
@@ -268,7 +376,6 @@ describe("submitting", () => {
       productId: "p1", orderId: "oD", customerId: "c1", orderNumber: "ORD-20261016-1111", customerName: "Karim",
       rating: 5, title: "Parfait", status: "approved", source: "storefront", verified: true, mediaDropped: 0,
     });
-    expect(jobs).toEqual([]);
   });
 
   it("keeps a text review waiting when the store checks everything", async () => {
@@ -276,29 +383,33 @@ describe("submitting", () => {
     expect((await body(await json("POST", "", review))).data.visibility).toBe("after_review");
   });
 
-  it("answers at once with files, and hands them to the media job", async () => {
+  it("records the review with its files in one write, and it lands at once where the store chose", async () => {
     const opened = (await body(await open())).data;
+    const folder = (await readUploadGrant(SECRET, opened.media.grant))!.id;
     const photo = (await body(await upload(opened.media.grant, JPEG))).data.uploadId;
     const voice = (await body(await upload(opened.media.grant, WEBM))).data.uploadId;
-    const res = await json("POST", "", { ...review, grant: opened.media.grant, uploads: [photo, voice] });
+    const res = await json("POST", "", { ...review, grant: opened.media.grant, uploads: [voice, photo] });
     expect(res.status).toBe(201);
     const { data } = await body(res);
     expect(data.visibility).toBe("after_review");
 
-    expect((await d1.db.select().from(schema.reviews).where(eq(schema.reviews.id, data.id)).get())?.status).toBe("processing");
-    expect(jobs).toHaveLength(1);
-    expect(jobs[0].id).toBe(`review-${data.id}`);
-    expect(jobs[0].params).toMatchObject({ reviewId: data.id, voiceMaxSeconds: 30, statusWithMedia: "pending", statusWithoutMedia: "approved" });
-    expect(jobs[0].params.uploads.map((u) => [u.kind, u.contentType, u.bytes])).toEqual([["image", "image/jpeg", JPEG.byteLength], ["audio", "audio/webm", WEBM.byteLength]]);
+    expect(await d1.db.select().from(schema.reviews).where(eq(schema.reviews.id, data.id)).get()).toMatchObject({ status: "pending", mediaDropped: 0 });
+    const files = await reviewFiles(data.id);
+    expect(files.map((file) => ({ id: file.id, kind: file.kind, mediaKey: file.mediaKey, thumbKey: file.thumbKey, contentType: file.contentType, position: file.position }))).toEqual([
+      { id: voice, kind: "audio", mediaKey: `reviews/${folder}/${voice}.webm`, thumbKey: null, contentType: "audio/webm", position: 0 },
+      { id: photo, kind: "image", mediaKey: `reviews/${folder}/${photo}.webp`, thumbKey: `reviews/${folder}/${photo}-t.webp`, contentType: "image/webp", position: 1 },
+    ]);
+    expect(Math.abs(files[0]!.durationMs! - 3208)).toBeLessThanOrEqual(60);
+    expect(files[1]).toMatchObject({ width: expect.any(Number), height: expect.any(Number) });
   });
 
-  it("keeps the review without its files when the media job cannot start", async () => {
+  it("publishes a review with files at once when the store publishes everything", async () => {
+    await d1.db.update(schema.stores).set({ reviewAutoPublish: "all" });
     const opened = (await body(await open())).data;
     const photo = (await body(await upload(opened.media.grant, JPEG))).data.uploadId;
-    workflowDown = true;
     const { data } = await body(await json("POST", "", { ...review, grant: opened.media.grant, uploads: [photo] }));
     expect(data.visibility).toBe("published");
-    expect(await d1.db.select().from(schema.reviews).where(eq(schema.reviews.id, data.id)).get()).toMatchObject({ status: "approved", mediaDropped: 1 });
+    expect((await d1.db.select().from(schema.reviews).where(eq(schema.reviews.id, data.id)).get())?.status).toBe("approved");
   });
 
   it("refuses files of another order's grant, files never sent, and more than the store allows", async () => {
@@ -306,13 +417,40 @@ describe("submitting", () => {
     const photos = [];
     for (let i = 0; i < 3; i++) photos.push((await body(await upload(opened.media.grant, JPEG))).data.uploadId);
     expect(await body(await json("POST", "", { ...review, grant: opened.media.grant, uploads: photos }))).toMatchObject({ code: "REVIEW_MEDIA_LIMIT", context: { kind: "image", max: 2 } });
-    expect(await body(await json("POST", "", { ...review, grant: opened.media.grant, uploads: ["f".repeat(32)] }))).toMatchObject({ code: "REVIEW_UPLOAD_NOT_FOUND" });
+    expect(await body(await json("POST", "", { ...review, grant: opened.media.grant, uploads: ["f".repeat(32)] }))).toMatchObject({ code: "REVIEW_UPLOAD_NOT_FOUND", context: { uploadId: "f".repeat(32) } });
     expect(await body(await json("POST", "", { ...review, uploads: [photos[0]] }))).toMatchObject({ code: "REVIEW_UPLOAD_GRANT_INVALID" });
 
     await d1.db.update(schema.shipments).set({ deliveredAt: T }).where(eq(schema.shipments.id, "shT"));
     const other = (await body(await open("0551234567", "ORD-20261016-2222"))).data;
     expect(await body(await json("POST", "", { ...review, grant: other.media.grant, uploads: [photos[0]] }))).toMatchObject({ code: "REVIEW_UPLOAD_GRANT_INVALID" });
     expect(await d1.db.select().from(schema.reviews).all()).toEqual([]);
+  });
+
+  it("gives a file to one review only: another review of the order cannot take it", async () => {
+    const opened = (await body(await open())).data;
+    const photo = (await body(await upload(opened.media.grant, JPEG))).data.uploadId;
+    expect((await json("POST", "", { ...review, grant: opened.media.grant, uploads: [photo] })).status).toBe(201);
+    expect(await body(await json("POST", "", { ...review, productId: "p2", grant: opened.media.grant, uploads: [photo] }))).toMatchObject({ code: "REVIEW_UPLOAD_NOT_FOUND", context: { uploadId: photo } });
+    expect(await d1.db.select().from(schema.reviews).all()).toHaveLength(1);
+  });
+
+  it("refuses a photo kept without its thumbnail, or a file that never became ready", async () => {
+    const opened = (await body(await open())).data;
+    const folder = (await readUploadGrant(SECRET, opened.media.grant))!.id;
+    const photo = (await body(await upload(opened.media.grant, JPEG))).data.uploadId;
+    const voice = (await body(await upload(opened.media.grant, WEBM))).data.uploadId;
+    await d1.db.delete(schema.media).where(eq(schema.media.key, `reviews/${folder}/${photo}-t.webp`));
+    await d1.db.update(schema.media).set({ status: "pending" }).where(eq(schema.media.key, `reviews/${folder}/${voice}.webm`));
+    expect(await body(await json("POST", "", { ...review, grant: opened.media.grant, uploads: [photo] }))).toMatchObject({ code: "REVIEW_UPLOAD_NOT_FOUND", context: { uploadId: photo } });
+    expect(await body(await json("POST", "", { ...review, grant: opened.media.grant, uploads: [voice] }))).toMatchObject({ code: "REVIEW_UPLOAD_NOT_FOUND", context: { uploadId: voice } });
+    expect(await d1.db.select().from(schema.reviews).all()).toEqual([]);
+  });
+
+  it("refuses a file kept on another host than the store's now", async () => {
+    const opened = (await body(await open())).data;
+    const photo = (await body(await upload(opened.media.grant, JPEG))).data.uploadId;
+    onImageKit();
+    expect(await body(await json("POST", "", { ...review, grant: opened.media.grant, uploads: [photo] }))).toMatchObject({ code: "REVIEW_UPLOAD_NOT_FOUND" });
   });
 
   it("one review per product of an order, even when two race", async () => {

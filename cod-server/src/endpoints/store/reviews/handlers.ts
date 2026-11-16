@@ -1,12 +1,11 @@
 import type { Context } from "hono";
 import type { AppContext } from "@/types";
 import { getDb } from "@/db";
-import { mediaDeliveryOf } from "@/lib/media";
+import { configuredMedia, mediaDeliveryOf } from "@/lib/media";
 import { mediaUrl } from "../../../../../cod-shared/media/delivery";
 import { openReview, receiveUpload, submitReview, type IntakeDeps } from "@/lib/reviews/intake";
 import { getReviewPolicy, listApprovedReviews } from "../../../../../cod-shared/queries/store-reviews";
 import type { ReviewSubmissionInput } from "./validation";
-import { staging } from "@/lib/staging";
 
 type Valid<T> = { valid: (target: "json" | "query") => T };
 
@@ -14,9 +13,9 @@ function deps(c: Context<AppContext>): IntakeDeps {
   return {
     db: getDb(c.env.DB),
     storeId: c.get("storeId")!,
-    staging: staging(c.env.MEDIA_BUCKET),
     delivery: mediaDeliveryOf(c.env),
-    workflow: c.env.REVIEW_MEDIA_WORKFLOW,
+    media: configuredMedia(c.env),
+    images: c.env.IMAGE_TRANSFORM,
     uploadSecret: (c.env.REVIEW_UPLOAD_SECRET?.length ?? 0) >= 32 ? c.env.REVIEW_UPLOAD_SECRET : undefined,
     limiter: c.env.REVIEW_RATE_LIMITER,
   };

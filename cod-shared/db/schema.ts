@@ -1730,6 +1730,8 @@ export const media = sqliteTable("media", {
   status: text("status", { enum: MEDIA_STATUSES }).notNull(),
   createdAt: text("created_at").notNull(),
   readyAt: text("ready_at"),
+  /** A voice note's length (migration 0091); null for an image. */
+  durationMs: integer("duration_ms"),
 }, (t) => ({
   statusIdx: index("idx_media_status_created").on(t.status, t.createdAt),
 }));

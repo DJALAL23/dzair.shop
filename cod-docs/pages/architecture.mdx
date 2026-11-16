@@ -16,7 +16,7 @@ Storefront (Astro) ──/store/*──▶ API server (Hono) ◀──/api/*─�
 
 | Application | Folder | What it does | Runs on |
 | --- | --- | --- | --- |
-| API server | `cod-server` | Every rule: orders, prices, delivery, carriers, events. The merchant API (`/api/*`), the storefront API (`/store/*`), carrier callbacks (`/webhooks/*`), media (`/media/*`) and the MCP server (`/mcp`) | Cloudflare Workers, D1, R2, KV, Queues, Workflows |
+| API server | `cod-server` | Every rule: orders, prices, delivery, carriers, events. The merchant API (`/api/*`), the storefront API (`/store/*`), carrier callbacks (`/webhooks/*`), media (`/media/*`) and the MCP server (`/mcp`) | Cloudflare Workers, D1, KV, Queues, and R2 for a store that keeps its media there |
 | Dashboard | `cod-client-astro` | The merchant's back office. Its pages are static; a small Worker handles sign-in | Cloudflare Workers |
 | Storefront | `cod-astro/theme-00` | The shop shoppers see, rendered per request | Cloudflare Workers or Vercel |
 
@@ -83,8 +83,8 @@ left. A failed delivery is retried and can be replayed from the dashboard.
 | Every five minutes | Delivers events, processes the carriers' webhook inbox, checks the carriers that send no webhooks |
 | Every hour | Marks checkouts left unfinished for more than 30 minutes as abandoned |
 
-Photos uploaded with a review or by an AI agent are prepared in the
-background (Cloudflare Workflows), after the answer.
+Photos uploaded with a review or by an AI agent are prepared as they arrive,
+in the request that brings them, and kept on the store's media host.
 
 ## Data
 

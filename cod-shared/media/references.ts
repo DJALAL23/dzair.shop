@@ -1,6 +1,6 @@
 /**
  * Every place stored data can show a file, in one place: a missed one means
- * a shown file gets deleted, by a release or the sweep. Columns hold Media
+ * a shown file gets deleted by a release. Columns hold Media
  * Keys; rich text holds `media:<key>`; JSON holds keys too — an `image`
  * field's `{ key }` in a page document or a theme setting, live, in a draft
  * not yet published, or in a publication kept as a restore point (ADR 0010),

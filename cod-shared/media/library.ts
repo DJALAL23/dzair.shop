@@ -42,15 +42,6 @@ export interface UploadTicket {
   send: UploadSend;
 }
 
-export interface SweepReport {
-  dryRun: boolean;
-  /** Rows old enough to be considered. */
-  scanned: number;
-  /** Those nothing shows. */
-  orphans: Array<{ key: string; status: StoredMedia["status"]; bytes: number | null; createdAt: string }>;
-  deleted: number;
-}
-
 export interface MediaLibraryConfig {
   db: StoreDb;
   host: MediaHost;
@@ -62,7 +53,6 @@ export interface MediaLibraryConfig {
 
 /** D1 binds at most 100 parameters a statement. */
 const PARAMS_PER_STATEMENT = 90;
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 const chunks = <T>(items: readonly T[], size: number): T[][] => {
   const out: T[][] = [];
@@ -119,6 +109,9 @@ export function mediaLibrary(config: MediaLibraryConfig) {
   const image = (row: StoredMedia): MediaImage => mediaImage(row, delivery);
 
   return {
+    /** The host that keeps this store's files. */
+    hostKind: host.kind,
+
     /** The URL of a stored key. */
     url: (key: string) => mediaUrl(key, delivery),
 
@@ -165,6 +158,7 @@ export function mediaLibrary(config: MediaLibraryConfig) {
         status: "pending",
         createdAt: createdAt.toISOString(),
         readyAt: null,
+        durationMs: null,
       });
       return { mediaId: id, key, expiresAt: expiresAt.toISOString(), send };
     },
@@ -209,7 +203,7 @@ export function mediaLibrary(config: MediaLibraryConfig) {
      * picture) or under a fresh key in `folder`. A key already ready is kept
      * as it is — a key never holds other bytes — so a retried write is safe.
      */
-    async store(file: { key?: string; folder?: UploadFolder; contentType: string; body: Uint8Array<ArrayBuffer>; width?: number | null; height?: number | null }): Promise<StoredMedia> {
+    async store(file: { key?: string; folder?: UploadFolder; contentType: string; body: Uint8Array<ArrayBuffer>; width?: number | null; height?: number | null; durationMs?: number | null }): Promise<StoredMedia> {
       if (!isMediaType(file.contentType)) throw new MediaError("type_refused", "Not a type the store keeps", { contentType: file.contentType });
       if (sniffMedia(file.body.subarray(0, 16))?.contentType !== file.contentType) throw new MediaError("type_refused", "The bytes are not the type given", { contentType: file.contentType });
       let key: string;
@@ -238,6 +232,7 @@ export function mediaLibrary(config: MediaLibraryConfig) {
             status: "pending",
             createdAt: now().toISOString(),
             readyAt: null,
+            durationMs: file.durationMs ?? null,
           })
           .onConflictDoNothing({ target: media.key });
       }
@@ -258,40 +253,6 @@ export function mediaLibrary(config: MediaLibraryConfig) {
       await forget(gone);
       const released = new Set(gone.map((row) => row.key));
       return { released: [...released], kept: keys.filter((key) => !released.has(key)) };
-    },
-
-    /**
-     * Forget what was never finished or is no longer shown: pending rows older
-     * than a day, ready rows older than `readyOlderThanDays` that nothing
-     * shows. A dry run (the default) only reports.
-     */
-    async sweep(options: { dryRun?: boolean; readyOlderThanDays?: number; limit?: number } = {}): Promise<SweepReport> {
-      const { dryRun = true, readyOlderThanDays = 30, limit = 500 } = options;
-      const at = now().getTime();
-      const candidates = await db
-        .select()
-        .from(media)
-        .where(
-          and(
-            eq(media.host, host.kind),
-            or(
-              and(eq(media.status, "pending"), lt(media.createdAt, new Date(at - DAY_MS).toISOString())),
-              and(eq(media.status, "ready"), lt(media.createdAt, new Date(at - readyOlderThanDays * DAY_MS).toISOString())),
-            ),
-          ),
-        )
-        .orderBy(media.createdAt)
-        .limit(limit)
-        .all();
-      const shown = await shownKeys(db, candidates.map((row) => row.key));
-      const orphans = candidates.filter((row) => !shown.has(row.key));
-      if (!dryRun) await forget(orphans);
-      return {
-        dryRun,
-        scanned: candidates.length,
-        orphans: orphans.map((row) => ({ key: row.key, status: row.status, bytes: row.bytes, createdAt: row.createdAt })),
-        deleted: dryRun ? 0 : orphans.length,
-      };
     },
 
     /** The store's ready images in `folder`, newest first; `after` continues from the last page's `next`. */

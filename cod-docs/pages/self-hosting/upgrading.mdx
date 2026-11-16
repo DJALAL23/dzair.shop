@@ -53,6 +53,26 @@ after the server, from the same checkout.
 Newest first. Only the entries for migrations your database has not applied
 concern you.
 
+### 0091: no Staging; a store on ImageKit needs no R2
+
+- Files are prepared as they arrive and kept on the store's media host: no
+  upload waits in the bucket any more, and a review lands with its files in
+  one write.
+- **Delete both `[[workflows]]` entries `LP_IMAGE_UPLOAD_WORKFLOW` and
+  `REVIEW_MEDIA_WORKFLOW`** (top level and `[env.production]`) from
+  `cod-server/wrangler.toml` before you deploy, or the deploy fails on classes
+  the server no longer has. Then delete the two Workflows from the account
+  (`npx wrangler workflows delete <name>`).
+- A store with `MEDIA_HOST = "imagekit"` can drop its `[[r2_buckets]]` block;
+  its bucket holds nothing the server reads. Delete the bucket when you no
+  longer want its old files.
+- The `uploadLandingPageImage` AI-agent tool adds the image during the call
+  and answers with it; `getLandingPageImageUploadStatus` is gone.
+- `POST /api/reviews` answers `status` `pending` or `approved` with the
+  review, never `processing`. A review left `processing` is settled into the
+  merchant's queue as pending.
+- `npm run r2:lifecycle` is gone.
+
 ### Storefront contract 4 (no migration)
 
 - `/store/config` and a landing page's `tracking` no longer send
@@ -245,9 +265,9 @@ concern you.
 
 ### 0043: review photos and voice notes
 
-- Set `REVIEW_UPLOAD_SECRET`, and add the `REVIEW_MEDIA_WORKFLOW` and
-  `REVIEW_RATE_LIMITER` bindings. Without them, reviews are text only.
-- Run `npm run r2:lifecycle` once.
+- Set `REVIEW_UPLOAD_SECRET`, and add the `REVIEW_RATE_LIMITER` binding.
+  Without the secret, reviews are text only. (The Workflow and the bucket
+  rule this entry once asked for were removed by 0091.)
 
 ### 0042: deleting products and orders
 

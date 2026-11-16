@@ -70,7 +70,7 @@ export function AddReviewDialog({ onClose, onCreated }: { onClose: () => void; o
         uploads: files.uploadIds,
         publish,
       });
-      notify.success(t(created.status === "processing" ? "add.done_processing" : publish ? "add.done_published" : "add.done_pending"));
+      notify.success(t(created.status === "approved" ? "add.done_published" : "add.done_pending"));
       onCreated();
       onClose();
     } catch (cause) {

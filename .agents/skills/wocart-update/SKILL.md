@@ -178,7 +178,14 @@ diff .env.example .env
 - **Adopt** a new `compatibility_date` or `compatibility_flags`: the new code
   expects them.
 - **A key the template removed:** leave it, mention it, remove it only when
-  the developer agrees.
+  the developer agrees. Except a `[[workflows]]` block whose class the server
+  no longer has (`LP_IMAGE_UPLOAD_WORKFLOW`, `REVIEW_MEDIA_WORKFLOW`,
+  `CAPI_WORKFLOW`): the deploy fails while it is there. Tell the developer,
+  remove it at the top and in `[env.production]`, and after the deploy
+  delete the Workflow: `npx wrangler workflows delete <its name>`.
+- **A store on ImageKit** (`MEDIA_HOST = "imagekit"`) may drop its
+  `[[env.production.r2_buckets]]` block: since 0091 nothing waits in the
+  bucket. Ask before deleting the bucket itself.
 - `COD_SERVER_URL` in `.env` stays the API's public domain.
 
 Then check that no example value came in with a copied block:
@@ -197,7 +204,7 @@ Releases that ask for something new, with what to do (details for each:
 | The store's config lacks | Create or set |
 | --- | --- |
 | a `[[queues.producers]]` / `[[queues.consumers]]` pair | `npx wrangler queues create <prefix>-events`; name it in both; and `crons = ["0 * * * *", "*/5 * * * *"]` |
-| the `REVIEW_MEDIA_WORKFLOW` Workflow or `REVIEW_RATE_LIMITER` | add them; secret `REVIEW_UPLOAD_SECRET` (`openssl rand -hex 32`); run `npm run r2:lifecycle` once in `cod-server` |
+| `REVIEW_RATE_LIMITER` | add it; secret `REVIEW_UPLOAD_SECRET` (`openssl rand -hex 32`) |
 | `MEDIA_HOST`, `MEDIA_DELIVERY`, `MEDIA_ORIGIN` | images stored before this release are on R2: `MEDIA_HOST = "r2"`, `MEDIA_DELIVERY = "cloudflare"`, and the bucket's domain as `MEDIA_ORIGIN` (`cod-docs/pages/self-hosting/media.mdx`) |
 | a new KV namespace binding | `npx wrangler kv namespace create <prefix>-<name>`, bind its ID |
 

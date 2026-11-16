@@ -32,7 +32,6 @@ describe("DANGEROUS_TOOLS allowlist", () => {
     expect(isDangerous("reorderLandingPageImages")).toBe(false);
     expect(isDangerous("duplicateLandingPage")).toBe(false);
     expect(isDangerous("uploadLandingPageImage")).toBe(false);
-    expect(isDangerous("getLandingPageImageUploadStatus")).toBe(false);
   });
 
   it("mirrors the allowlist set", () => {

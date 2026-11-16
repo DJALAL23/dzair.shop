@@ -4,14 +4,13 @@ import type { AppContext } from "@/types";
 import { getDb } from "@/db";
 import { logActivity, ACTIONS } from "@/lib/activity";
 import { NotFoundError } from "@/lib/errors/classes";
-import { mediaDeliveryOf } from "@/lib/media";
+import { configuredMedia, mediaDeliveryOf } from "@/lib/media";
 import { mediaUrl } from "../../../../cod-shared/media/delivery";
 import { removeReview, removeReviewMedia } from "@/lib/reviews/removal";
 import { createStoreReview, receiveStaffUpload } from "@/lib/reviews/store-review";
 import { getAllReviews, getReviewById, storeReviewOrders, updateReviewStatus, type MerchantReview } from "../../../../cod-shared/queries/reviews";
 import { getStore } from "../../../../cod-shared/queries/stores";
 import type { createReviewSchema, listQuerySchema, orderOptionsQuerySchema, updateBodySchema } from "./validation";
-import { staging } from "@/lib/staging";
 
 type Valid = { valid: <T>(target: "json" | "query") => T };
 const valid = <T>(c: Context<AppContext>, target: "json" | "query") => (c.req as unknown as Valid).valid<T>(target);
@@ -76,17 +75,17 @@ export async function createReview(c: Context<AppContext>) {
   const db = getDb(c.env.DB);
   const input = valid<z.infer<typeof createReviewSchema>>(c, "json");
   const actor = c.get("user")!;
-  const created = await createStoreReview({ db, storeId: await storeIdOf(c), staging: staging(c.env.MEDIA_BUCKET), workflow: c.env.REVIEW_MEDIA_WORKFLOW }, actor, input);
-  const subject = created.status === "processing" ? null : await getReviewById(db, created.id);
-  await logActivity(db, actor, ACTIONS.REVIEW_CREATED, { type: "review", id: created.id, label: subject?.customerName ?? input.customerName ?? undefined }, { rating: input.rating, verified: created.verified, media: input.uploads?.length ?? 0 });
-  return c.json({ success: true, data: { ...created, review: subject ? present(c)(subject) : null } }, 201);
+  const created = await createStoreReview({ db, storeId: await storeIdOf(c), media: configuredMedia(c.env), images: c.env.IMAGE_TRANSFORM }, actor, input);
+  const subject = (await getReviewById(db, created.id))!;
+  await logActivity(db, actor, ACTIONS.REVIEW_CREATED, { type: "review", id: created.id, label: subject.customerName }, { rating: input.rating, verified: created.verified, media: input.uploads?.length ?? 0 });
+  return c.json({ success: true, data: { ...created, review: present(c)(subject) } }, 201);
 }
 
 export async function uploadMedia(c: Context<AppContext>) {
   const length = Number(c.req.header("content-length"));
   const duration = Number(c.req.header("x-media-duration-ms"));
   const received = await receiveStaffUpload(
-    { staging: staging(c.env.MEDIA_BUCKET), workflow: c.env.REVIEW_MEDIA_WORKFLOW },
+    { db: getDb(c.env.DB), media: configuredMedia(c.env), images: c.env.IMAGE_TRANSFORM },
     c.get("user")!.id,
     {
       body: c.req.raw.body,

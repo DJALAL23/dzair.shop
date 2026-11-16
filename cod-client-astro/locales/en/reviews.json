@@ -116,7 +116,6 @@
     "publish": "Publish now",
     "publish_hint": "Off: it waits in the pending reviews.",
     "done_published": "Review added and published",
-    "done_pending": "Review added; it waits in the pending reviews",
-    "done_processing": "Review added; its files are being prepared"
+    "done_pending": "Review added; it waits in the pending reviews"
   }
 }

@@ -9,11 +9,8 @@ import type { OAuthHelpers } from "@cloudflare/workers-oauth-provider";
 export interface Env {
   /** D1 database binding */
   DB: D1Database;
-  /**
-   * The store's own R2 bucket: its Staging (`staging/`, private, cleared after
-   * a day) always, and its media too when MEDIA_HOST is `r2`.
-   */
-  MEDIA_BUCKET: R2Bucket;
+  /** The store's own R2 bucket, where its media is kept when MEDIA_HOST is `r2`; absent otherwise. */
+  MEDIA_BUCKET?: R2Bucket;
   /** Where the store's media is kept: `imagekit` or `r2` (ADR 0021). Required. */
   MEDIA_HOST?: string;
   /** How browsers fetch the store's media: `imagekit`, `cloudflare` or `direct`. Required. */
@@ -27,8 +24,9 @@ export interface Env {
   /** The store's folder in the ImageKit account, e.g. `/stores/maysa` (MEDIA_HOST `imagekit`). */
   IMAGEKIT_FOLDER?: string;
   /**
-   * Cloudflare Images binding: Preparation re-encodes staged photos to WebP
-   * (which drops EXIF and GPS). Without it a staged photo is never kept.
+   * Cloudflare Images binding: a review photo is re-encoded to WebP as it
+   * arrives (which drops EXIF and GPS), and an AI agent's landing image too.
+   * Without it reviews take no photos.
    */
   IMAGE_TRANSFORM?: ImagesBinding;
   /** Deployment environment: "development" | "production" */
@@ -87,16 +85,6 @@ export interface Env {
    * provisions it, with this Worker as its consumer.
    */
   EVENTS_QUEUE: Queue<DrainMessage>;
-  /**
-   * Cloudflare Workflow binding for CodLandingPageImageUploadWorkflow.
-   * Durable background upload of MCP-agent images into the landing page stack.
-   */
-  LP_IMAGE_UPLOAD_WORKFLOW: Workflow;
-  /**
-   * Prepares a shopper's review photos and voice note after the review is in
-   * (CodReviewMediaWorkflow). Without it the storefront takes text reviews only.
-   */
-  REVIEW_MEDIA_WORKFLOW?: Workflow;
   /**
    * Signs review upload grants (wrangler secret). Without it the storefront
    * takes text reviews only.

@@ -21,8 +21,8 @@ The work behind the handlers:
 
 - `lib/reviews/removal.ts` — delete a review or one file: rows first, R2 files after the commit.
 - `lib/reviews/store-review.ts` — a review the store enters, and its uploads.
-- `lib/review-media/` — receiving a file, the media job's steps, URLs.
-- `workflows/review-media.ts` — prepares photos (WebP 1600 + 480, EXIF gone) and voice notes after a review is in.
+- `lib/review-media/receive.ts` — receiving a file: a photo becomes WebP 1600 + 480 (EXIF gone), a voice note is measured, and both are kept on the store's host as they arrive.
+- `cod-shared/queries/review-uploads.ts` — the files a folder holds that no review shows yet, and the ones a review names.
 
 ## Endpoints (`/api/reviews`)
 

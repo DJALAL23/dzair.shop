@@ -60,9 +60,7 @@ import { pruneEventLog } from "../../cod-shared/events/deliveries";
 import { getDb } from "@/db";
 import { sweepAbandonedOrders } from "@/cron/sweep-abandoned-orders";
 import { sweepOrderAttempts } from "../../cod-shared/queries/order-protection";
-import { runMediaSweep } from "@/cron/media-sweep";
 import { refreshCarrierPlaces } from "@/cron/refresh-carrier-places";
-import { runStuckReviewSweep } from "@/cron/settle-stuck-reviews";
 
 // MCP remote server (remote Model Context Protocol endpoint for Claude / AI agents).
 // The OAuthProvider owns OAuth (discovery, client registration, tokens, revocation)
@@ -72,11 +70,6 @@ import { createCodMcpHandler } from "@/mcp/server-factory";
 import { authorizeGet, authorizePost } from "@/mcp/authorize";
 import { recordMcpLastUsed } from "@/mcp/last-used";
 import { ALL_SCOPES } from "../../cod-shared/rbac/scopes";
-
-// Cloudflare Workflow classes — MUST be re-exported so Cloudflare can bind
-// them via wrangler.toml [[workflows]].
-export { CodLandingPageImageUploadWorkflow } from "@/workflows/landing-page-image-upload";
-export { CodReviewMediaWorkflow } from "@/workflows/review-media";
 
 // OpenAPIHono extends Hono: existing routes/middleware keep working, and
 // routes registered via app.openapi() validate requests and feed the
@@ -247,8 +240,6 @@ export default {
       return;
     }
     ctx.waitUntil(sweepAbandonedOrders(env));
-    ctx.waitUntil(runMediaSweep(env));
-    ctx.waitUntil(runStuckReviewSweep(env));
     ctx.waitUntil(getOAuthProvider(env).purgeExpiredData(env, { batchSize: 50 }));
     ctx.waitUntil(pruneEventLog(getDb(env.DB), new Date()));
     ctx.waitUntil(sweepOrderAttempts(getDb(env.DB), new Date()));

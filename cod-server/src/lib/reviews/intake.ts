@@ -5,10 +5,10 @@
  *   openReview      proves the purchase (order number + phone), says which
  *                   products can be reviewed and what may be attached, and
  *                   hands out an upload grant when the store takes media
- *   receiveUpload   stores one photo or voice note as sent, under the grant
- *   submitReview    proves the purchase again, records the review, and starts
- *                   the media job when files came with it — the shopper is
- *                   answered at once, the files are prepared after
+ *   receiveUpload   prepares one photo or voice note and keeps it on the
+ *                   store's host, under the grant (review-media/receive.ts)
+ *   submitReview    proves the purchase again, and records the review with
+ *                   the files it names, in one write — it lands at once
  *
  * The store's policy is read at each call, so a setting changed meanwhile
  * applies at once. Attempts are limited per order number (a phone cannot be
@@ -22,21 +22,22 @@ import type { AppDb } from "@/db";
 import { BusinessLogicError, ConflictError, NotFoundError, ValidationError } from "@/lib/errors/classes";
 import { ERROR_CODES } from "../../../../cod-shared/errors/codes";
 import { findReviewableOrder, getReviewPolicy, insertShopperReview, type PurchaseProof, type ReviewableProduct } from "../../../../cod-shared/queries/store-reviews";
-import { settleWithoutMedia } from "../../../../cod-shared/queries/reviews";
+import { findUploads, type ReviewFile } from "../../../../cod-shared/queries/review-uploads";
+import type { MediaLibrary } from "../../../../cod-shared/media/library";
 import { REVIEW_TEXT, statusOnArrival, type ReviewPolicy } from "../../../../cod-shared/reviews/policy";
 import type { ReviewVoiceLength } from "../../../../cod-shared/reviews/model";
 import { isMediaId } from "../../../../cod-shared/reviews/media";
-import { findReceived, receiveFile, type ReceivedFile } from "@/lib/review-media/receive";
+import { receiveFile, type ReceivedFile } from "@/lib/review-media/receive";
 import { issueUploadGrant, readUploadGrant, type UploadGrant } from "@/lib/review-media/grant";
-import { reviewMediaInstanceId, type ReviewMediaJob, type ReviewMediaUpload } from "@/lib/review-media/job";
-import type { Staging } from "@/lib/staging";
 
 export interface IntakeDeps {
   db: AppDb;
   storeId: string;
-  staging: Staging;
   delivery: MediaDelivery;
-  workflow?: Pick<Workflow, "create">;
+  /** The store's Media Library; null when its media is not set up (text reviews only). */
+  media: MediaLibrary | null;
+  /** The Images binding: without it, no photos. */
+  images?: ImagesBinding;
   uploadSecret?: string;
   limiter?: Pick<RateLimit, "limit">;
 }
@@ -88,9 +89,10 @@ async function proveOrder(deps: IntakeDeps, proof: PurchaseProof) {
 }
 
 function mediaAllowed(deps: IntakeDeps, policy: ReviewPolicy): MediaAllowance | null {
-  if (!deps.uploadSecret || !deps.workflow) return null;
-  if (policy.maxPhotos === 0 && policy.voiceMaxSeconds === null) return null;
-  return { maxPhotos: policy.maxPhotos, voiceMaxSeconds: policy.voiceMaxSeconds };
+  if (!deps.uploadSecret || !deps.media) return null;
+  const maxPhotos = deps.images ? policy.maxPhotos : 0;
+  if (maxPhotos === 0 && policy.voiceMaxSeconds === null) return null;
+  return { maxPhotos, voiceMaxSeconds: policy.voiceMaxSeconds };
 }
 
 export async function openReview(deps: IntakeDeps, proof: { orderNumber: string; phone: string }): Promise<ReviewOpening> {
@@ -120,14 +122,14 @@ export async function receiveUpload(
   input: { grant: string | undefined; body: ReadableStream<Uint8Array> | null; declaredBytes?: number; declaredDurationMs?: number },
 ): Promise<ReceivedFile> {
   const grant = await grantFrom(deps, input.grant);
-  return receiveFile(deps.staging, {
+  if (!deps.media) throw new BusinessLogicError("This store does not take photos or voice notes right now", ERROR_CODES.REVIEW_MEDIA_LIMIT, { max: 0 });
+  return receiveFile({ db: deps.db, media: deps.media, images: deps.images }, {
     folder: grant.id,
     body: input.body,
     declaredBytes: input.declaredBytes,
     declaredDurationMs: input.declaredDurationMs,
     allowance: grant,
     folderLimit: { image: grant.maxPhotos + UPLOAD_SLACK, audio: 1 + UPLOAD_SLACK },
-    metadata: { orderId: grant.orderId },
   });
 }
 
@@ -143,14 +145,19 @@ export interface ReviewSubmission {
   uploads?: string[];
 }
 
-async function collectUploads(deps: IntakeDeps, policy: ReviewPolicy, orderId: string, submission: ReviewSubmission): Promise<ReviewMediaUpload[]> {
+const notReceived = (uploadId?: string) =>
+  new BusinessLogicError("A file of this review was not received — send it again", ERROR_CODES.REVIEW_UPLOAD_NOT_FOUND, uploadId ? { uploadId } : {});
+
+async function collectUploads(deps: IntakeDeps, policy: ReviewPolicy, orderId: string, submission: ReviewSubmission): Promise<ReviewFile[]> {
   const ids = [...new Set(submission.uploads ?? [])];
   if (ids.length === 0) return [];
   const grant = await grantFrom(deps, submission.grant);
   if (grant.orderId !== orderId) throw new BusinessLogicError("The upload permission is for another order", ERROR_CODES.REVIEW_UPLOAD_GRANT_INVALID);
-  if (ids.some((id) => !isMediaId(id))) throw new BusinessLogicError("A file of this review was not received", ERROR_CODES.REVIEW_UPLOAD_NOT_FOUND);
+  if (ids.some((id) => !isMediaId(id)) || !deps.media) throw notReceived();
 
-  const uploads: ReviewMediaUpload[] = await findReceived(deps.staging, grant.id, ids);
+  const found = await findUploads(deps.db, { folder: grant.id, ids, host: deps.media.hostKind });
+  if ("missing" in found) throw notReceived(found.missing);
+  const uploads = found.files;
   const photos = uploads.filter((upload) => upload.kind === "image").length;
   const voices = uploads.length - photos;
   if (photos > policy.maxPhotos) throw new BusinessLogicError(`At most ${policy.maxPhotos} photos`, ERROR_CODES.REVIEW_MEDIA_LIMIT, { kind: "image", max: policy.maxPhotos });
@@ -176,11 +183,7 @@ export async function submitReview(deps: IntakeDeps, submission: ReviewSubmissio
   if (body.length < REVIEW_TEXT.bodyMin && !uploads.some((upload) => upload.kind === "audio")) {
     throw new ValidationError(`Write at least ${REVIEW_TEXT.bodyMin} characters, or add a voice note`, ERROR_CODES.VALIDATION_FAILED, { field: "body", min: REVIEW_TEXT.bodyMin });
   }
-  if (uploads.length > 0 && !deps.workflow) {
-    throw new BusinessLogicError("This store does not take photos or voice notes right now", ERROR_CODES.REVIEW_MEDIA_LIMIT, { max: 0 });
-  }
-  const statusWithMedia = statusOnArrival(policy, { hasMedia: true });
-  const statusWithoutMedia = statusOnArrival(policy, { hasMedia: false });
+  const status = statusOnArrival(policy, { hasMedia: uploads.length > 0 });
 
   const inserted = await insertShopperReview(deps.db, {
     storeId: deps.storeId,
@@ -189,19 +192,10 @@ export async function submitReview(deps: IntakeDeps, submission: ReviewSubmissio
     rating: submission.rating,
     title: submission.title?.trim() || null,
     body,
-    status: uploads.length > 0 ? "processing" : statusWithoutMedia,
+    status,
     verified: true,
+    files: uploads,
   });
-  if (!inserted.ok) throw alreadyReviewed();
-  if (uploads.length === 0) return { id: inserted.id, visibility: statusWithoutMedia === "approved" ? "published" : "after_review" };
-
-  const job: ReviewMediaJob = { reviewId: inserted.id, uploads, voiceMaxSeconds: policy.voiceMaxSeconds, statusWithMedia, statusWithoutMedia };
-  try {
-    await deps.workflow!.create({ id: reviewMediaInstanceId(inserted.id), params: job });
-  } catch (error) {
-    console.error(`[reviews] media job for review ${inserted.id} could not start; the review is kept without its files`, error);
-    await settleWithoutMedia(deps.db, inserted.id, { status: statusWithoutMedia, dropped: uploads.length });
-    return { id: inserted.id, visibility: statusWithoutMedia === "approved" ? "published" : "after_review" };
-  }
-  return { id: inserted.id, visibility: statusWithMedia === "approved" ? "published" : "after_review" };
+  if (!inserted.ok) throw inserted.reason === "upload_taken" ? notReceived() : alreadyReviewed();
+  return { id: inserted.id, visibility: status === "approved" ? "published" : "after_review" };
 }

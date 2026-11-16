@@ -69,7 +69,6 @@ export const TOOL_TITLES: Record<string, string> = {
   duplicateLandingPage: "Duplicate landing page",
   deleteLandingPage: "Delete landing page",
   uploadLandingPageImage: "Upload landing page image",
-  getLandingPageImageUploadStatus: "Get image upload status",
   removeLandingPageImage: "Remove landing page image",
   reorderLandingPageImages: "Reorder landing page images",
 

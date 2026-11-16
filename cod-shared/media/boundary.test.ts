@@ -1,8 +1,9 @@
 /**
  * The Media module's boundary (ADR 0021), read from the source of cod-server
- * and cod-shared: the store's bucket is reached only through Staging and the
- * R2 host; no code reads a column Media Keys replaced; nothing of the system
- * before them is left.
+ * and cod-shared: the store's bucket is reached only through the R2 host, so
+ * a store on another host needs none; no file waits anywhere before the
+ * store's host keeps it; no code reads a column Media Keys replaced; nothing
+ * of the system before them is left.
  */
 import { readdirSync, readFileSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
@@ -29,16 +30,26 @@ function matches(pattern: RegExp, files = FILES): string[] {
 }
 
 describe("the store's bucket", () => {
-  it("is handed only to Staging and the R2 host", () => {
+  it("is handed only to the R2 host, when the store keeps its media there", () => {
     const uses = matches(/MEDIA_BUCKET/).filter((use) => !use.startsWith("cod-server/src/types/env.ts:"));
-    const allowed = /staging\((?:c\.|this\.)?env\.MEDIA_BUCKET\)|r2Host\(\{ binding: env\.MEDIA_BUCKET \}\)/;
-    expect(uses.filter((use) => !allowed.test(use))).toEqual([]);
-    expect(uses.length).toBeGreaterThan(0);
+    expect(uses.map((use) => use.split(":")[0])).toEqual(["cod-server/src/lib/media.ts", "cod-server/src/lib/media.ts"]);
+    expect(uses[0]).toMatch(/if \(!env\.MEDIA_BUCKET\) throw new MediaError\("not_configured"/);
+    expect(uses[1]).toMatch(/r2Host\(\{ binding: env\.MEDIA_BUCKET \}\)/);
   });
 
-  it("is used as a bucket only by Staging and the R2 host", () => {
-    const owners = new Set(["cod-server/src/lib/staging.ts", "cod-shared/media/hosts/r2.ts", "cod-server/src/types/env.ts"]);
+  it("is used as a bucket only by the R2 host", () => {
+    const owners = new Set(["cod-shared/media/hosts/r2.ts", "cod-server/src/types/env.ts"]);
     expect(matches(/\bR2Bucket\b/).filter((use) => !owners.has(use.split(":")[0]!))).toEqual([]);
+  });
+
+  it("is optional: a store on ImageKit has none", () => {
+    expect(matches(/MEDIA_BUCKET\??:/, FILES.filter(({ path }) => path === "cod-server/src/types/env.ts"))).toEqual([expect.stringContaining("MEDIA_BUCKET?: R2Bucket;")]);
+  });
+});
+
+describe("Staging (removed by migration 0091)", () => {
+  it("is gone: every file is kept by the store's host as it arrives", () => {
+    expect(matches(/staging\/|\bstaging\(|\bStaging\b|STAGING_PREFIX/)).toEqual([]);
   });
 });
 

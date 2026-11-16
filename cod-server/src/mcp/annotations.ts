@@ -25,15 +25,6 @@ import { TOOL_NAMES, TOOL_SCHEMAS } from "./schemas";
 import { DANGEROUS_TOOLS } from "./elicit";
 
 /**
- * Read-only despite being registered under a manage scope. These are pure
- * reads gated more tightly on purpose (e.g. upload-status polling is only
- * useful to callers who can upload).
- */
-const READ_ONLY_OVERRIDES: ReadonlySet<string> = new Set([
-  "getLandingPageImageUploadStatus",
-]);
-
-/**
  * Tools that reach the open internet. `openWorldHint` is true only for these;
  * everything else touches a bounded private workspace (the merchant's store).
  */
@@ -77,7 +68,7 @@ function writeScopeToolNames(): Set<string> {
 const WRITE_SCOPE_TOOLS = writeScopeToolNames();
 
 function deriveAnnotations(name: string): ToolAnnotations {
-  const isReadOnly = READ_ONLY_OVERRIDES.has(name) || !WRITE_SCOPE_TOOLS.has(name);
+  const isReadOnly = !WRITE_SCOPE_TOOLS.has(name);
   return {
     readOnlyHint: isReadOnly,
     destructiveHint: !isReadOnly && DANGEROUS_TOOLS.has(name),
@@ -90,4 +81,4 @@ export const TOOL_ANNOTATIONS: Record<string, ToolAnnotations> = Object.fromEntr
   TOOL_NAMES.map((name) => [name, deriveAnnotations(name)]),
 );
 
-export { READ_ONLY_OVERRIDES, OPEN_WORLD_TOOLS, IDEMPOTENT_WRITE_TOOLS, WRITE_SCOPE_TOOLS };
+export { OPEN_WORLD_TOOLS, IDEMPOTENT_WRITE_TOOLS, WRITE_SCOPE_TOOLS };
